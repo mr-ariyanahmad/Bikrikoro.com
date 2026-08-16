@@ -1,0 +1,288 @@
+import { useEffect, useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { ReportDisputeModal } from '@/components/ReportDisputeModal'
+import { ReviewModal } from '@/components/ReviewModal'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkShipped, sellerCancelOrder } from '@/lib/orders'
+import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { formatTaka, formatDate } from '@/lib/format'
+import type { Order, OrderStatus } from '@/types/order'
+
+type Tab = 'buying' | 'selling'
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: 'পেমেন্ট বাকি',
+  ESCROW_HELD: 'এসক্রোতে',
+  SHIPPED: 'পাঠানো হয়েছে',
+  DELIVERED: 'পৌঁছেছে',
+  COMPLETED: 'সম্পন্ন',
+  CANCELLED: 'বাতিল',
+}
+
+export default function Orders() {
+  const { user } = useAuth()
+  const uid = user!.uid
+
+  const [tab, setTab] = useState<Tab>('buying')
+  const [orders, setOrders] = useState<Order[]>([])
+  const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set())
+  const [disputeIdByOrder, setDisputeIdByOrder] = useState<Map<string, string>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [disputeTarget, setDisputeTarget] = useState<Order | null>(null)
+  const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const [ordersRes, reviewsRes, disputesRes] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('*')
+        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
+        .order('created_at', { ascending: false }),
+      supabase.from('reviews').select('order_id').eq('buyer_id', uid),
+      supabase.from('order_disputes').select('id, order_id').eq('buyer_id', uid),
+    ])
+    setOrders(ordersRes.data ?? [])
+    setReviewedOrderIds(new Set((reviewsRes.data ?? []).map((r) => r.order_id)))
+    setDisputeIdByOrder(new Map((disputesRes.data ?? []).map((d) => [d.order_id, d.id])))
+    setLoading(false)
+  }, [uid])
+
+  useEffect(() => {
+    load()
+
+    const channel = supabase
+      .channel(`orders-${uid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [uid, load])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  const runAction = async (orderId: string, action: () => Promise<void>) => {
+    setProcessingId(orderId)
+    try {
+      await action()
+    } catch {
+      showToast('কাজটি সম্পন্ন করা যায়নি — আবার চেষ্টা করুন।')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const buying = orders.filter((o) => o.buyer_id === uid)
+  const selling = orders.filter((o) => o.seller_id === uid)
+  const list = tab === 'buying' ? buying : selling
+
+  return (
+    <Layout wide>
+      <h1 className="text-xl font-semibold text-ink-900">আমার অর্ডার</h1>
+
+      <div className="mt-4 flex rounded-lg border border-outline p-1">
+        <button
+          onClick={() => setTab('buying')}
+          className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
+            tab === 'buying' ? 'bg-brand-500 text-white' : 'text-ink-600'
+          }`}
+        >
+          কিনেছি
+        </button>
+        <button
+          onClick={() => setTab('selling')}
+          className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
+            tab === 'selling' ? 'bg-brand-500 text-white' : 'text-ink-600'
+          }`}
+        >
+          বিক্রি করেছি
+        </button>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-outline/40" />
+          ))
+        ) : list.length === 0 ? (
+          <div className="rounded-2xl border border-outline bg-surface p-8 text-center text-ink-600">
+            {tab === 'buying' ? 'আপনি এখনো কোনো পণ্য অর্ডার করেননি।' : 'আপনার কোনো পণ্যের অর্ডার এখনো আসেনি।'}
+          </div>
+        ) : (
+          list.map((order) => (
+            <div key={order.id} className="rounded-xl border border-outline bg-surface p-4">
+              <div className="flex items-center gap-3">
+                <Link
+                  to={`/products/${order.product_id}`}
+                  className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-outline/30"
+                >
+                  {order.product_image && (
+                    <img src={order.product_image} alt="" className="h-full w-full object-cover" />
+                  )}
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-1 text-sm font-medium text-ink-900">{order.product_title}</p>
+                  <p className="tabular-amount mt-0.5 text-sm text-brand-600">{formatTaka(order.price)}</p>
+                  <p className="mt-0.5 text-xs text-ink-300">{formatDate(order.created_at)}</p>
+                </div>
+                <span className="shrink-0 rounded-md bg-bg px-2 py-1 text-xs font-medium text-ink-600">
+                  {STATUS_LABEL[order.status]}
+                </span>
+              </div>
+
+              {order.dispute_status && (
+                <Link
+                  to={disputeIdByOrder.has(order.id) ? `/disputes/${disputeIdByOrder.get(order.id)}` : '#'}
+                  className="mt-3 block rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium text-warning hover:bg-warning/20"
+                >
+                  {order.dispute_status === 'REPORTED' || order.dispute_status === 'UNDER_REVIEW'
+                    ? 'রিপোর্ট পর্যালোচনাধীন — বিস্তারিত দেখতে ট্যাপ করুন'
+                    : order.dispute_status === 'RESOLVED_REFUNDED'
+                      ? 'সমাধান হয়েছে — টাকা ফেরত দেওয়া হয়েছে'
+                      : 'সমাধান হয়েছে — রিফান্ড প্রযোজ্য নয়'}
+                </Link>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tab === 'buying' && order.status === 'PENDING_PAYMENT' && (
+                  <>
+                    <ActionButton
+                      label="পেমেন্ট সম্পন্ন করুন"
+                      variant="primary"
+                      loading={processingId === order.id}
+                      onClick={() =>
+                        runAction(order.id, async () => {
+                          const url = await startUddoktaPayCheckout(order.id)
+                          window.location.href = url
+                        })
+                      }
+                    />
+                    <ActionButton
+                      label="বাতিল করুন"
+                      variant="danger"
+                      loading={processingId === order.id}
+                      onClick={() => runAction(order.id, () => cancelPendingOrder(order.id, uid))}
+                    />
+                  </>
+                )}
+                {tab === 'buying' && order.status === 'ESCROW_HELD' && (
+                  <ActionButton
+                    label="বাতিল করুন"
+                    variant="danger"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => buyerCancelOrder(order.id, uid))}
+                  />
+                )}
+                {tab === 'buying' &&
+                  ['SHIPPED', 'DELIVERED'].includes(order.status) &&
+                  !order.dispute_status && (
+                    <>
+                      <ActionButton
+                        label="ডেলিভারি নিশ্চিত করুন"
+                        variant="primary"
+                        loading={processingId === order.id}
+                        onClick={() => runAction(order.id, () => confirmOrderDelivery(order.id, uid))}
+                      />
+                      <ActionButton label="সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setDisputeTarget(order)} />
+                    </>
+                  )}
+                {tab === 'buying' && order.status === 'COMPLETED' && !reviewedOrderIds.has(order.id) && (
+                  <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setReviewTarget(order)} />
+                )}
+
+                {tab === 'selling' && order.status === 'ESCROW_HELD' && (
+                  <ActionButton
+                    label="শিপড মার্ক করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkShipped(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && ['ESCROW_HELD', 'SHIPPED'].includes(order.status) && (
+                  <ActionButton
+                    label="বাতিল করুন"
+                    variant="danger"
+                    loading={processingId === order.id}
+                    onClick={() => {
+                      if (confirm('অর্ডারটি বাতিল করবেন? ক্রেতার টাকা ফেরত প্রক্রিয়া শুরু হবে।')) {
+                        runAction(order.id, () => sellerCancelOrder(order.id, uid))
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {disputeTarget && (
+        <ReportDisputeModal
+          orderId={disputeTarget.id}
+          buyerId={uid}
+          onClose={() => setDisputeTarget(null)}
+          onSuccess={() => {
+            setDisputeTarget(null)
+            showToast('রিপোর্ট জমা হয়েছে — পর্যালোচনার পর জানানো হবে।')
+            load()
+          }}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          order={reviewTarget}
+          buyerName={user?.displayName ?? ''}
+          onClose={() => setReviewTarget(null)}
+          onSuccess={() => {
+            setReviewTarget(null)
+            showToast('রিভিউ জমা হয়েছে — ধন্যবাদ!')
+            load()
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg">
+          {toast}
+        </div>
+      )}
+    </Layout>
+  )
+}
+
+function ActionButton({
+  label,
+  variant,
+  loading,
+  onClick,
+}: {
+  label: string
+  variant: 'primary' | 'outline' | 'danger'
+  loading?: boolean
+  onClick: () => void
+}) {
+  const styles = {
+    primary: 'bg-brand-500 text-white hover:bg-brand-600',
+    outline: 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600',
+    danger: 'border border-error/40 text-error hover:bg-error/5',
+  }[variant]
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}
+    >
+      {loading ? '...' : label}
+    </button>
+  )
+}

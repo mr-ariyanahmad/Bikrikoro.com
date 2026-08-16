@@ -1,0 +1,44 @@
+export interface Category {
+  id: string
+  name: string
+  icon_url: string | null
+  sort_order: number
+}
+
+export interface Product {
+  id: string
+  title: string
+  description: string
+  price: number
+  original_price: number | null
+  images: string[]
+  category_id: string
+  condition: 'NEW' | 'USED'
+  location: string
+  seller_id: string
+  view_count: number
+  is_escrow_protected: boolean
+  latitude: number | null
+  longitude: number | null
+  created_at: string
+}
+
+export interface Profile {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  photo_url: string | null
+  is_verified: boolean
+  rating: number
+  review_count: number
+  created_at: string
+}
+
+export interface PromoBanner {
+  id: string
+  image_url: string
+  target_category_id: string | null
+  target_product_id: string | null
+  sort_order: number
+}

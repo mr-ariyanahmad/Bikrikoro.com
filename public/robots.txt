@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /orders
+Disallow: /orders/*
+Disallow: /disputes/*
+Disallow: /chat
+Disallow: /chat/*
+Disallow: /wallet
+Disallow: /sell
+Disallow: /sell/*
+Disallow: /my-listings
+Disallow: /become-seller/verify
+Disallow: /login
+
+Sitemap: https://bikrikoro.com/sitemap.xml

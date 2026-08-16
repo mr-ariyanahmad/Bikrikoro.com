@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* BikriKoro brand — sampled directly from the logo (RGB 1,124,80 / #017C50) */
+  --color-brand-50: #E6F5EE;
+  --color-brand-100: #C3E8D6;
+  --color-brand-400: #059863;
+  --color-brand-500: #017C50;
+  --color-brand-600: #016640;
+  --color-brand-700: #014D30;
+
+  --color-ink-900: #12211C;
+  --color-ink-600: #5C6D67;
+  --color-ink-300: #A9B7B1;
+
+  --color-surface: #FFFFFF;
+  --color-bg: #F7F9FA;
+  --color-outline: #E1E6E5;
+
+  --color-warning: #F5A524;
+  --color-error: #E0433D;
+  --color-info: #2F80ED;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-ink-900);
+}
+
+/* Tabular figures for every amount on the page — ledger rows must align like a real receipt. */
+.tabular-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
