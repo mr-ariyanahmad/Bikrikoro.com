@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, BookOpen, BookmarkPlus, Heart, MapPin, ShoppingBag, WalletCards } from 'lucide-react'
+import { ArrowRight, BookOpen, BookmarkPlus, Heart, MapPin, ShoppingBag, Store, WalletCards } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -133,7 +133,7 @@ export default function Account() {
       </Helmet>
 
       <h1 className="text-xl font-semibold text-ink-900">অ্যাকাউন্ট সেটিংস</h1>
-      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">{[["/orders", "অর্ডার", ShoppingBag], ["/favorites", "পছন্দের তালিকা", Heart], ["/addresses", "সেভড ঠিকানা", MapPin], ["/saved-searches", "সেভড সার্চ", BookmarkPlus], ["/wallet", "ওয়ালেট", WalletCards], ["/library", "লাইব্রেরি", BookOpen]].map(([to, label, Icon]) => <Link key={to as string} to={to as string} className="group rounded-2xl border border-outline bg-surface p-3 transition hover:border-brand-500 hover:bg-brand-50"><span className="flex items-center justify-between"><Icon size={17} className="text-brand-600" /><ArrowRight size={14} className="text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" /></span><span className="mt-2 block text-xs font-semibold text-ink-700">{label as string}</span></Link>)}</div>
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">{[["/orders", "অর্ডার", ShoppingBag], ["/favorites", "পছন্দের তালিকা", Heart], ["/addresses", "সেভড ঠিকানা", MapPin], ["/saved-searches", "সেভড সার্চ", BookmarkPlus], ["/wallet", "ওয়ালেট", WalletCards], ["/library", "লাইব্রেরি", BookOpen]].map(([to, label, Icon]) => <Link key={to as string} to={to as string} className="group rounded-2xl border border-outline bg-surface p-3 transition hover:border-brand-500 hover:bg-brand-50"><span className="flex items-center justify-between"><Icon size={17} className="text-brand-600" /><ArrowRight size={14} className="text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" /></span><span className="mt-2 block text-xs font-semibold text-ink-700">{label as string}</span></Link>)}{profile?.is_verified && <Link to="/seller/dashboard" className="group rounded-2xl border border-brand-200 bg-brand-50 p-3 transition hover:border-brand-500"><span className="flex items-center justify-between"><Store size={17} className="text-brand-600" /><ArrowRight size={14} className="text-brand-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" /></span><span className="mt-2 block text-xs font-semibold text-brand-800">সেলার অ্যাকাউন্ট</span></Link>}</div>
 
       <div className="mt-6 flex items-center gap-4">
         <div className="relative">

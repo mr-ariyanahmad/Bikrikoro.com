@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
 
 interface Stats {
@@ -22,12 +23,17 @@ interface Stats {
 
 export default function SellerDashboard() {
   const { user } = useAuth()
-  const uid = user!.uid
+  const uid = user?.uid ?? ''
+  const { isSeller, loading: sellerAccessLoading } = useIsSeller()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!uid || sellerAccessLoading || !isSeller) {
+      if (!sellerAccessLoading && !isSeller) setLoading(false)
+      return
+    }
     async function load() {
       const [productsRes, ordersRes, ledgerRes, profileRes] = await Promise.all([
         supabase.from('products').select('view_count, price').eq('seller_id', uid),
@@ -55,12 +61,20 @@ export default function SellerDashboard() {
       setLoading(false)
     }
     load()
-  }, [uid])
+  }, [isSeller, sellerAccessLoading, uid])
 
   const exportPerformance = () => {
     if (!stats) return
     const csv = [['মেট্রিক', 'মান'], ['সক্রিয় লিস্টিং', stats.listingCount], ['মোট ভিউ', stats.totalViews], ['চলমান অর্ডার', stats.activeOrders], ['সম্পন্ন বিক্রয়', stats.completedSales], ['Conversion rate (%)', stats.conversionRate.toFixed(2)], ['Average sale (BDT)', stats.averageSale.toFixed(2)], ['মোট আয় (BDT)', stats.totalEarnings]].map((row) => row.join(',')).join('\\n')
     const url = URL.createObjectURL(new Blob([`\\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'bikrikoro-seller-performance.csv'; anchor.click(); URL.revokeObjectURL(url); setNotice('Seller report download হয়েছে।')
+  }
+
+  if (sellerAccessLoading) {
+    return <Layout wide><div className="h-72 animate-pulse rounded-2xl bg-outline/40" /></Layout>
+  }
+
+  if (!isSeller) {
+    return <Layout wide><div className="mx-auto max-w-xl rounded-3xl border border-outline bg-surface p-8 text-center"><h1 className="text-xl font-bold text-ink-900">সেলার অ্যাকাউন্ট অনুমোদিত নয়</h1><p className="mt-2 text-sm leading-6 text-ink-600">সেলার ড্যাশবোর্ড ব্যবহার করতে আগে seller verification সম্পন্ন ও অনুমোদিত হতে হবে।</p><Link to="/become-seller" className="mt-5 inline-flex rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600">সেলার হওয়ার আবেদন করুন</Link></div></Layout>
   }
 
   return (

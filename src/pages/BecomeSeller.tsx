@@ -1,15 +1,24 @@
+import { useEffect } from 'react'
 import { ArrowRight, FileCheck2, Package, ShieldCheck, Store } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { useIsSeller } from '@/hooks/useIsSeller'
 
 export default function BecomeSeller() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { isSeller, loading: sellerStatusLoading } = useIsSeller()
+
+  useEffect(() => {
+    if (user && !sellerStatusLoading && isSeller) navigate('/seller/dashboard', { replace: true })
+  }, [isSeller, navigate, sellerStatusLoading, user])
 
   if (!user) {
     return <Layout wide><div className="mx-auto max-w-5xl"><section className="rounded-3xl bg-ink-900 p-6 text-white sm:p-10"><p className="text-sm font-semibold text-brand-300">BikriKoro seller</p><h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">বাংলাদেশে সহজে বিক্রি শুরু করুন</h1><p className="mt-3 max-w-xl text-sm leading-6 text-white/70">আগে লগইন করুন। তারপর আপনি ফিজিক্যাল বা ডিজিটাল—কোন ধরনের পণ্য বিক্রি করবেন তা বেছে নিতে পারবেন।</p><Link to="/login" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand-700">লগইন করে শুরু করুন <ArrowRight size={16} /></Link></section></div></Layout>
   }
+
+  if (sellerStatusLoading || isSeller) return <Layout wide><div className="mx-auto max-w-3xl py-16 text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" /><p className="mt-4 text-sm font-medium text-ink-600">সেলার অ্যাকাউন্ট প্রস্তুত করা হচ্ছে…</p></div></Layout>
 
   return <Layout wide><div className="mx-auto max-w-5xl"><section className="rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-sm sm:p-10"><div className="max-w-2xl"><p className="text-sm font-semibold text-brand-100">Seller setup</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">আপনি কী বিক্রি করবেন?</h1><p className="mt-3 text-sm leading-6 text-brand-50/85">প্রথমে পণ্যের ধরন বেছে নিন। ফিজিক্যাল পণ্যের listing form সরাসরি খুলবে, আর ডিজিটাল পণ্যের জন্য আগে seller verification সম্পন্ন করতে হবে।</p></div></section><section className="mt-6 grid gap-4 md:grid-cols-2"><button onClick={() => navigate('/sell?mode=PHYSICAL')} className="group rounded-3xl border border-outline bg-surface p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md sm:p-7"><div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Package size={27} /></span><ArrowRight className="text-ink-300 transition group-hover:translate-x-1 group-hover:text-brand-600" size={21} /></div><h2 className="mt-6 text-xl font-bold text-ink-900">ফিজিক্যাল পণ্য</h2><p className="mt-2 text-sm leading-6 text-ink-600">মোবাইল, পোশাক, electronics, ঘরের জিনিস বা courier-এ পাঠানো যায় এমন পণ্য।</p><span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white">Listing form খুলুন <ArrowRight size={15} /></span></button><button onClick={() => navigate('/become-seller/verify?mode=DIGITAL')} className="group rounded-3xl border border-brand-200 bg-brand-50/60 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-md sm:p-7"><div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-white"><FileCheck2 size={27} /></span><ArrowRight className="text-brand-300 transition group-hover:translate-x-1 group-hover:text-brand-700" size={21} /></div><h2 className="mt-6 text-xl font-bold text-ink-900">ডিজিটাল পণ্য</h2><p className="mt-2 text-sm leading-6 text-ink-700">Software, license key, course, file, design, service বা download link।</p><span className="mt-5 inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-white px-4 py-2.5 text-sm font-bold text-brand-700">আগে verification করুন <ArrowRight size={15} /></span></button></section><section className="mt-6 grid gap-3 sm:grid-cols-3"><Info icon={ShieldCheck} title="নিরাপদ review" body="Digital seller-এর identity ও ownership যাচাই হবে।" /><Info icon={Store} title="বিশ্বাসযোগ্য profile" body="Approval-এর পর sector অনুযায়ী badge দেখা যাবে।" /><Info icon={Package} title="সহজ listing" body="Physical seller সরাসরি listing form-এ যেতে পারবেন।" /></section></div></Layout>
 }

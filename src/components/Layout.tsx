@@ -1,8 +1,9 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
-import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
+import { useIsSeller } from '@/hooks/useIsSeller'
 import { SearchBar } from '@/components/SearchBar'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
 import { supabase } from '@/lib/supabase'
@@ -32,10 +33,11 @@ const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম'
 export function Layout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { user, logout } = useAuth()
   const { isAdmin } = useIsAdmin()
+  const { isSeller } = useIsSeller()
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const navLinks = isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS
+  const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS).map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
 
   useEffect(() => {
