@@ -21,6 +21,8 @@ export default function Sell() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
+  const requestedMode = searchParams.get('mode')
+  const modeLocked = requestedMode === 'DIGITAL' || requestedMode === 'PHYSICAL'
 
   const [categories, setCategories] = useState<Category[]>([])
   const [title, setTitle] = useState('')
@@ -29,8 +31,8 @@ export default function Sell() {
   const [originalPrice, setOriginalPrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
-  const [isDigital, setIsDigital] = useState(false)
-  const [modeSelected, setModeSelected] = useState(isEditing || ['DIGITAL', 'PHYSICAL'].includes(searchParams.get('mode') ?? ''))
+  const [isDigital, setIsDigital] = useState(requestedMode === 'DIGITAL')
+  const [modeSelected, setModeSelected] = useState(isEditing || modeLocked)
   const [supportsCod, setSupportsCod] = useState(false)
   const [freeDelivery, setFreeDelivery] = useState(false)
   const [fastDelivery, setFastDelivery] = useState(false)
@@ -66,11 +68,18 @@ export default function Sell() {
     setOriginalPrice(draft.originalPrice)
     setCategoryId(draft.categoryId)
     setCondition(draft.condition)
-    setIsDigital(draft.isDigital)
+    if (!modeLocked) setIsDigital(draft.isDigital)
+    setSupportsCod(draft.supportsCod)
+    setFreeDelivery(draft.freeDelivery)
+    setFastDelivery(draft.fastDelivery)
+    setFreeReturn(draft.freeReturn)
+    setDigitalDeliveryType(draft.digitalDeliveryType)
+    setDigitalDeliveryText(draft.digitalDeliveryText)
     setLocation(draft.location)
     setImages(draft.images.map((url) => ({ url })))
+    setModeSelected(true)
     setDraftMessage('আগের অসম্পূর্ণ ড্রাফট লোড হয়েছে।')
-  }, [isEditing])
+  }, [isEditing, modeLocked])
 
   useEffect(() => {
     if (!id || !user) return
@@ -121,6 +130,12 @@ export default function Sell() {
       categoryId,
       condition,
       isDigital,
+      supportsCod,
+      freeDelivery,
+      fastDelivery,
+      freeReturn,
+      digitalDeliveryType,
+      digitalDeliveryText,
       location,
       images: images.filter((image) => !image.uploading).map((image) => image.url),
     })
@@ -169,6 +184,7 @@ export default function Sell() {
     Number(price) > 0 &&
     categoryId &&
     (isDigital || location.trim().length >= 2) &&
+    (!isDigital || digitalDeliveryText.trim().length >= 3) &&
     images.length > 0 &&
     !images.some((img) => img.uploading)
   const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
@@ -386,7 +402,7 @@ export default function Sell() {
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="যেমন: শাহ আলম, সেলাঙ্গর"
+              placeholder="যেমন: খুলনা সদর, খুলনা"
               className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>

@@ -102,14 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     if (targetError) throw targetError
 
-    const requestedTokens = Array.isArray(input.tokens)
-      ? input.tokens.flatMap((value) => {
-          if (typeof value === 'string') return [{ user_id: '', token: value }]
-          const token = value.token || ''
-          return token ? [{ user_id: value.user_id || value.userId || '', token }] : []
-        })
-      : []
-    const targets: PushTarget[] = (requestedTokens.length ? requestedTokens : (resolvedTargets || [])).filter((target: PushTarget) => target.token)
+    // Never trust tokens supplied by the browser. The permission-checked RPC
+    // resolves only tokens belonging to this campaign's approved recipients.
+    const targets: PushTarget[] = (resolvedTargets || []).filter((target: PushTarget) => target.token)
     const uniqueTargets = [...new Map(targets.map((target) => [target.token, target])).values()]
 
     let sent = 0

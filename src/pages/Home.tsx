@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, Coins, Crown, Truck, WalletCards } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
@@ -26,18 +26,32 @@ export default function Home() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    let active = true
     async function load() {
-      const [bannersRes, categoriesRes, productsRes] = await Promise.all([
-        supabase.from('promo_banners').select('*').order('sort_order'),
-        supabase.from('categories').select('*').order('sort_order'),
-        supabase.from('products').select('*').order('created_at', { ascending: false }).limit(12),
-      ])
-      setBanners(bannersRes.data ?? [])
-      setCategories(categoriesRes.data ?? [])
-      setProducts(productsRes.data ?? [])
-      setLoading(false)
+      if (!supabaseConfigured) {
+        setCheckInMessage('লাইভ পণ্য data দেখতে Supabase configuration প্রয়োজন।')
+        setLoading(false)
+        return
+      }
+      try {
+        const [bannersRes, categoriesRes, productsRes] = await Promise.all([
+          supabase.from('promo_banners').select('*').order('sort_order'),
+          supabase.from('categories').select('*').order('sort_order'),
+          supabase.from('products').select('*').order('created_at', { ascending: false }).limit(12),
+        ])
+        if (!active) return
+        setBanners(bannersRes.data ?? [])
+        setCategories(categoriesRes.data ?? [])
+        setProducts(productsRes.data ?? [])
+      } catch (loadError) {
+        console.error('Homepage data load failed:', loadError)
+        if (active) setCheckInMessage('লাইভ পণ্য data এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-    load()
+    void load()
+    return () => { active = false }
   }, [])
 
   useEffect(() => {

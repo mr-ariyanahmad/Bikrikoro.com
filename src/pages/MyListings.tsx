@@ -14,6 +14,7 @@ export default function MyListings() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -33,6 +34,15 @@ export default function MyListings() {
   const handleDuplicate = async (product: Product) => {
     if (!user) return
     setDuplicatingId(product.id)
+    setMessage(null)
+    const { data: digitalContent, error: contentLoadError } = product.is_digital
+      ? await supabase.from('digital_product_contents').select('delivery_type, delivery_text').eq('product_id', product.id).maybeSingle()
+      : { data: null, error: null }
+    if (contentLoadError) {
+      setMessage('ডিজিটাল delivery তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
+      setDuplicatingId(null)
+      return
+    }
     const { data, error } = await supabase
       .from('products')
       .insert({
@@ -45,13 +55,31 @@ export default function MyListings() {
         condition: product.condition,
         location: product.location,
         is_digital: product.is_digital,
+        supports_cod: Boolean(product.supports_cod),
+        free_delivery: Boolean(product.free_delivery),
+        fast_delivery: Boolean(product.fast_delivery),
+        free_return: Boolean(product.free_return),
         seller_id: user.uid,
       })
       .select('*')
       .single()
-    setDuplicatingId(null)
-    if (error || !data) return
+    if (error || !data) {
+      setMessage(`লিস্টিং copy করা যায়নি: ${error?.message || 'অজানা সমস্যা'}`)
+      setDuplicatingId(null)
+      return
+    }
+    if (product.is_digital && digitalContent) {
+      const { error: contentError } = await supabase.from('digital_product_contents').insert({ product_id: data.id, seller_id: user.uid, delivery_type: digitalContent.delivery_type, delivery_text: digitalContent.delivery_text })
+      if (contentError) {
+        await supabase.from('products').delete().eq('id', data.id).eq('seller_id', user.uid)
+        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য copy বাতিল করা হয়েছে।')
+        setDuplicatingId(null)
+        return
+      }
+    }
     setProducts((prev) => [data as Product, ...prev])
+    setMessage('লিস্টিং copy হয়েছে। Edit করে publish করার আগে তথ্য যাচাই করুন।')
+    setDuplicatingId(null)
   }
 
   const handleDelete = async (productId: string) => {
@@ -81,6 +109,7 @@ export default function MyListings() {
         </div>
       </div>
 
+      {message && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{message}</p>}
       <div className="mt-6 space-y-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (

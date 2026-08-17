@@ -1,6 +1,6 @@
 # BikriKoro নোটিফিকেশন ও Firebase Push সেটআপ
 
-এই নথিতে BikriKoro.Com-এর **in-app notification**, **browser Firebase push notification**, এবং admin campaign console চালু করার জন্য production setup দেওয়া হলো। নতুন notification backend `supabase/migrations/028_notifications_push.sql`-এ রাখা হয়েছে। Firebase-এর web push SDK চালাতে production site অবশ্যই HTTPS-এ পরিবেশিত হতে হবে, কারণ browser push service worker-এর উপর নির্ভর করে। [1]
+এই নথিতে BikriKoro.Com-এর **in-app notification**, **browser Firebase push notification**, এবং admin campaign console চালু করার জন্য production setup দেওয়া হলো। Notification backend `supabase/migrations/028_notifications_push.sql`-এ, Firebase-verified API `api/notifications.ts`-এ, এবং RPC security hardening `029_secure_notification_rpc_execution.sql` ও `030_notification_function_hardening.sql`-এ রাখা হয়েছে। Firebase-এর web push SDK চালাতে production site অবশ্যই HTTPS-এ পরিবেশিত হতে হবে, কারণ browser push service worker-এর উপর নির্ভর করে। [1]
 
 > **গুরুত্বপূর্ণ:** Firebase service-account private key কখনো React/Vite frontend, GitHub repository, বা `VITE_*` variable-এ রাখা যাবে না। এটি শুধু Vercel server environment variable হিসেবে সংরক্ষণ করতে হবে।
 
@@ -32,13 +32,13 @@ Vercel project-এর **Settings → Environment Variables**-এ নিচের
 
 Repository-তে `public/firebase-messaging-sw.js` root path-এ রাখা আছে। FCM web setup-এর জন্য `firebase-messaging-sw.js` domain root-এ থাকা প্রয়োজন; Firebase-এর guide-এও এই file root-এ রাখার কথা বলা হয়েছে। [1]
 
-Signed-in user-এর browser notification permission চাইবে, service worker register করবে, `VITE_FIREBASE_VAPID_KEY` দিয়ে FCM token তৈরি করবে, এবং `register_notification_push_token` RPC-এর মাধ্যমে token Supabase-এ সংরক্ষণ করবে। Token-এর সঙ্গে Firebase UID যুক্ত থাকে, তাই admin campaign পাঠানোর সময় relevant user-এর token-ই নেওয়া হয়। Browser permission denied হলে existing login বা in-app notification বন্ধ হবে না; শুধু ওই browser-এ push বন্ধ থাকবে।
+Signed-in user-এর browser notification permission চাইবে, service worker register করবে, `VITE_FIREBASE_VAPID_KEY` দিয়ে FCM token তৈরি করবে, এবং Firebase ID token-সহ `/api/notifications` endpoint-এ পাঠাবে। Server Firebase ID token verify করে তারপর service-role Supabase client-এর মাধ্যমে `register_notification_push_token` RPC চালায়। Browser permission denied হলে existing login বা in-app notification বন্ধ হবে না; শুধু ওই browser-এ push বন্ধ থাকবে। Inbox পড়া, unread count, read/mark-all এবং token registration-ও একই verified API path ব্যবহার করে।
 
 FCM payload-এ title, body এবং app link দেওয়া হয়। Background অবস্থায় service worker notification দেখায় এবং notification tap করলে সেই link-এ BikriKoro.Com খুলে। Firebase Admin SDK multicast send করার সময় এক invocation-এ সর্বোচ্চ 500টি target পাঠানো যায়, তাই endpoint 500-token batch করে delivery status ধরে রাখে। [2]
 
 ## ৪. Supabase migration চালানোর ক্রম
 
-Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql` চালান। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে।
+Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, এবং শেষে `030_notification_function_hardening.sql` চালান। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে এবং 030 security-definer function-এর search path pin করে।
 
 Migration 028 এই জিনিসগুলো যোগ করে:
 
@@ -73,7 +73,7 @@ Admin panel-এর **কনটেন্ট → নোটিফিকেশন** 
 
 ## ৬. Test checklist
 
-প্রথমে migration 028 চালিয়ে Supabase-এ functions এবং tables তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables save করে নতুন deployment দিন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
+প্রথমে migration 028, 029 এবং 030 ক্রমানুসারে চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables save করে নতুন deployment দিন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
 
 Admin account দিয়ে **কনটেন্ট → নোটিফিকেশন** খুলে একটি ছোট **নির্দিষ্ট user** campaign পাঠান। In-app inbox-এ notification দেখা, header bell-এর unread badge বাড়া, এবং browser background অবস্থায় push আসা—এই তিনটি আলাদাভাবে পরীক্ষা করুন। Push tap করলে campaign-এর app link খুলছে কি না দেখুন।
 

@@ -17,7 +17,7 @@ import {
   type ConfirmationResult,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { auth, firebaseConfigured } from '@/lib/firebase'
 import { registerPushToken } from '@/lib/pushNotifications'
 
 interface AuthContextValue {
@@ -40,7 +40,16 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
 // uses on Android too, so there's no visible captcha widget for the user.
 let recaptchaVerifier: RecaptchaVerifier | null = null
+function ensureFirebaseConfigured() {
+  if (!firebaseConfigured) {
+    const error = new Error('Firebase configuration is missing') as Error & { code?: string }
+    error.code = 'firebase/not-configured'
+    throw error
+  }
+}
+
 function getRecaptchaVerifier(): RecaptchaVerifier {
+  ensureFirebaseConfigured()
   if (!recaptchaVerifier) {
     recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
   }
@@ -52,6 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!firebaseConfigured) {
+      setLoading(false)
+      return
+    }
     return onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
       setLoading(false)
@@ -59,11 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!user?.uid) return
+    if (!user?.uid || !firebaseConfigured) return
     void registerPushToken(user.uid)
   }, [user?.uid])
 
   useEffect(() => {
+    if (!firebaseConfigured) return
     // Redirect is the reliable path on mobile browsers and on browsers that block
     // third-party popup storage. The result is resolved once when the app returns.
     getRedirectResult(auth).catch((error) => {
@@ -71,30 +85,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const sendOtp = (phoneE164: string) =>
-    signInWithPhoneNumber(auth, phoneE164, getRecaptchaVerifier())
+  const sendOtp = (phoneE164: string) => {
+    ensureFirebaseConfigured()
+    return signInWithPhoneNumber(auth, phoneE164, getRecaptchaVerifier())
+  }
 
   const verifyOtp = async (confirmation: ConfirmationResult, code: string) => {
+    ensureFirebaseConfigured()
     await confirmation.confirm(code)
   }
 
   const loginWithEmail = async (email: string, password: string) => {
+    ensureFirebaseConfigured()
     await signInWithEmailAndPassword(auth, email, password)
   }
 
   const registerWithEmail = async (name: string, email: string, password: string) => {
+    ensureFirebaseConfigured()
     const credential = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(credential.user, { displayName: name })
   }
 
-  const sendPasswordReset = (email: string) => sendPasswordResetEmail(auth, email.trim())
+  const sendPasswordReset = (email: string) => {
+    ensureFirebaseConfigured()
+    return sendPasswordResetEmail(auth, email.trim())
+  }
 
   const changePassword = async (password: string) => {
+    ensureFirebaseConfigured()
     if (!auth.currentUser) throw new Error('auth/no-current-user')
     await updatePassword(auth.currentUser, password)
   }
 
   const sendVerificationEmail = async () => {
+    ensureFirebaseConfigured()
     if (!auth.currentUser) throw new Error('auth/no-current-user')
     await sendEmailVerification(auth.currentUser)
   }
@@ -107,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const googleProvider = new GoogleAuthProvider()
   googleProvider.setCustomParameters({ prompt: 'select_account' })
   const loginWithGoogle = async () => {
+    ensureFirebaseConfigured()
     const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     if (isMobileBrowser) {
       await signInWithRedirect(auth, googleProvider)

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 
 export interface CouponPreview {
   valid: boolean
@@ -46,28 +47,34 @@ export async function loadDigitalLibrary(userId: string): Promise<DigitalLibrary
   return (data ?? []) as DigitalLibraryItem[]
 }
 
+async function notificationApi(userId: string, payload: Record<string, unknown>) {
+  if (auth.currentUser?.uid !== userId) throw new Error('আপনার notification session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(payload),
+  })
+  const result = await response.json().catch(() => ({})) as { data?: unknown[]; count?: number; error?: string }
+  if (!response.ok) throw new Error(result.error || 'Notification request failed')
+  return result
+}
+
 export async function loadNotifications(userId: string) {
-  const { data, error } = await supabase.rpc('get_my_notifications', { p_user_id: userId, p_limit: 60 })
-  if (error) throw error
-  return data ?? []
+  const result = await notificationApi(userId, { action: 'list' })
+  return result.data ?? []
 }
 
 export async function markNotificationRead(notificationId: string, userId: string) {
-  const { error } = await supabase.rpc('mark_notification_read', {
-    p_notification_id: notificationId,
-    p_user_id: userId,
-  })
-  if (error) throw error
+  await notificationApi(userId, { action: 'read', notificationId })
 }
 
 export async function markAllNotificationsRead(userId: string) {
-  const { data, error } = await supabase.rpc('mark_all_notifications_read', { p_user_id: userId })
-  if (error) throw error
-  return Number(data ?? 0)
+  const result = await notificationApi(userId, { action: 'mark_all' })
+  return Number(result.count ?? 0)
 }
 
 export async function loadUnreadNotificationCount(userId: string) {
-  const { data, error } = await supabase.rpc('get_my_unread_notification_count', { p_user_id: userId })
-  if (error) throw error
-  return Number(data ?? 0)
+  const result = await notificationApi(userId, { action: 'count' })
+  return Number(result.count ?? 0)
 }

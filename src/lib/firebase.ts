@@ -21,13 +21,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  throw new Error(
-    'Missing Firebase env vars. Copy .env.example to .env and fill in the VITE_FIREBASE_* values from Firebase Console.'
-  )
+export const firebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId)
+if (!firebaseConfigured) {
+  console.warn('Firebase is not configured. Public pages remain available, but login and account features require VITE_FIREBASE_* variables.')
 }
 
-export const app = initializeApp(firebaseConfig)
+const localFallbackConfig = {
+  apiKey: 'AIzaSyBikriKoroLocalPlaceholder000000000',
+  authDomain: 'bikrikoro-local.invalid',
+  projectId: 'bikrikoro-local',
+  storageBucket: 'bikrikoro-local.appspot.com',
+  messagingSenderId: '000000000000',
+  appId: '1:000000000000:web:0000000000000000000000',
+}
+
+export const app = initializeApp(firebaseConfigured ? firebaseConfig : localFallbackConfig)
 export const auth = getAuth(app)
 // Keep Firebase's built-in account emails aligned with the Bengali-first UI.
 auth.languageCode = 'bn'

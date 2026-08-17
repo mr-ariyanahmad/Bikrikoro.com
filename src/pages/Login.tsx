@@ -41,7 +41,8 @@ export default function Login() {
       setConfirmation(result)
     } catch (err) {
       console.error('sendOtp failed:', err)
-      setError('OTP পাঠানো যায়নি — নম্বরটি আবার যাচাই করুন।')
+      const code = (err as { code?: string }).code
+      setError(code === 'firebase/not-configured' ? 'OTP চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।' : 'OTP পাঠানো যায়নি — নম্বরটি আবার যাচাই করুন।')
     } finally {
       setLoading(false)
     }
@@ -72,7 +73,8 @@ export default function Login() {
       }
     } catch (err) {
       console.error('email auth failed:', err)
-      setError(isRegistering ? 'অ্যাকাউন্ট তৈরি করা যায়নি।' : 'ইমেইল বা পাসওয়ার্ড সঠিক নয়।')
+      const code = (err as { code?: string }).code
+      setError(code === 'firebase/not-configured' ? 'ইমেইল login চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।' : isRegistering ? 'অ্যাকাউন্ট তৈরি করা যায়নি।' : 'ইমেইল বা পাসওয়ার্ড সঠিক নয়।')
     } finally {
       setLoading(false)
     }
@@ -86,7 +88,8 @@ export default function Login() {
     } catch (err) {
       console.error('Google login failed:', err)
       const code = (err as { code?: string }).code
-      if (code === 'auth/unauthorized-domain') setError('এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।')
+      if (code === 'firebase/not-configured') setError('লগইন চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।')
+      else if (code === 'auth/unauthorized-domain') setError('এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।')
       else if (code === 'auth/account-exists-with-different-credential') setError('এই Google email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।')
       else if (code === 'auth/popup-closed-by-user') setError('Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।')
       else if (code === 'auth/network-request-failed') setError('ইন্টারনেট সংযোগ বা Google service-এর সমস্যা হয়েছে।')

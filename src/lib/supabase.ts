@@ -1,16 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Loud failure on purpose — a silently-undefined client produces
-  // confusing "fetch failed" errors deep in every page instead of one
-  // clear message at startup.
-  throw new Error(
-    'Missing Supabase env vars. Copy .env.example to .env and fill in VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.'
-  )
+const configuredUrl = import.meta.env.VITE_SUPABASE_URL
+const configuredAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+export const supabaseConfigured = Boolean(configuredUrl && configuredAnonKey)
+if (!supabaseConfigured) {
+  console.warn('Supabase is not configured. Public shell can render, but live data requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
 }
+const supabaseUrl = configuredUrl || 'https://bikrikoro-local.supabase.co'
+const supabaseAnonKey = configuredAnonKey || 'bikrikoro-local-placeholder-anon-key'
 
 /**
  * Same Supabase project the Android app talks to

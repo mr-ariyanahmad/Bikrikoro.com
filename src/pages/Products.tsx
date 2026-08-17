@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BookmarkPlus, Grid2X2, List, Share2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
@@ -31,6 +31,7 @@ export default function Products() {
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!supabaseConfigured) return
     supabase
       .from('categories')
       .select('*')
@@ -43,7 +44,14 @@ export default function Products() {
     setLoading(true)
 
     async function load() {
-      let request = supabase.from('products').select('*')
+      if (!supabaseConfigured) {
+        setProducts([])
+        setNotice('লাইভ পণ্য data দেখতে Supabase configuration প্রয়োজন।')
+        setLoading(false)
+        return
+      }
+      try {
+        let request = supabase.from('products').select('*')
       if (categoryId) request = request.eq('category_id', categoryId)
       if (query.trim()) request = request.ilike('title', `%${query.trim()}%`)
       if (condition !== 'all') request = request.eq('condition', condition)
@@ -59,12 +67,20 @@ export default function Products() {
       else if (sort === 'popular') request = request.order('view_count', { ascending: false })
       else request = request.order('created_at', { ascending: false })
 
-      const { data } = await request.limit(60)
-      if (!cancelled) {
-        const nextProducts = [...(data ?? [])]
-        if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
-        setProducts(nextProducts)
-        setLoading(false)
+        const { data } = await request.limit(60)
+        if (!cancelled) {
+          const nextProducts = [...(data ?? [])]
+          if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
+          setProducts(nextProducts)
+        }
+      } catch (error) {
+        console.error('Products load failed:', error)
+        if (!cancelled) {
+          setProducts([])
+          setNotice('পণ্যগুলো এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
 

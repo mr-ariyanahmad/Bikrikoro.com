@@ -1,6 +1,5 @@
 import { getMessaging, getToken, isSupported } from 'firebase/messaging'
-import { app } from '@/lib/firebase'
-import { supabase } from '@/lib/supabase'
+import { app, auth } from '@/lib/firebase'
 
 export type PushRegistrationResult =
   | { status: 'registered'; token: string }
@@ -27,13 +26,14 @@ export async function registerPushToken(userId: string): Promise<PushRegistratio
     const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration })
     if (!token) return { status: 'unavailable' }
 
-    const { error } = await supabase.rpc('register_notification_push_token', {
-      p_user_id: userId,
-      p_token: token,
-      p_platform: 'WEB',
-      p_browser: navigator.userAgent.slice(0, 240),
+    if (auth.currentUser?.uid !== userId) return { status: 'unavailable' }
+    const idToken = await auth.currentUser.getIdToken()
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ action: 'register_token', token, platform: 'WEB', browser: navigator.userAgent.slice(0, 240) }),
     })
-    if (error) throw error
+    if (!response.ok) throw new Error('Push token registration failed')
     return { status: 'registered', token }
   } catch (error) {
     console.warn('Browser push registration skipped:', error)
