@@ -15,6 +15,7 @@ export interface Product {
   category_id: string
   condition: 'NEW' | 'USED'
   location: string
+  is_digital: boolean
   seller_id: string
   view_count: number
   is_escrow_protected: boolean

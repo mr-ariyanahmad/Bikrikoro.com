@@ -69,8 +69,11 @@ export default function SellerVerification() {
         documentPath,
       })
       window.location.reload()
-    } catch {
-      setError('আবেদন জমা দেওয়া যায়নি — আবার চেষ্টা করুন।')
+    } catch (err) {
+      console.error('Seller registration submit failed:', err)
+      const message =
+        err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : ''
+      setError(`আবেদন জমা দেওয়া যায়নি — আবার চেষ্টা করুন।${message ? ` (${message})` : ''}`)
       setSubmitting(false)
     }
   }

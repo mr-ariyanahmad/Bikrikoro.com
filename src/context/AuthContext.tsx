@@ -7,6 +7,8 @@ import {
   signOut as firebaseSignOut,
   RecaptchaVerifier,
   signInWithPhoneNumber,
+  GoogleAuthProvider,
+  signInWithPopup,
   type ConfirmationResult,
   type User as FirebaseUser,
 } from 'firebase/auth'
@@ -19,6 +21,7 @@ interface AuthContextValue {
   verifyOtp: (confirmation: ConfirmationResult, code: string) => Promise<void>
   loginWithEmail: (email: string, password: string) => Promise<void>
   registerWithEmail: (name: string, email: string, password: string) => Promise<void>
+  loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -62,11 +65,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(credential.user, { displayName: name })
   }
 
+  // Requires the Google provider to be turned on in Firebase Console →
+  // Authentication → Sign-in method → Google (same project as the
+  // phone/email sign-in already used here). Also add this site's domain
+  // (e.g. bikrikoro.com and localhost) under Authorized domains, or the
+  // popup will fail with auth/unauthorized-domain.
+  const googleProvider = new GoogleAuthProvider()
+  const loginWithGoogle = async () => {
+    await signInWithPopup(auth, googleProvider)
+  }
+
   const logout = () => firebaseSignOut(auth)
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, logout }}
+      value={{ user, loading, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, logout }}
     >
       {children}
       {/* Target for the invisible reCAPTCHA used by sendOtp — kept off-screen, never shown to the user. */}

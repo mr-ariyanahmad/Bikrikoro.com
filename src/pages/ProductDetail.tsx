@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const [startingChat, setStartingChat] = useState(false)
   const [favorited, setFavorited] = useState(false)
   const [togglingFavorite, setTogglingFavorite] = useState(false)
+  const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -141,15 +142,42 @@ export default function ProductDetail() {
 
       <div className="grid gap-8 md:grid-cols-2">
         <div>
-          <div className="aspect-square overflow-hidden rounded-2xl bg-outline/30">
+          <div
+            className="relative aspect-square touch-pan-y overflow-hidden rounded-2xl bg-outline/30"
+            onTouchStart={(e) => {
+              touchStartX.current = e.touches[0].clientX
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return
+              const deltaX = e.changedTouches[0].clientX - touchStartX.current
+              touchStartX.current = null
+              const SWIPE_THRESHOLD = 40
+              if (Math.abs(deltaX) < SWIPE_THRESHOLD || product.images.length < 2) return
+              setActiveImage((i) => {
+                if (deltaX < 0) return (i + 1) % product.images.length // swipe left -> next
+                return (i - 1 + product.images.length) % product.images.length // swipe right -> prev
+              })
+            }}
+          >
             {product.images[activeImage] ? (
               <img
                 src={product.images[activeImage]}
                 alt={product.title}
                 className="h-full w-full object-cover"
+                draggable={false}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
+            )}
+            {product.images.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+                {product.images.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-1.5 rounded-full ${i === activeImage ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
             )}
           </div>
           {product.images.length > 1 && (
@@ -206,15 +234,35 @@ export default function ProductDetail() {
             <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
               {product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}
             </span>
-            <span className="rounded-full bg-bg px-3 py-1 text-ink-600">{product.location}</span>
+            {product.is_digital ? (
+              <span className="rounded-full bg-bg px-3 py-1 text-ink-600">ডিজিটাল পণ্য</span>
+            ) : (
+              product.location && (
+                <span className="rounded-full bg-bg px-3 py-1 text-ink-600">{product.location}</span>
+              )
+            )}
             <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
               পোস্ট করা হয়েছে {formatDate(product.created_at)}
             </span>
           </div>
 
-          <p className="mt-5 whitespace-pre-line text-sm leading-relaxed text-ink-600">
+          <h2 className="mt-5 text-sm font-semibold text-ink-900">বিবরণ</h2>
+          <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">
             {product.description || 'কোনো বিবরণ দেওয়া হয়নি।'}
           </p>
+
+          <div className="mt-4 rounded-xl bg-bg p-4 text-xs leading-relaxed text-ink-600">
+            <p className="font-medium text-ink-900">অর্ডার নীতি</p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-4">
+              <li>পেমেন্ট এসক্রোতে জমা থাকে — পণ্য হাতে পাওয়ার আগে বিক্রেতাকে দেওয়া হয় না।</li>
+              <li>শুধুমাত্র বিকাশ/নগদ/রকেট দিয়ে আগে থেকে পেমেন্ট, কোনো ক্যাশ অন ডেলিভারি নেই।</li>
+              <li>
+                {product.is_digital
+                  ? 'ডিজিটাল পণ্য — কুরিয়ারে পাঠানো হয় না, তাই কোনো ডেলিভারি ঠিকানা লাগবে না।'
+                  : 'পণ্য না পেলে বা বিবরণের সাথে না মিললে অর্ডার পেজ থেকে অভিযোগ জানানো যাবে।'}
+              </li>
+            </ul>
+          </div>
 
           {seller && (
             <Link

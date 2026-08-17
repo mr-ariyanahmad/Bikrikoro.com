@@ -26,6 +26,7 @@ export default function Sell() {
   const [originalPrice, setOriginalPrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
+  const [isDigital, setIsDigital] = useState(false)
   const [location, setLocation] = useState('')
   const [images, setImages] = useState<LocalImage[]>([])
   const [loadingExisting, setLoadingExisting] = useState(isEditing)
@@ -64,7 +65,8 @@ export default function Sell() {
         setOriginalPrice(data.original_price ? String(data.original_price) : '')
         setCategoryId(data.category_id)
         setCondition(data.condition)
-        setLocation(data.location)
+        setIsDigital(Boolean(data.is_digital))
+        setLocation(data.location || '')
         setImages(data.images.map((url: string) => ({ url })))
         setLoadingExisting(false)
       })
@@ -91,7 +93,8 @@ export default function Sell() {
         }
         return next
       })
-    } catch {
+    } catch (err) {
+      console.error('Image upload failed:', err)
       setError('ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
       setImages((prev) => prev.filter((img) => !placeholders.some((p) => p.url === img.url)))
     }
@@ -105,7 +108,7 @@ export default function Sell() {
     title.trim().length >= 5 &&
     Number(price) > 0 &&
     categoryId &&
-    location.trim().length >= 2 &&
+    (isDigital || location.trim().length >= 2) &&
     images.length > 0 &&
     !images.some((img) => img.uploading)
 
@@ -121,7 +124,8 @@ export default function Sell() {
       original_price: originalPrice ? Number(originalPrice) : null,
       category_id: categoryId,
       condition,
-      location: location.trim(),
+      is_digital: isDigital,
+      location: isDigital ? '' : location.trim(),
       images: images.map((img) => img.url),
       seller_id: user.uid,
     }
@@ -132,7 +136,8 @@ export default function Sell() {
 
     setSubmitting(false)
     if (result.error) {
-      setError('সেভ করা যায়নি — আবার চেষ্টা করুন।')
+      console.error('Product save failed:', result.error)
+      setError(`সেভ করা যায়নি — ${result.error.message}`)
       return
     }
 
@@ -238,15 +243,33 @@ export default function Sell() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-900">এলাকা</label>
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="যেমন: শাহ আলম, সেলাঙ্গর"
-            className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
+          <label className="flex items-center gap-2 text-sm font-medium text-ink-900">
+            <input
+              type="checkbox"
+              checked={isDigital}
+              onChange={(e) => setIsDigital(e.target.checked)}
+              className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500"
+            />
+            এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)
+          </label>
+          <p className="mt-1 text-xs text-ink-300">
+            ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না, এবং কোনো ক্যাশ অন ডেলিভারি হয় না — শুধু বিকাশ/নগদ/রকেটে
+            আগে থেকে পেমেন্ট করে অর্ডার করতে হবে।
+          </p>
         </div>
+
+        {!isDigital && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">এলাকা</label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="যেমন: শাহ আলম, সেলাঙ্গর"
+              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+        )}
 
         {error && <p className="text-sm text-error">{error}</p>}
 

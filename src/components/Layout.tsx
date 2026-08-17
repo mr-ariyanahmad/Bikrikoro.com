@@ -129,6 +129,23 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
       </header>
 
       <main className={`mx-auto px-5 py-8 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>{children}</main>
+
+      <footer className="border-t border-outline">
+        <div className={`mx-auto flex flex-col items-center gap-3 px-5 py-6 text-xs text-ink-300 sm:flex-row sm:justify-between ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
+          <span>© {new Date().getFullYear()} Bikrikoro.Com</span>
+          <div className="flex gap-4">
+            <Link to="/about" className="hover:text-ink-600">
+              আমাদের সম্পর্কে
+            </Link>
+            <Link to="/contact" className="hover:text-ink-600">
+              যোগাযোগ
+            </Link>
+            <Link to="/privacy" className="hover:text-ink-600">
+              প্রাইভেসি পলিসি
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

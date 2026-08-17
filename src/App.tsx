@@ -22,6 +22,9 @@ import Account from '@/pages/Account'
 import SellerProfile from '@/pages/SellerProfile'
 import SellerDashboard from '@/pages/SellerDashboard'
 import Favorites from '@/pages/Favorites'
+import PrivacyPolicy from '@/pages/PrivacyPolicy'
+import AboutUs from '@/pages/AboutUs'
+import ContactUs from '@/pages/ContactUs'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
@@ -117,6 +120,9 @@ function AppRoutes() {
         }
       />
       <Route path="/sellers/:id" element={<SellerProfile />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/contact" element={<ContactUs />} />
       <Route
         path="/account"
         element={

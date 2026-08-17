@@ -20,7 +20,7 @@ export function BuyModal({
   const total = product.price + escrowFee
 
   const handleSubmit = async () => {
-    if (address.trim().length < 8) {
+    if (!product.is_digital && address.trim().length < 8) {
       setError('ডেলিভারি ঠিকানা লিখুন (কমপক্ষে ৮ অক্ষর)')
       return
     }
@@ -29,10 +29,15 @@ export function BuyModal({
 
     let orderId: string | null = null
     try {
-      orderId = await createPendingOrder({ productId: product.id, buyerId, deliveryAddress: address.trim() })
+      orderId = await createPendingOrder({
+        productId: product.id,
+        buyerId,
+        deliveryAddress: product.is_digital ? 'ডিজিটাল পণ্য — কোনো শিপিং ঠিকানা প্রযোজ্য নয়' : address.trim(),
+      })
       const paymentUrl = await startUddoktaPayCheckout(orderId)
       window.location.href = paymentUrl // hand off to UddoktaPay's hosted checkout page
-    } catch {
+    } catch (err) {
+      console.error('Checkout failed:', err)
       // Payment couldn't even start — don't leave a dangling PENDING_PAYMENT
       // order the buyer never got a chance to pay for.
       if (orderId) await cancelPendingOrder(orderId, buyerId).catch(() => {})
@@ -54,16 +59,22 @@ export function BuyModal({
         <p className="mt-3 line-clamp-1 text-sm text-ink-600">{product.title}</p>
 
         <div className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">ডেলিভারি ঠিকানা</label>
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              rows={2}
-              placeholder="বাসা/রোড/এলাকা, শহর"
-              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
+          {product.is_digital ? (
+            <p className="rounded-lg bg-bg p-3 text-sm text-ink-600">
+              এটি একটি ডিজিটাল পণ্য — কুরিয়ারে পাঠানো হবে না, তাই কোনো ডেলিভারি ঠিকানা লাগবে না।
+            </p>
+          ) : (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-ink-900">ডেলিভারি ঠিকানা</label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                rows={2}
+                placeholder="বাসা/রোড/এলাকা, শহর"
+                className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          )}
 
           <div className="rounded-lg bg-bg p-3 text-sm">
             <div className="flex justify-between text-ink-600">
