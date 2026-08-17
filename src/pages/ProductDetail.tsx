@@ -424,12 +424,22 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Category-based, not location-based — BikriKoro is a virtual/digital-first
-          marketplace, not a hyper-local pickup app, so "similar item" beats
-          "item near you" as the recommendation signal here. */}
+      {/* Recommendations are intentionally separated by intent: seller trust,
+          category relevance, then broader marketplace discovery. */}
       <RecommendedProducts
-        title="সম্পর্কিত পণ্য"
+        title="এই সেলারের আরও পণ্য"
+        mode={{ type: 'seller', sellerId: product.seller_id, excludeProductId: product.id }}
+        limit={8}
+      />
+      <RecommendedProducts
+        title="এই ক্যাটাগরির আরও পণ্য"
         mode={{ type: 'related', categoryId: product.category_id, excludeProductId: product.id }}
+        limit={8}
+      />
+      <RecommendedProducts
+        title="আপনার জন্য আরও পণ্য"
+        mode={{ type: 'popular' }}
+        limit={8}
       />
 
       {showBuy && user && <BuyModal product={product} buyerId={user.uid} onClose={() => setShowBuy(false)} />}

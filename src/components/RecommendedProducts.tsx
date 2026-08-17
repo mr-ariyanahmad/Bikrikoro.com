@@ -5,6 +5,7 @@ import type { Product } from '@/types/product'
 
 type Mode =
   | { type: 'related'; categoryId: string; excludeProductId: string }
+  | { type: 'seller'; sellerId: string; excludeProductId: string }
   | { type: 'popular' }
   | { type: 'ids'; productIds: string[] }
 
@@ -37,6 +38,7 @@ export function RecommendedProducts({ title, mode, limit = 8 }: { title: string;
 
         let request = supabase.from('products').select('*')
         if (mode.type === 'related') request = request.eq('category_id', mode.categoryId).neq('id', mode.excludeProductId)
+        if (mode.type === 'seller') request = request.eq('seller_id', mode.sellerId).neq('id', mode.excludeProductId)
         request = mode.type === 'popular' ? request.order('view_count', { ascending: false }) : request.order('created_at', { ascending: false })
         const { data } = await request.limit(limit)
         if (!cancelled) setProducts(data ?? [])
