@@ -50,6 +50,7 @@ import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
 import AdminFeatureControls from '@/pages/admin/AdminFeatureControls'
 import AdminTeam from '@/pages/admin/AdminTeam'
+import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 
 function AppRoutes() {
   useEnsureProfile()
@@ -478,7 +479,9 @@ export default function App() {
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <FirstVisitSplash>
+            <AppRoutes />
+          </FirstVisitSplash>
         </AuthProvider>
       </BrowserRouter>
     </HelmetProvider>
