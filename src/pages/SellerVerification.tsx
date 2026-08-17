@@ -9,11 +9,15 @@ import type { BusinessType, ListingMode, SellerRegistration } from '@/types/chat
 
 type Requirement = { document_type: string; document_label: string; help_text: string; required: boolean; sort_order: number }
 const SECTORS = [['SOFTWARE', 'Software / SaaS'], ['EDUCATION', 'Education / Course'], ['CREATIVE', 'Creative / Media'], ['RETAIL', 'Retail / Reseller'], ['SERVICES', 'Professional Services'], ['OTHER', 'অন্যান্য']] as const
-const FALLBACK_REQUIREMENTS: Requirement[] = [
-  { document_type: 'NID_FRONT', document_label: 'NID-এর সামনের অংশ', help_text: 'পরিষ্কার ও সম্পূর্ণ ছবি দিন।', required: true, sort_order: 10 },
-  { document_type: 'NID_BACK', document_label: 'NID-এর পেছনের অংশ', help_text: 'লেখা ও QR/বারকোড যেন বোঝা যায়।', required: true, sort_order: 20 },
-  { document_type: 'SELFIE', document_label: 'NID হাতে selfie', help_text: 'মুখ ও NID দুটোই পরিষ্কার দেখা যেতে হবে।', required: true, sort_order: 30 },
+const commonNidRequirements: Requirement[] = [
+  { document_type: 'NID_FRONT', document_label: 'NID-এর সামনের অংশ', help_text: 'কার্ডের চার কোণা, নাম ও ছবি পরিষ্কার দেখা যাবে।', required: true, sort_order: 10 },
+  { document_type: 'NID_BACK', document_label: 'NID-এর পেছনের অংশ', help_text: 'লেখা, QR/barcode এবং চার কোণা পরিষ্কার দেখা যাবে।', required: true, sort_order: 20 },
 ]
+const FALLBACK_REQUIREMENTS_BY_TYPE: Record<BusinessType, Requirement[]> = {
+  PERSONAL: [...commonNidRequirements, { document_type: 'SELFIE', document_label: 'NID হাতে selfie', help_text: 'মুখ খোলা এবং হাতে ধরা NID একই ছবিতে পরিষ্কার দেখা যাবে।', required: true, sort_order: 30 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'নিজের তৈরি কাজ, license বা source ownership-এর প্রমাণ দিন।', required: true, sort_order: 40 }],
+  BUSINESS: [...commonNidRequirements, { document_type: 'TRADE_LICENSE', document_label: 'Trade License', help_text: 'ব্যবসার নাম, ঠিকানা ও validity-সহ বর্তমান কপি দিন।', required: true, sort_order: 30 }, { document_type: 'TIN_CERTIFICATE', document_label: 'e-TIN Certificate', help_text: 'ব্যবসার tax identity-এর বর্তমান কপি দিন।', required: true, sort_order: 40 }, { document_type: 'AUTHORIZATION_LETTER', document_label: 'ব্যবসার authorization letter', help_text: 'আপনি মালিক নন, প্রতিনিধি হলে signed authorization দিন।', required: false, sort_order: 50 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'নিজের তৈরি কাজ, license বা source ownership-এর প্রমাণ দিন।', required: true, sort_order: 60 }],
+  COMPANY: [...commonNidRequirements, { document_type: 'TRADE_LICENSE', document_label: 'Company Trade License', help_text: 'কোম্পানির নাম, ঠিকানা ও validity-সহ বর্তমান কপি দিন।', required: true, sort_order: 30 }, { document_type: 'TIN_CERTIFICATE', document_label: 'Company e-TIN Certificate', help_text: 'কোম্পানির tax identity-এর বর্তমান কপি দিন।', required: true, sort_order: 40 }, { document_type: 'BIN_VAT', document_label: 'BIN/VAT Certificate', help_text: 'প্রযোজ্য হলে কোম্পানির বর্তমান BIN/VAT কপি দিন।', required: true, sort_order: 50 }, { document_type: 'INCORPORATION_CERTIFICATE', document_label: 'Company Registration Certificate', help_text: 'কোম্পানি registration/incorporation-এর প্রমাণ দিন।', required: true, sort_order: 60 }, { document_type: 'AUTHORIZATION_LETTER', document_label: 'Authorized representative letter', help_text: 'কোম্পানির পক্ষে আবেদন করলে signed authorization দিন।', required: true, sort_order: 70 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'কোম্পানি কীভাবে পণ্যের মালিক তা প্রমাণ দিন।', required: true, sort_order: 80 }],
+}
 
 export default function SellerVerification() {
   const { user } = useAuth()
@@ -27,7 +31,7 @@ export default function SellerVerification() {
   const [loading, setLoading] = useState(true)
   const [loadingRequirements, setLoadingRequirements] = useState(false)
   const [requirementsError, setRequirementsError] = useState<string | null>(null)
-  const [requirements, setRequirements] = useState<Requirement[]>(FALLBACK_REQUIREMENTS)
+  const [requirements, setRequirements] = useState<Requirement[]>(FALLBACK_REQUIREMENTS_BY_TYPE.PERSONAL)
   const [listingMode] = useState<ListingMode>(modeFromUrl)
   const [businessType, setBusinessType] = useState<BusinessType | null>(businessTypeFromUrl && ['PERSONAL', 'BUSINESS', 'COMPANY'].includes(businessTypeFromUrl) ? businessTypeFromUrl : null)
   const [sector, setSector] = useState('OTHER')
@@ -52,7 +56,8 @@ export default function SellerVerification() {
   useEffect(() => {
     if (!businessType) return
     setLoadingRequirements(true); setRequirementsError(null); setFiles({})
-    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : FALLBACK_REQUIREMENTS)).catch(() => { setRequirementsError('Document checklist এখনো server থেকে আসেনি। Migration 023 না চলা পর্যন্ত basic checklist দেখানো হচ্ছে।'); setRequirements(FALLBACK_REQUIREMENTS) }).finally(() => setLoadingRequirements(false))
+    const fallback = FALLBACK_REQUIREMENTS_BY_TYPE[businessType]
+    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : fallback)).catch(() => { setRequirementsError('এই seller type-এর checklist server থেকে আসেনি। Migration 027 না চলা পর্যন্ত local type-specific checklist দেখানো হচ্ছে।'); setRequirements(fallback) }).finally(() => setLoadingRequirements(false))
   }, [businessType, listingMode, sector])
 
   const requiredRequirements = useMemo(() => requirements.filter((item) => item.required), [requirements])
