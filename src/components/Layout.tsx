@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode, useState } from 'react'
-import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
@@ -22,6 +22,7 @@ const ACCOUNT_LINKS: NavItem[] = [
   { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
   { to: '/addresses', label: 'সেভড ঠিকানা', icon: MapPin },
   { to: '/saved-searches', label: 'সেভড সার্চ', icon: BookmarkPlus },
+  { to: '/settings', label: 'Settings ও Help', icon: Settings2 },
   { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
@@ -70,7 +71,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
         </div>
       </header>
       <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
-      <footer className="border-t border-outline bg-surface"><div className={`mx-auto ${maxWidth} flex flex-col items-center gap-3 px-5 py-7 text-xs text-ink-300 sm:flex-row sm:justify-between`}><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/about" className="hover:text-ink-600">আমাদের সম্পর্কে</Link><Link to="/contact" className="hover:text-ink-600">যোগাযোগ</Link><Link to="/privacy" className="hover:text-ink-600">প্রাইভেসি পলিসি</Link></div></div></footer>
+      <footer className="border-t border-outline bg-surface"><div className={`mx-auto ${maxWidth} flex flex-col items-center gap-3 px-5 py-7 text-xs text-ink-300 sm:flex-row sm:justify-between`}><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-600">Settings ও Help</Link><Link to="/help" className="hover:text-ink-600">সাহায্য</Link></div></div></footer>
     </div>
   )
 }

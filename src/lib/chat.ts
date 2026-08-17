@@ -11,21 +11,32 @@ export async function findOrCreateThread(
   sellerId: string,
   productId: string | null
 ): Promise<string> {
-  const { data: existing } = await supabase
+  if (!buyerId || !sellerId || buyerId === sellerId) throw new Error('নিজের listing-এ chat করা যাবে না।')
+
+  const findExisting = async () => supabase
     .from('chat_threads')
-    .select('id')
+    .select('id, product_id')
     .eq('buyer_id', buyerId)
     .eq('seller_id', sellerId)
     .maybeSingle()
 
-  if (existing) return existing.id
+  const { data: existing, error: lookupError } = await findExisting()
+  if (lookupError) throw lookupError
+  if (existing) {
+    if (!existing.product_id && productId) await supabase.from('chat_threads').update({ product_id: productId }).eq('id', existing.id)
+    return existing.id
+  }
 
   const { data, error } = await supabase
     .from('chat_threads')
     .insert({ buyer_id: buyerId, seller_id: sellerId, product_id: productId })
     .select('id')
-    .single()
+    .maybeSingle()
 
-  if (error) throw error
-  return data.id
+  if (!error && data) return data.id
+  if (error?.code === '23505') {
+    const { data: raced, error: raceError } = await findExisting()
+    if (!raceError && raced) return raced.id
+  }
+  throw error ?? new Error('Chat thread তৈরি করা যায়নি।')
 }

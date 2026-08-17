@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Scale, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { supabase } from '@/lib/supabase'
@@ -63,13 +64,7 @@ export default function Compare() {
       {loading ? (
         <div className="mt-8 h-64 animate-pulse rounded-2xl bg-outline/40" />
       ) : products.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-outline bg-surface p-10 text-center">
-          <p className="font-medium text-ink-900">তুলনা করার জন্য কোনো পণ্য বাছাই করা হয়নি।</p>
-          <p className="mt-2 text-sm text-ink-600">পণ্যের কার্ডে “তুলনা” চাপলে সেগুলো এখানে দেখা যাবে।</p>
-          <Link to="/products" className="mt-5 inline-flex rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-600">
-            প্রোডাক্ট ব্রাউজ করুন
-          </Link>
-        </div>
+        <div className="mt-8 rounded-3xl border border-brand-100 bg-gradient-to-br from-brand-50 to-white p-7 text-center sm:p-10"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-sm"><Scale size={27} /></div><p className="mt-5 text-lg font-bold text-ink-900">তুলনা শুরু করুন</p><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-600">পণ্যের card-এ তুলনা চাপলে দাম, অবস্থা, ধরন, location ও view একসাথে দেখে ভালো সিদ্ধান্ত নিতে পারবেন।</p><div className="mx-auto mt-6 grid max-w-lg gap-2 text-left sm:grid-cols-3"><div className="rounded-2xl bg-white/80 p-3"><span className="text-xs font-bold text-brand-700">০১</span><p className="mt-1 text-xs font-semibold text-ink-800">পণ্য খুঁজুন</p></div><div className="rounded-2xl bg-white/80 p-3"><span className="text-xs font-bold text-brand-700">০২</span><p className="mt-1 text-xs font-semibold text-ink-800">তুলনা চাপুন</p></div><div className="rounded-2xl bg-white/80 p-3"><span className="text-xs font-bold text-brand-700">০৩</span><p className="mt-1 text-xs font-semibold text-ink-800">সেরা পছন্দ নিন</p></div></div><Link to="/products" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-600"><Search size={16} />প্রোডাক্ট ব্রাউজ করুন</Link></div>
       ) : (
         <div className="mt-8 overflow-x-auto rounded-2xl border border-outline bg-surface">
           <table className="min-w-[620px] w-full border-collapse text-left text-sm">

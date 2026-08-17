@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Coins, Crown, Truck, WalletCards } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
@@ -12,8 +12,6 @@ import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, PromoBanner } from '@/types/product'
 
-const CHECKIN_KEY = 'bikrikoro:daily-checkin'
-
 export default function Home() {
   const { user } = useAuth()
   const [banners, setBanners] = useState<PromoBanner[]>([])
@@ -21,7 +19,11 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [balance, setBalance] = useState(0)
+  const [rewardCoins, setRewardCoins] = useState(0)
+  const [checkinStreak, setCheckinStreak] = useState(0)
   const [checkedIn, setCheckedIn] = useState(false)
+  const [checkInMessage, setCheckInMessage] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function load() {
@@ -39,26 +41,32 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setBalance(0); setCheckedIn(false); return }
-    const today = new Date().toISOString().slice(0, 10)
-    setCheckedIn(localStorage.getItem(`${CHECKIN_KEY}:${user.uid}`) === today)
-    supabase.from('wallet_balances').select('available_balance').eq('user_id', user.uid).maybeSingle().then(({ data }) => setBalance(Number(data?.available_balance ?? 0)))
+    if (!user) { setBalance(0); setRewardCoins(0); setCheckinStreak(0); setCheckedIn(false); return }
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date())
+    Promise.all([
+      supabase.from('wallet_balances').select('available_balance').eq('user_id', user.uid).maybeSingle(),
+      supabase.from('reward_balances').select('coins, checkin_streak, last_checkin_date').eq('user_id', user.uid).maybeSingle(),
+    ]).then(([wallet, rewards]) => { setBalance(Number(wallet.data?.available_balance ?? 0)); setRewardCoins(Number(rewards.data?.coins ?? 0)); setCheckinStreak(Number(rewards.data?.checkin_streak ?? 0)); setCheckedIn(rewards.data?.last_checkin_date === today) })
   }, [user])
 
-  const checkIn = () => {
-    if (!user) { window.location.href = '/login'; return }
-    const today = new Date().toISOString().slice(0, 10)
-    localStorage.setItem(`${CHECKIN_KEY}:${user.uid}`, today)
-    setCheckedIn(true)
+  const checkIn = async () => {
+    if (!user) { navigate('/login'); return }
+    setCheckInMessage(null)
+    const { data, error } = await supabase.rpc('claim_daily_checkin', { p_user_id: user.uid })
+    const result = Array.isArray(data) ? data[0] : data
+    if (error || !result) { setCheckInMessage('Daily check-in চালু করতে admin-কে migration 020 প্রয়োগ করতে হবে।'); return }
+    setRewardCoins(Number(result.total_coins ?? rewardCoins)); setCheckinStreak(Number(result.streak ?? checkinStreak)); setCheckedIn(true)
+    setCheckInMessage(result.claimed ? '+১০ কয়েন যোগ হয়েছে।' : 'আজকের check-in আগেই নেওয়া হয়েছে।')
   }
 
   return <Layout wide>
     <Helmet><title>BikriKoro.Com — বাংলাদেশের নিরাপদ অনলাইন কেনাবেচার প্ল্যাটফর্ম</title><meta name="description" content="এসক্রো-সুরক্ষিত মার্কেটপ্লেস — নিরাপদে কিনুন, নিশ্চিন্তে বিক্রি করুন। নতুন-পুরাতন পণ্য বাংলাদেশজুড়ে।" /></Helmet>
     {banners.length > 0 && <div className="scrollbar-none -mx-5 mb-6 flex gap-3 overflow-x-auto px-5 pb-1">{banners.map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-36 w-64 shrink-0 overflow-hidden rounded-2xl bg-outline/30 sm:h-44 sm:w-96"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div>}
 
+    {checkInMessage && <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{checkInMessage}</p>}
     <section className="mb-5 grid gap-3 sm:grid-cols-4">
       <Link to="/wallet" className="rounded-2xl border border-outline bg-surface p-4 transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">আমার ব্যালেন্স</span><WalletCards size={19} className="text-brand-600" /></div><p className="mt-2 tabular-amount text-xl font-bold text-ink-900">{user ? formatTaka(balance) : 'লগইন করুন'}</p><p className="mt-1 text-xs text-ink-400">ওয়ালেট ও payout দেখুন</p></Link>
-      <button onClick={checkIn} className="rounded-2xl border border-outline bg-surface p-4 text-left transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">দৈনিক check-in</span><Coins size={19} className="text-amber-500" /></div><p className="mt-2 text-lg font-bold text-ink-900">{checkedIn ? 'আজকের কয়েন পেয়েছেন' : '+১০ কয়েন নিন'}</p><p className="mt-1 flex items-center gap-1 text-xs text-ink-400">{checkedIn && <Check size={13} className="text-success" />} প্রতিদিন ফিরে আসুন</p></button>
+      <button onClick={checkIn} className="rounded-2xl border border-outline bg-surface p-4 text-left transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">দৈনিক check-in</span><Coins size={19} className="text-amber-500" /></div><p className="mt-2 text-lg font-bold text-ink-900">{checkedIn ? `আজকের কয়েন পেয়েছেন · ${rewardCoins}`.replace('$', '') : '+১০ কয়েন নিন'}</p><p className="mt-1 flex items-center gap-1 text-xs text-ink-400">{checkedIn && <Check size={13} className="text-success" />} মোট {rewardCoins} কয়েন · {checkinStreak} দিনের streak</p></button>
       <div className="rounded-2xl border border-outline bg-surface p-4"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">VIP status</span><Crown size={19} className="text-amber-500" /></div><p className="mt-2 text-lg font-bold text-ink-900">সাধারণ সদস্য</p><p className="mt-1 text-xs text-ink-400">আরও কেনাকাটায় VIP সুবিধা</p></div>
       <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4"><div className="flex items-center justify-between"><span className="text-sm text-brand-700">ডেলিভারি সুবিধা</span><Truck size={19} className="text-brand-600" /></div><p className="mt-2 text-lg font-bold text-brand-800">ফ্রি ডেলিভারি</p><p className="mt-1 text-xs text-brand-700/70">নির্বাচিত পণ্যে প্রযোজ্য</p></div>
     </section>

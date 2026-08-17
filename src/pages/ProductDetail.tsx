@@ -97,11 +97,15 @@ export default function ProductDetail() {
   const isOwnListing = user?.uid === product.seller_id
 
   const handleChat = async () => {
-    if (!user) return
+    if (!user) { navigate('/login'); return }
     setStartingChat(true)
+    setFeatureMessage(null)
     try {
       const threadId = await findOrCreateThread(user.uid, product.seller_id, product.id)
       navigate(`/chat/${threadId}`)
+    } catch (error) {
+      console.error('seller chat start failed:', error)
+      setFeatureMessage('চ্যাট খোলা যায়নি। Supabase-এর chat migration প্রয়োগ করা আছে কি না এবং আপনার account profile তৈরি হয়েছে কি না দেখুন।')
     } finally {
       setStartingChat(false)
     }

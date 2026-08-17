@@ -29,9 +29,8 @@ import Account from '@/pages/Account'
 import SellerProfile from '@/pages/SellerProfile'
 import SellerDashboard from '@/pages/SellerDashboard'
 import Favorites from '@/pages/Favorites'
-import PrivacyPolicy from '@/pages/PrivacyPolicy'
-import AboutUs from '@/pages/AboutUs'
-import ContactUs from '@/pages/ContactUs'
+import SettingsHub from '@/pages/SettingsHub'
+import PublicContentPage from '@/pages/PublicContentPage'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminOrders from '@/pages/admin/AdminOrders'
 import AdminDeliveries from '@/pages/admin/AdminDeliveries'
@@ -44,8 +43,10 @@ import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminSystemStatus from '@/pages/admin/AdminSystemStatus'
 import AdminFinance from '@/pages/admin/AdminFinance'
 import AdminSupport from '@/pages/admin/AdminSupport'
+
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
+import AdminFeatureControls from '@/pages/admin/AdminFeatureControls'
 
 function AppRoutes() {
   useEnsureProfile()
@@ -164,9 +165,16 @@ function AppRoutes() {
         }
       />
       <Route path="/sellers/:id" element={<SellerProfile />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/about" element={<AboutUs />} />
-      <Route path="/contact" element={<ContactUs />} />
+      <Route path="/settings" element={<SettingsHub />} />
+      <Route path="/help" element={<PublicContentPage type="HELP" />} />
+      <Route path="/faq" element={<PublicContentPage type="FAQ" />} />
+      <Route path="/user-education" element={<PublicContentPage type="USER_EDU" />} />
+      <Route path="/seller-education" element={<PublicContentPage type="SELLER_EDU" />} />
+      <Route path="/return-policy" element={<PublicContentPage type="RETURN_POLICY" />} />
+      <Route path="/terms" element={<PublicContentPage type="TERMS" />} />
+      <Route path="/privacy" element={<PublicContentPage type="PRIVACY" />} />
+      <Route path="/about" element={<PublicContentPage type="ABOUT" />} />
+      <Route path="/contact" element={<PublicContentPage type="CONTACT" />} />
       <Route
         path="/saved-searches"
         element={
@@ -363,6 +371,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminContent mode="blog" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/pages"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminContent mode="pages" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/features"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminFeatureControls />
             </AdminRoute>
           </ProtectedRoute>
         }

@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { Activity, AlertTriangle, Bell, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
+import { Activity, AlertTriangle, Bell, BookOpen, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 
@@ -38,6 +38,8 @@ const groups: { label: string; links: AdminLink[] }[] = [
       { to: '/admin/gallery', label: 'গ্যালারি', icon: ImageIcon },
       { to: '/admin/downloads', label: 'ডাউনলোড', icon: Download },
       { to: '/admin/blog', label: 'নিউজ ও ব্লগ', icon: Newspaper },
+      { to: '/admin/pages', label: 'পাবলিক পেজ', icon: BookOpen },
+      { to: '/admin/features', label: 'ফিচার কন্ট্রোল', icon: Settings },
       { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
       { to: '/admin/support', label: 'সাপোর্ট চ্যাট', icon: MessageCircle },
       { to: '/admin/notifications', label: 'নোটিফিকেশন', icon: Bell },
