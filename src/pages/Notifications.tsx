@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CheckCheck, Filter } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { useAuth } from '@/context/AuthContext'
-import { loadNotifications, markNotificationRead } from '@/lib/marketplace'
+import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
 
 interface NotificationItem {
   id: string
@@ -19,6 +20,7 @@ export default function Notifications() {
   const [items, setItems] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'unread' | 'ORDER' | 'SYSTEM'>('all')
 
   const load = useCallback(() => {
     if (!user) return
@@ -40,6 +42,9 @@ export default function Notifications() {
     return () => window.clearInterval(timer)
   }, [load])
 
+  const markAll = async () => { if (!user) return; try { await markAllNotificationsRead(user.uid); setItems((current) => current.map((item) => ({ ...item, is_read: true }))) } catch { setError('সব নোটিফিকেশন read করা যায়নি।') } }
+  const visibleItems = items.filter((item) => filter === 'all' || (filter === 'unread' ? !item.is_read : item.type === filter))
+
   const read = async (item: NotificationItem) => {
     if (!user || item.is_read) return
     try {
@@ -51,27 +56,20 @@ export default function Notifications() {
   }
 
   return (
-    <Layout>
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1>
-          <p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, রিভিউ ও অ্যাকাউন্ট আপডেট এক জায়গায়।</p>
-        </div>
-        <button onClick={load} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
-          রিফ্রেশ
-        </button>
-      </div>
+    <Layout wide>
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1><p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, রিভিউ ও অ্যাকাউন্ট আপডেট এক জায়গায়।</p></div><div className="flex items-center gap-2"><button onClick={markAll} disabled={!items.some((item) => !item.is_read)} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button onClick={load} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">রিফ্রেশ</button></div></div>
+      <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{([['all', 'সব'], ['unread', `Unread (${items.filter((item) => !item.is_read).length})`], ['ORDER', 'অর্ডার'], ['SYSTEM', 'সিস্টেম']] as const).map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}</button>)}</div>
 
       {error && <p className="mt-5 rounded-xl bg-error/10 p-4 text-sm text-error">{error}</p>}
       {loading ? (
         <div className="mt-6 space-y-3">{[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-outline/40" />)}</div>
-      ) : items.length === 0 ? (
+      ) : visibleItems.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-outline bg-surface p-10 text-center text-sm text-ink-600">
           নতুন কোনো নোটিফিকেশন নেই।
         </div>
       ) : (
         <div className="mt-6 space-y-3">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const content = (
               <div className={`rounded-xl border p-4 transition ${item.is_read ? 'border-outline bg-surface' : 'border-brand-200 bg-brand-50/60'}`}>
                 <div className="flex gap-3">

@@ -59,3 +59,9 @@ export async function markNotificationRead(notificationId: string, userId: strin
   })
   if (error) throw error
 }
+
+export async function markAllNotificationsRead(userId: string) {
+  const { data, error } = await supabase.rpc('mark_all_notifications_read', { p_user_id: userId })
+  if (error) throw error
+  return Number(data ?? 0)
+}

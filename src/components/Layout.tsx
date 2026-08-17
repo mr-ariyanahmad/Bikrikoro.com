@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode, useState } from 'react'
-import { Bell, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
@@ -21,6 +21,7 @@ const ACCOUNT_LINKS: NavItem[] = [
   { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
   { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
   { to: '/addresses', label: 'সেভড ঠিকানা', icon: MapPin },
+  { to: '/saved-searches', label: 'সেভড সার্চ', icon: BookmarkPlus },
   { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']

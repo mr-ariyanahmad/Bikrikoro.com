@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BookmarkPlus, Grid2X2, List, Share2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -7,7 +8,7 @@ import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
 import type { Product, Category } from '@/types/product'
 
-type SortOption = 'newest' | 'price_asc' | 'price_desc'
+type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
 type DigitalFilter = 'all' | 'digital' | 'physical'
 
@@ -26,6 +27,8 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('bikrikoro:products-view') as 'grid' | 'list') || 'grid')
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -52,11 +55,15 @@ export default function Products() {
 
       if (sort === 'price_asc') request = request.order('price', { ascending: true })
       else if (sort === 'price_desc') request = request.order('price', { ascending: false })
+      else if (sort === 'oldest') request = request.order('created_at', { ascending: true })
+      else if (sort === 'popular') request = request.order('view_count', { ascending: false })
       else request = request.order('created_at', { ascending: false })
 
       const { data } = await request.limit(60)
       if (!cancelled) {
-        setProducts(data ?? [])
+        const nextProducts = [...(data ?? [])]
+        if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
+        setProducts(nextProducts)
         setLoading(false)
       }
     }
@@ -86,6 +93,17 @@ export default function Products() {
   }
 
   const handleCategorySelect = (id: string | null) => updateParam('category', id ?? '')
+  const saveCurrentSearch = () => {
+    const url = `${window.location.pathname}${window.location.search}`
+    const label = query.trim() || (categoryId ? 'ক্যাটাগরি ফলাফল' : 'সব পণ্য')
+    const saved = JSON.parse(localStorage.getItem('bikrikoro:saved-searches') ?? '[]') as Array<{ label: string; url: string }>
+    localStorage.setItem('bikrikoro:saved-searches', JSON.stringify([{ label, url }, ...saved.filter((item) => item.url !== url)].slice(0, 8)))
+    setNotice('সার্চটি সেভ হয়েছে।')
+  }
+  const shareCurrentSearch = async () => {
+    try { await navigator.clipboard.writeText(window.location.href); setNotice('এই filter link কপি হয়েছে।') } catch { setNotice('Filter link কপি করা যায়নি।') }
+  }
+  const changeView = (next: 'grid' | 'list') => { setViewMode(next); localStorage.setItem('bikrikoro:products-view', next) }
 
   return (
     <Layout wide>
@@ -115,6 +133,9 @@ export default function Products() {
           className="rounded-lg border border-outline px-3 py-2.5 text-sm text-ink-600 outline-none focus:border-brand-500"
         >
           <option value="newest">নতুন আগে</option>
+          <option value="oldest">পুরোনো আগে</option>
+          <option value="popular">জনপ্রিয় আগে</option>
+          <option value="discount">বেশি ছাড় আগে</option>
           <option value="price_asc">দাম: কম থেকে বেশি</option>
           <option value="price_desc">দাম: বেশি থেকে কম</option>
         </select>
@@ -179,15 +200,16 @@ export default function Products() {
 
       <CategoryPills categories={categories} selectedId={categoryId} onSelect={handleCategorySelect} />
 
-      <div className="mt-6 flex items-center justify-between text-sm text-ink-600">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-600">
         <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি পণ্য পাওয়া গেছে`}</span>
-        <span className="hidden sm:inline">পণ্য তুলনা করতে কার্ডের “তুলনা” চাপুন</span>
+        <div className="flex items-center gap-1.5"><button onClick={saveCurrentSearch} className="inline-flex items-center gap-1 rounded-lg border border-outline px-2.5 py-1.5 text-xs font-semibold hover:border-brand-500 hover:text-brand-600"><BookmarkPlus size={14} />সার্চ সেভ</button><button onClick={shareCurrentSearch} className="inline-flex items-center gap-1 rounded-lg border border-outline px-2.5 py-1.5 text-xs font-semibold hover:border-brand-500 hover:text-brand-600"><Share2 size={14} />শেয়ার</button><button onClick={() => changeView('grid')} className={`rounded-lg p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button onClick={() => changeView('list')} className={`rounded-lg p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
       </div>
+      {notice && <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{notice}</p>}
 
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      <div className={`mt-3 grid gap-3 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'}`}>
         {loading
           ? Array.from({ length: 12 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-outline/40" />)
-          : products.map((product) => <ProductCard key={product.id} product={product} />)}
+          : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
       </div>
 
       {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-600">এই ফিল্টারে কোনো পণ্য পাওয়া যায়নি।</p>}

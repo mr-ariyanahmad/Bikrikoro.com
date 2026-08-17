@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
+import { ArrowLeft, Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -166,6 +166,7 @@ export default function ProductDetail() {
 
   return (
     <Layout wide>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><button onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/products') }} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700"><ArrowLeft size={16} />ফিরে যান</button><Link to="/products" className="text-sm font-semibold text-brand-600 hover:text-brand-700">সব প্রোডাক্ট দেখুন</Link></div>
       <Helmet>
         <title>{`${product.title} — ৳${product.price} | BikriKoro.Com`}</title>
         <meta

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -26,6 +27,8 @@ export default function Orders() {
   const uid = user!.uid
 
   const [tab, setTab] = useState<Tab>('buying')
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
+  const [orderQuery, setOrderQuery] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set())
   const [disputeIdByOrder, setDisputeIdByOrder] = useState<Map<string, string>>(new Map())
@@ -82,11 +85,12 @@ export default function Orders() {
 
   const buying = orders.filter((o) => o.buyer_id === uid)
   const selling = orders.filter((o) => o.seller_id === uid)
-  const list = tab === 'buying' ? buying : selling
+  const list = (tab === 'buying' ? buying : selling).filter((order) => (statusFilter === 'ALL' || order.status === statusFilter) && (!orderQuery.trim() || order.product_title.toLowerCase().includes(orderQuery.trim().toLowerCase())))
+  const activeCount = (tab === 'buying' ? buying : selling).filter((order) => !['COMPLETED', 'CANCELLED'].includes(order.status)).length
 
   return (
     <Layout wide>
-      <h1 className="text-xl font-semibold text-ink-900">আমার অর্ডার</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">আমার অর্ডার</h1><p className="mt-1 text-sm text-ink-500">{activeCount}টি চলমান অর্ডার</p></div><div className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">মোট {orders.length}টি</div></div>
 
       <div className="mt-4 flex rounded-lg border border-outline p-1">
         <button
@@ -106,6 +110,7 @@ export default function Orders() {
           বিক্রি করেছি
         </button>
       </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={orderQuery} onChange={(e) => setOrderQuery(e.target.value)} placeholder="পণ্যের নামে অর্ডার খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'ALL')} className="rounded-xl border border-outline px-3 py-2.5 text-sm text-ink-600 outline-none focus:border-brand-500"><option value="ALL">সব status</option>{Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
 
       <div className="mt-5 space-y-3">
         {loading ? (

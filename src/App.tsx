@@ -7,6 +7,7 @@ import { useEnsureProfile } from '@/hooks/useEnsureProfile'
 import Login from '@/pages/Login'
 import ForgotPassword from '@/pages/ForgotPassword'
 import SavedAddresses from '@/pages/SavedAddresses'
+import SavedSearches from '@/pages/SavedSearches'
 import Home from '@/pages/Home'
 import Products from '@/pages/Products'
 import ProductDetail from '@/pages/ProductDetail'
@@ -166,6 +167,14 @@ function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/about" element={<AboutUs />} />
       <Route path="/contact" element={<ContactUs />} />
+      <Route
+        path="/saved-searches"
+        element={
+          <ProtectedRoute>
+            <SavedSearches />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/addresses"
         element={

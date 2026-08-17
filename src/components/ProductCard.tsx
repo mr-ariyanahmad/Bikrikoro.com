@@ -7,7 +7,7 @@ import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { user } = useAuth()
   const [favorited, setFavorited] = useState(false)
   const [toggling, setToggling] = useState(false)
@@ -66,9 +66,9 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       to={`/products/${product.id}`}
-      className="group block overflow-hidden rounded-xl border border-outline bg-surface transition hover:border-brand-500/40 hover:shadow-md"
+      className={`group block overflow-hidden rounded-xl border border-outline bg-surface transition hover:border-brand-500/40 hover:shadow-md ${compact ? 'flex items-stretch' : ''}`}
     >
-      <div className="relative aspect-square overflow-hidden bg-outline/30">
+      <div className={`relative overflow-hidden bg-outline/30 ${compact ? 'h-32 w-32 shrink-0 sm:h-36 sm:w-36' : 'aspect-square w-full'}`}>
         {product.images[0] ? (
           <img
             src={product.images[0]}
@@ -105,7 +105,7 @@ export function ProductCard({ product }: { product: Product }) {
           </button>
         )}
       </div>
-      <div className="p-3">
+      <div className={`min-w-0 flex-1 p-3 ${compact ? 'flex flex-col justify-center' : ''}`}>
         <p className="line-clamp-2 min-h-[2.5rem] text-sm text-ink-900">{product.title}</p>
         <div className="mt-1.5 flex items-baseline gap-2">
           <span className="tabular-amount text-base font-semibold text-brand-600">

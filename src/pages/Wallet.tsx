@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { Download, Filter } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
@@ -16,6 +17,7 @@ export default function Wallet() {
   const [loading, setLoading] = useState(true)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [entryFilter, setEntryFilter] = useState<'all' | 'credit' | 'debit'>('all')
 
   const loadWallet = useCallback(async () => {
     const [balanceRes, ledgerRes] = await Promise.all([
@@ -58,8 +60,16 @@ export default function Wallet() {
     }
   }, [uid, loadWallet])
 
+  const visibleEntries = entries.filter((entry) => entryFilter === 'all' || (entryFilter === 'credit' ? entry.amount >= 0 : entry.amount < 0))
+  const exportCsv = () => {
+    const rows = [['তারিখ', 'ধরন', 'বিবরণ', 'পরিমাণ'], ...visibleEntries.map((entry) => [new Date(entry.created_at).toLocaleString('bn-BD'), entry.type, entry.description, String(entry.amount)])]
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'bikrikoro-wallet.csv'; anchor.click(); URL.revokeObjectURL(url)
+  }
+
   return (
-    <Layout>
+    <Layout wide>
       {loading ? (
         <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
       ) : (
@@ -69,10 +79,8 @@ export default function Wallet() {
             onWithdrawClick={() => setShowWithdraw(true)}
           />
 
-          <h2 className="mt-8 mb-4 text-sm font-semibold tracking-wide text-ink-600 uppercase">
-            লেনদেনের হিস্ট্রি
-          </h2>
-          <LedgerThread entries={entries} />
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="inline-flex items-center gap-1 rounded-xl border border-outline px-2 py-1.5 text-xs"><Filter size={14} className="text-ink-400" /><select value={entryFilter} onChange={(e) => setEntryFilter(e.target.value as typeof entryFilter)} className="bg-transparent font-semibold text-ink-600 outline-none"><option value="all">সব</option><option value="credit">জমা</option><option value="debit">খরচ</option></select></div><button onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
+          <LedgerThread entries={visibleEntries} />
         </>
       )}
 
