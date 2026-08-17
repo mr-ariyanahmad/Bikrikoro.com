@@ -72,3 +72,22 @@ begin
   perform admin_log(p_admin_id, 'UPDATE_CUSTOMER_NOTE', 'PROFILE', p_customer_id, jsonb_build_object('has_note', length(trim(coalesce(p_note, ''))) > 0));
 end;
 $$ language plpgsql security definer;
+
+-- Replace the legacy notification mutation with a permission-scoped, audited version.
+create or replace function public.admin_send_notification(p_admin_id text, p_user_id text, p_title text, p_body text, p_link text default null) returns uuid as $$
+declare v_id uuid;
+begin
+  perform admin_assert_permission(p_admin_id, 'content.notifications');
+  insert into public.notifications(user_id, title, body, link)
+  values (p_user_id, trim(p_title), trim(p_body), p_link)
+  returning id into v_id;
+  perform admin_log(p_admin_id, 'SEND_CUSTOMER_NOTIFICATION', 'PROFILE', p_user_id, jsonb_build_object('notification_id', v_id, 'title', trim(p_title)));
+  return v_id;
+end;
+$$ language plpgsql security definer;
+
+revoke all on function public.admin_send_notification(text, text, text, text, text) from public;
+revoke all on function public.admin_adjust_customer_wallet(text, text, numeric, text) from public;
+grant execute on function public.admin_send_notification(text, text, text, text, text) to anon, authenticated;
+grant execute on function public.admin_adjust_customer_wallet(text, text, numeric, text) to anon, authenticated;
+
