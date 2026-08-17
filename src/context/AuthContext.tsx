@@ -18,7 +18,6 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth, firebaseConfigured } from '@/lib/firebase'
-import { registerPushToken } from '@/lib/pushNotifications'
 
 interface AuthContextValue {
   user: FirebaseUser | null
@@ -71,10 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  useEffect(() => {
-    if (!user?.uid || !firebaseConfigured) return
-    void registerPushToken(user.uid)
-  }, [user?.uid])
 
   useEffect(() => {
     if (!firebaseConfigured) return

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bell, CheckCheck, Filter, RefreshCw } from 'lucide-react'
+import { Bell, BellRing, CheckCheck, CheckCircle2, Filter, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { useAuth } from '@/context/AuthContext'
 import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
+import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
 import { supabase } from '@/lib/supabase'
 
 interface NotificationItem {
@@ -40,6 +41,41 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<NotificationFilter>('all')
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
+  const [pushState, setPushState] = useState<'idle' | 'loading' | 'registered' | 'denied' | 'unsupported' | 'missing-config' | 'unavailable'>('idle')
+  const [pushMessage, setPushMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setPushPermission('unsupported')
+      setPushState('unsupported')
+      return () => { active = false }
+    }
+    const permission = Notification.permission
+    setPushPermission(permission)
+    if (permission === 'denied') {
+      setPushState('denied')
+      setPushMessage('নোটিফিকেশন আগে বন্ধ করা হয়েছে। আবার চালু করতে browser settings থেকে এই সাইটের notification permission পরিবর্তন করুন।')
+      return () => { active = false }
+    }
+    if (permission === 'granted' && user) {
+      setPushState('loading')
+      void registerPushToken(user.uid).then((result: PushRegistrationResult) => {
+        if (!active) return
+        if (result.status === 'registered') {
+          setPushState('registered')
+          setPushMessage(null)
+        } else {
+          setPushState(result.status)
+        }
+      })
+    } else {
+      setPushState('idle')
+      setPushMessage(null)
+    }
+    return () => { active = false }
+  }, [user])
 
   const load = useCallback(async () => {
     if (!user) return
@@ -73,6 +109,26 @@ export default function Notifications() {
       void supabase.removeChannel(channel)
     }
   }, [load, user])
+
+  const enablePushNotifications = async () => {
+    if (!user || pushState === 'loading') return
+    setPushState('loading')
+    setPushMessage(null)
+    const result = await registerPushToken(user.uid, { requestPermission: true })
+    if (typeof window !== 'undefined' && 'Notification' in window) setPushPermission(Notification.permission)
+    if (result.status === 'registered') {
+      setPushState('registered')
+      setPushMessage('নোটিফিকেশন চালু হয়েছে। নতুন order, payment, chat ও wallet update এখন জানানো হবে।')
+      return
+    }
+    if (result.status === 'denied') {
+      setPushState('denied')
+      setPushMessage('নোটিফিকেশন অনুমতি দেওয়া হয়নি। আবার চালু করতে browser settings থেকে এই সাইটের notification permission পরিবর্তন করুন।')
+      return
+    }
+    setPushState(result.status)
+    setPushMessage(result.status === 'missing-config' ? 'এই সাইটে push notification setup এখনো সম্পূর্ণ হয়নি।' : result.status === 'unsupported' ? 'আপনার browser push notification support করছে না।' : 'নোটিফিকেশন চালু করা যায়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।')
+  }
 
   const markAll = async () => {
     if (!user) return
@@ -108,6 +164,19 @@ export default function Notifications() {
         <div><div className="flex items-center gap-2"><Bell size={19} className="text-brand-600" /><h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1></div><p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, verification, chat, wallet ও admin announcement এক জায়গায়।</p></div>
         <div className="flex items-center gap-2"><button onClick={markAll} disabled={!unreadCount} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"><RefreshCw size={15} />রিফ্রেশ</button></div>
       </div>
+      {pushPermission !== 'granted' && pushState !== 'registered' && pushState !== 'denied' && pushState !== 'unsupported' && pushState !== 'missing-config' && pushState !== 'unavailable' && (
+        <section className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-sm sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15"><BellRing size={22} /></span>
+            <div className="min-w-0 flex-1"><h2 className="font-bold">সকল তথ্য পেতে নোটিফিকেশন চালু করুন</h2><p className="mt-1 text-sm leading-6 text-brand-50/90">অর্ডার, payment, verification, chat ও wallet update সময়মতো পেতে browser notification চালু করুন।</p><button type="button" onClick={() => void enablePushNotifications()} disabled={pushState === 'loading'} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70"><Bell size={16} />{pushState === 'loading' ? 'অনুমতি নেওয়া হচ্ছে…' : 'নোটিফিকেশন চালু করুন'}</button></div>
+          </div>
+        </section>
+      )}
+      {pushPermission === 'granted' || pushState === 'registered' ? <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700"><CheckCircle2 size={16} />নোটিফিকেশন চালু আছে</p> : null}
+      {pushState === 'denied' && pushMessage && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">{pushMessage}</p>}
+      {pushState === 'missing-config' && pushMessage && <p className="mt-4 rounded-xl border border-outline bg-bg p-3 text-sm leading-6 text-ink-600">{pushMessage}</p>}
+      {pushMessage && pushState === 'registered' && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm leading-6 text-brand-700">{pushMessage}</p>}
+
       <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
 
       {error && <p className="mt-5 rounded-xl bg-error/10 p-4 text-sm text-error">{error}</p>}

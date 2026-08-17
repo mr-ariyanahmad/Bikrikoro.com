@@ -5,7 +5,7 @@ export type PushRegistrationResult =
   | { status: 'registered'; token: string }
   | { status: 'unsupported' | 'denied' | 'missing-config' | 'unavailable' }
 
-export async function registerPushToken(userId: string): Promise<PushRegistrationResult> {
+export async function registerPushToken(userId: string, options: { requestPermission?: boolean } = {}): Promise<PushRegistrationResult> {
   if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
     return { status: 'unsupported' }
   }
@@ -18,8 +18,12 @@ export async function registerPushToken(userId: string): Promise<PushRegistratio
 
   try {
     if (!(await isSupported())) return { status: 'unsupported' }
-    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
-    if (permission !== 'granted') return { status: 'denied' }
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : options.requestPermission
+        ? await Notification.requestPermission()
+        : Notification.permission
+    if (permission !== 'granted') return { status: permission === 'denied' ? 'denied' : 'unavailable' }
 
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
     const messaging = getMessaging(app)
