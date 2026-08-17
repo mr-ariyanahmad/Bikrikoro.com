@@ -90,4 +90,3 @@ revoke all on function public.admin_send_notification(text, text, text, text, te
 revoke all on function public.admin_adjust_customer_wallet(text, text, numeric, text) from public;
 grant execute on function public.admin_send_notification(text, text, text, text, text) to anon, authenticated;
 grant execute on function public.admin_adjust_customer_wallet(text, text, numeric, text) to anon, authenticated;
-
