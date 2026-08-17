@@ -1,0 +1,201 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Layout } from '@/components/Layout'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkShipped, sellerCancelOrder } from '@/lib/orders'
+import { formatDate, formatTaka } from '@/lib/format'
+import { ReportDisputeModal } from '@/components/ReportDisputeModal'
+import { ReviewModal } from '@/components/ReviewModal'
+import type { Order, OrderStatus } from '@/types/order'
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: 'পেমেন্ট বাকি',
+  ESCROW_HELD: 'এসক্রোতে সুরক্ষিত',
+  SHIPPED: 'পাঠানো হয়েছে',
+  DELIVERED: 'পৌঁছে গেছে',
+  COMPLETED: 'অর্ডার সম্পন্ন',
+  CANCELLED: 'বাতিল',
+}
+
+const TIMELINE: OrderStatus[] = ['PENDING_PAYMENT', 'ESCROW_HELD', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+
+export default function OrderDetail() {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [showDispute, setShowDispute] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id || !user) return
+    let cancelled = false
+    supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+      .then(({ data, error: loadError }) => {
+        if (cancelled) return
+        if (loadError || !data || ![data.buyer_id, data.seller_id].includes(user.uid)) {
+          setError('অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
+        } else {
+          setOrder(data as Order)
+        }
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, user])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 3000)
+  }
+
+  const run = async (action: () => Promise<void>, success: string) => {
+    setProcessing(true)
+    try {
+      await action()
+      showToast(success)
+      if (id) {
+        const { data } = await supabase.from('orders').select('*').eq('id', id).maybeSingle()
+        setOrder(data as Order | null)
+      }
+    } catch (err) {
+      console.error('order action failed:', err)
+      showToast('কাজটি সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      </Layout>
+    )
+  }
+
+  if (error || !order || !user) {
+    return (
+      <Layout>
+        <div className="rounded-2xl border border-outline bg-surface p-8 text-center">
+          <p className="text-ink-600">{error ?? 'অর্ডারটি পাওয়া যায়নি।'}</p>
+          <Link to="/orders" className="mt-4 inline-flex rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">
+            অর্ডারে ফিরে যান
+          </Link>
+        </div>
+      </Layout>
+    )
+  }
+
+  const isBuyer = order.buyer_id === user.uid
+  const isSeller = order.seller_id === user.uid
+  const currentIndex = TIMELINE.indexOf(order.status)
+
+  return (
+    <Layout>
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <div>
+          <Link to="/orders" className="text-sm font-medium text-brand-600 hover:underline">
+            ← অর্ডারে ফিরে যান
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1>
+        </div>
+        <button onClick={() => window.print()} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
+          রসিদ প্রিন্ট করুন
+        </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-outline bg-surface p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs text-ink-300">অর্ডার নম্বর</p>
+            <p className="mt-1 break-all font-mono text-sm text-ink-900">{order.id}</p>
+          </div>
+          <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${order.status === 'CANCELLED' ? 'bg-error/10 text-error' : 'bg-brand-50 text-brand-700'}`}>
+            {STATUS_LABEL[order.status]}
+          </span>
+        </div>
+
+        <div className="mt-6 flex items-start">
+          {TIMELINE.map((status, index) => {
+            const done = order.status !== 'CANCELLED' && currentIndex >= index
+            return (
+              <div key={status} className="flex min-w-0 flex-1 items-start">
+                <div className="flex min-w-0 flex-col items-center text-center">
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-brand-500 text-white' : 'bg-outline text-ink-600'}`}>
+                    {done ? '✓' : index + 1}
+                  </span>
+                  <span className="mt-2 text-[10px] leading-tight text-ink-600 sm:text-xs">{STATUS_LABEL[status]}</span>
+                </div>
+                {index < TIMELINE.length - 1 && <div className={`mt-4 h-0.5 flex-1 ${done && currentIndex > index ? 'bg-brand-500' : 'bg-outline'}`} />}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-outline bg-surface p-5">
+        <div className="flex gap-3">
+          <Link to={`/products/${order.product_id}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-outline/30">
+            {order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}
+          </Link>
+          <div className="min-w-0 flex-1">
+            <Link to={`/products/${order.product_id}`} className="font-semibold text-ink-900 hover:text-brand-600">
+              {order.product_title}
+            </Link>
+            <p className="mt-1 text-sm text-ink-600">অর্ডার করা হয়েছে {formatDate(order.created_at)}</p>
+            <p className="mt-1 text-xs text-ink-300">পরিমাণ: {order.quantity}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2 rounded-xl bg-bg p-4 text-sm">
+          <div className="flex justify-between text-ink-600"><span>পণ্যের দাম</span><span>{formatTaka(order.price)}</span></div>
+          <div className="flex justify-between text-ink-600"><span>এসক্রো ফি</span><span>{formatTaka(order.escrow_fee)}</span></div>
+          <div className="flex justify-between border-t border-outline pt-2 font-bold text-ink-900"><span>মোট</span><span>{formatTaka(order.price + order.escrow_fee)}</span></div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-outline p-4 text-sm">
+          <p className="font-medium text-ink-900">ডেলিভারি তথ্য</p>
+          <p className="mt-1 leading-relaxed text-ink-600">{order.delivery_address}</p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 print:hidden">
+          {isBuyer && order.status === 'ESCROW_HELD' && (
+            <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => buyerCancelOrder(order.id, user.uid), 'অর্ডার বাতিলের অনুরোধ পাঠানো হয়েছে।')} />
+          )}
+          {isBuyer && ['SHIPPED', 'DELIVERED'].includes(order.status) && !order.dispute_status && (
+            <>
+              <ActionButton label="ডেলিভারি নিশ্চিত করুন" variant="primary" loading={processing} onClick={() => run(() => confirmOrderDelivery(order.id, user.uid), 'ডেলিভারি নিশ্চিত হয়েছে।')} />
+              <ActionButton label="সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setShowDispute(true)} />
+            </>
+          )}
+          {isBuyer && order.status === 'COMPLETED' && <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setShowReview(true)} />}
+          {isSeller && order.status === 'ESCROW_HELD' && <ActionButton label="শিপড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkShipped(order.id, user.uid), 'অর্ডারটি শিপড হিসেবে চিহ্নিত হয়েছে।')} />}
+          {isSeller && ['ESCROW_HELD', 'SHIPPED'].includes(order.status) && <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => sellerCancelOrder(order.id, user.uid), 'অর্ডার বাতিল হয়েছে।')} />}
+        </div>
+      </div>
+
+      {showDispute && <ReportDisputeModal orderId={order.id} buyerId={user.uid} onClose={() => setShowDispute(false)} onSuccess={() => { setShowDispute(false); showToast('রিপোর্ট জমা হয়েছে।') }} />}
+      {showReview && <ReviewModal order={order} buyerName={user.displayName ?? ''} onClose={() => setShowReview(false)} onSuccess={() => { setShowReview(false); showToast('রিভিউ জমা হয়েছে।') }} />}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg print:hidden">{toast}</div>}
+    </Layout>
+  )
+}
+
+function ActionButton({ label, variant, loading, onClick }: { label: string; variant: 'primary' | 'outline' | 'danger'; loading?: boolean; onClick: () => void }) {
+  const styles = {
+    primary: 'bg-brand-500 text-white hover:bg-brand-600',
+    outline: 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600',
+    danger: 'border border-error/40 text-error hover:bg-error/5',
+  }[variant]
+  return <button onClick={onClick} disabled={loading} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}>{loading ? '...' : label}</button>
+}

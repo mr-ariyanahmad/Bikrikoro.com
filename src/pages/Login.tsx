@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import type { ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 
@@ -210,6 +210,11 @@ export default function Login() {
             >
               {loading ? 'অপেক্ষা করুন...' : isRegistering ? 'অ্যাকাউন্ট তৈরি করুন' : 'লগইন করুন'}
             </button>
+            {!isRegistering && (
+              <Link to="/forgot-password" className="block text-center text-sm font-medium text-brand-600 hover:text-brand-700">
+                পাসওয়ার্ড ভুলে গেছেন?
+              </Link>
+            )}
             <button
               onClick={() => setIsRegistering((v) => !v)}
               className="w-full text-center text-sm text-ink-600 hover:text-brand-600"

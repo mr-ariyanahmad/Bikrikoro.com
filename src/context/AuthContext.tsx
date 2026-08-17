@@ -3,6 +3,9 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updatePassword,
+  sendEmailVerification,
   updateProfile,
   signOut as firebaseSignOut,
   RecaptchaVerifier,
@@ -21,6 +24,9 @@ interface AuthContextValue {
   verifyOtp: (confirmation: ConfirmationResult, code: string) => Promise<void>
   loginWithEmail: (email: string, password: string) => Promise<void>
   registerWithEmail: (name: string, email: string, password: string) => Promise<void>
+  sendPasswordReset: (email: string) => Promise<void>
+  changePassword: (password: string) => Promise<void>
+  sendVerificationEmail: () => Promise<void>
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
 }
@@ -65,6 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(credential.user, { displayName: name })
   }
 
+  const sendPasswordReset = (email: string) => sendPasswordResetEmail(auth, email.trim())
+
+  const changePassword = async (password: string) => {
+    if (!auth.currentUser) throw new Error('auth/no-current-user')
+    await updatePassword(auth.currentUser, password)
+  }
+
+  const sendVerificationEmail = async () => {
+    if (!auth.currentUser) throw new Error('auth/no-current-user')
+    await sendEmailVerification(auth.currentUser)
+  }
+
   // Requires the Google provider to be turned on in Firebase Console →
   // Authentication → Sign-in method → Google (same project as the
   // phone/email sign-in already used here). Also add this site's domain
@@ -79,7 +97,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, logout }}
+      value={{
+        user,
+        loading,
+        sendOtp,
+        verifyOtp,
+        loginWithEmail,
+        registerWithEmail,
+        sendPasswordReset,
+        changePassword,
+        sendVerificationEmail,
+        loginWithGoogle,
+        logout,
+      }}
     >
       {children}
       {/* Target for the invisible reCAPTCHA used by sendOtp — kept off-screen, never shown to the user. */}

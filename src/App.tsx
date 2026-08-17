@@ -5,15 +5,20 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AdminRoute } from '@/components/AdminRoute'
 import { useEnsureProfile } from '@/hooks/useEnsureProfile'
 import Login from '@/pages/Login'
+import ForgotPassword from '@/pages/ForgotPassword'
 import Home from '@/pages/Home'
 import Products from '@/pages/Products'
 import ProductDetail from '@/pages/ProductDetail'
+import Compare from '@/pages/Compare'
+import Library from '@/pages/Library'
+import Notifications from '@/pages/Notifications'
 import Sell from '@/pages/Sell'
 import BecomeSeller from '@/pages/BecomeSeller'
 import SellerVerification from '@/pages/SellerVerification'
 import MyListings from '@/pages/MyListings'
 import Orders from '@/pages/Orders'
 import PaymentCallback from '@/pages/PaymentCallback'
+import OrderDetail from '@/pages/OrderDetail'
 import DisputeThread from '@/pages/DisputeThread'
 import ChatList from '@/pages/ChatList'
 import ChatThread from '@/pages/ChatThread'
@@ -35,9 +40,27 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/" element={<Home />} />
       <Route path="/products" element={<Products />} />
       <Route path="/products/:id" element={<ProductDetail />} />
+      <Route path="/compare" element={<Compare />} />
+      <Route
+        path="/library"
+        element={
+          <ProtectedRoute>
+            <Library />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/become-seller" element={<BecomeSeller />} />
       <Route
         path="/become-seller/verify"
@@ -76,6 +99,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <PaymentCallback />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders/:id"
+        element={
+          <ProtectedRoute>
+            <OrderDetail />
           </ProtectedRoute>
         }
       />

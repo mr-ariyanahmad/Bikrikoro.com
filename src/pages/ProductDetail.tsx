@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const [startingChat, setStartingChat] = useState(false)
   const [favorited, setFavorited] = useState(false)
   const [togglingFavorite, setTogglingFavorite] = useState(false)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
   const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
@@ -89,6 +90,27 @@ export default function ProductDetail() {
     } finally {
       setStartingChat(false)
     }
+  }
+
+  const handleShare = async () => {
+    const url = window.location.href
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.title, text: `${product.title} — ${formatTaka(product.price)}`, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setShareMessage('লিংক কপি হয়েছে।')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setShareMessage('লিংক কপি করা যায়নি।')
+    }
+    window.setTimeout(() => setShareMessage(null), 2500)
+  }
+
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`${product.title} — ${formatTaka(product.price)}\n${window.location.href}`)
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
   }
 
   const handleToggleFavorite = async () => {
@@ -228,6 +250,22 @@ export default function ProductDetail() {
                 {formatTaka(product.original_price)}
               </span>
             )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <button
+              onClick={handleShare}
+              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+            >
+              শেয়ার / লিংক কপি
+            </button>
+            <button
+              onClick={handleWhatsAppShare}
+              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+            >
+              WhatsApp-এ পাঠান
+            </button>
+            {shareMessage && <span className="rounded-full bg-brand-50 px-3 py-1.5 text-brand-700">{shareMessage}</span>}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs">

@@ -7,10 +7,13 @@ import { SearchBar } from '@/components/SearchBar'
 const NAV_LINKS = [
   { to: '/', label: 'হোম' },
   { to: '/products', label: 'প্রোডাক্ট' },
+  { to: '/compare', label: 'তুলনা' },
   { to: '/sell', label: 'বিক্রি করুন' },
   { to: '/become-seller', label: 'বিক্রেতা হোন' },
   { to: '/my-listings', label: 'আমার লিস্টিং' },
   { to: '/orders', label: 'অর্ডার' },
+  { to: '/library', label: 'ডিজিটাল লাইব্রেরি' },
+  { to: '/notifications', label: 'নোটিফিকেশন' },
   { to: '/chat', label: 'চ্যাট' },
   { to: '/wallet', label: 'ওয়ালেট' },
   { to: '/account', label: 'অ্যাকাউন্ট' },

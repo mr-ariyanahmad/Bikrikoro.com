@@ -7,7 +7,7 @@ import { uploadProductImages } from '@/lib/storage'
 import type { Profile } from '@/types/product'
 
 export default function Account() {
-  const { user } = useAuth()
+  const { user, changePassword, sendVerificationEmail } = useAuth()
   const uid = user!.uid
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -16,6 +16,11 @@ export default function Account() {
   const [saving, setSaving] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [securitySaving, setSecuritySaving] = useState(false)
+  const [verificationSending, setVerificationSending] = useState(false)
+  const [securityError, setSecurityError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -66,6 +71,49 @@ export default function Account() {
       return
     }
     showToast('প্রোফাইল আপডেট হয়েছে।')
+  }
+
+  const handleChangePassword = async () => {
+    setSecurityError(null)
+    if (newPassword.length < 6) {
+      setSecurityError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setSecurityError('দুটি পাসওয়ার্ড এক নয়।')
+      return
+    }
+    setSecuritySaving(true)
+    try {
+      await changePassword(newPassword)
+      setNewPassword('')
+      setConfirmPassword('')
+      showToast('পাসওয়ার্ড পরিবর্তন হয়েছে।')
+    } catch (err) {
+      console.error('password change failed:', err)
+      const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : ''
+      setSecurityError(
+        code === 'auth/requires-recent-login'
+          ? 'নিরাপত্তার জন্য আগে লগআউট করে আবার লগইন করুন, তারপর চেষ্টা করুন।'
+          : 'পাসওয়ার্ড পরিবর্তন করা যায়নি। আবার চেষ্টা করুন.'
+      )
+    } finally {
+      setSecuritySaving(false)
+    }
+  }
+
+  const handleSendVerification = async () => {
+    setSecurityError(null)
+    setVerificationSending(true)
+    try {
+      await sendVerificationEmail()
+      showToast('ভেরিফিকেশন ইমেইল পাঠানো হয়েছে।')
+    } catch (err) {
+      console.error('verification email failed:', err)
+      setSecurityError('ভেরিফিকেশন ইমেইল পাঠানো যায়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।')
+    } finally {
+      setVerificationSending(false)
+    }
   }
 
   if (loading) {
@@ -154,6 +202,69 @@ export default function Account() {
           {saving ? 'সেভ হচ্ছে...' : 'পরিবর্তন সেভ করুন'}
         </button>
       </div>
+
+      <section className="mt-8 rounded-2xl border border-outline bg-surface p-5">
+        <h2 className="text-lg font-semibold text-ink-900">নিরাপত্তা</h2>
+        <p className="mt-1 text-sm leading-relaxed text-ink-600">
+          আপনার অ্যাকাউন্ট সুরক্ষিত রাখতে পাসওয়ার্ড পরিবর্তন করুন এবং ইমেইল ভেরিফাই করে রাখুন।
+        </p>
+
+        {user?.email && (
+          <div className="mt-4 rounded-xl bg-bg p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate text-ink-600">{user.email}</span>
+              {user.emailVerified ? (
+                <span className="shrink-0 font-medium text-brand-600">ভেরিফাইড ✓</span>
+              ) : (
+                <button
+                  onClick={handleSendVerification}
+                  disabled={verificationSending}
+                  className="shrink-0 text-sm font-semibold text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                >
+                  {verificationSending ? 'পাঠানো হচ্ছে...' : 'ভেরিফাই করুন'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {user?.providerData.some((provider) => provider.providerId === 'password') && (
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm font-medium text-ink-900" htmlFor="new-password">
+              নতুন পাসওয়ার্ড
+            </label>
+            <input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="কমপক্ষে ৬ অক্ষর"
+              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <label className="block text-sm font-medium text-ink-900" htmlFor="confirm-password">
+              নতুন পাসওয়ার্ড আবার লিখুন
+            </label>
+            <input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="পাসওয়ার্ড মিলিয়ে দিন"
+              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            <button
+              onClick={handleChangePassword}
+              disabled={securitySaving}
+              className="w-full rounded-xl border border-brand-500 py-3 text-sm font-semibold text-brand-600 transition hover:bg-brand-50 disabled:opacity-50"
+            >
+              {securitySaving ? 'সেভ হচ্ছে...' : 'পাসওয়ার্ড পরিবর্তন করুন'}
+            </button>
+          </div>
+        )}
+        {securityError && <p className="mt-3 text-sm text-error">{securityError}</p>}
+      </section>
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg">

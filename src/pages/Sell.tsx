@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { ImageUploader } from '@/components/ImageUploader'
 import { uploadProductImages } from '@/lib/storage'
+import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
 import type { Category } from '@/types/product'
 
 interface LocalImage {
@@ -27,11 +28,14 @@ export default function Sell() {
   const [categoryId, setCategoryId] = useState('')
   const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
   const [isDigital, setIsDigital] = useState(false)
+  const [digitalDeliveryType, setDigitalDeliveryType] = useState<'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'>('INSTRUCTIONS')
+  const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
   const [location, setLocation] = useState('')
   const [images, setImages] = useState<LocalImage[]>([])
   const [loadingExisting, setLoadingExisting] = useState(isEditing)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [draftMessage, setDraftMessage] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -46,6 +50,22 @@ export default function Sell() {
   }, [])
 
   useEffect(() => {
+    if (isEditing) return
+    const draft = loadListingDraft()
+    if (!draft) return
+    setTitle(draft.title)
+    setDescription(draft.description)
+    setPrice(draft.price)
+    setOriginalPrice(draft.originalPrice)
+    setCategoryId(draft.categoryId)
+    setCondition(draft.condition)
+    setIsDigital(draft.isDigital)
+    setLocation(draft.location)
+    setImages(draft.images.map((url) => ({ url })))
+    setDraftMessage('আগের অসম্পূর্ণ ড্রাফট লোড হয়েছে।')
+  }, [isEditing])
+
+  useEffect(() => {
     if (!id || !user) return
 
     supabase
@@ -53,7 +73,7 @@ export default function Sell() {
       .select('*')
       .eq('id', id)
       .single()
-      .then(({ data, error: fetchError }) => {
+      .then(async ({ data, error: fetchError }) => {
         if (fetchError || !data || data.seller_id !== user.uid) {
           setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')
           setLoadingExisting(false)
@@ -68,9 +88,38 @@ export default function Sell() {
         setIsDigital(Boolean(data.is_digital))
         setLocation(data.location || '')
         setImages(data.images.map((url: string) => ({ url })))
+        const { data: delivery } = await supabase
+          .from('digital_product_contents')
+          .select('delivery_type, delivery_text')
+          .eq('product_id', id)
+          .maybeSingle()
+        if (delivery) {
+          setDigitalDeliveryType(delivery.delivery_type)
+          setDigitalDeliveryText(delivery.delivery_text || '')
+        }
         setLoadingExisting(false)
       })
   }, [id, user])
+
+  const handleSaveDraft = () => {
+    saveListingDraft({
+      title,
+      description,
+      price,
+      originalPrice,
+      categoryId,
+      condition,
+      isDigital,
+      location,
+      images: images.filter((image) => !image.uploading).map((image) => image.url),
+    })
+    setDraftMessage('ড্রাফট সেভ হয়েছে। পরে আবার এলে এখান থেকেই শুরু করতে পারবেন।')
+  }
+
+  const handleClearDraft = () => {
+    clearListingDraft()
+    setDraftMessage('ড্রাফট মুছে ফেলা হয়েছে।')
+  }
 
   const handleAddImages = async (files: File[]) => {
     if (!user) return
@@ -134,6 +183,24 @@ export default function Sell() {
       ? await supabase.from('products').update(payload).eq('id', id)
       : await supabase.from('products').insert(payload).select('id').single()
 
+    const savedProductId = id ?? result.data?.id
+    if (!result.error && savedProductId) {
+      const deliveryResult = isDigital
+        ? await supabase.from('digital_product_contents').upsert({
+            product_id: savedProductId,
+            seller_id: user.uid,
+            delivery_type: digitalDeliveryType,
+            delivery_text: digitalDeliveryText.trim(),
+          })
+        : await supabase.from('digital_product_contents').delete().eq('product_id', savedProductId)
+      if (deliveryResult.error && isDigital) {
+        console.error('Digital delivery details could not be saved:', deliveryResult.error)
+        setError('পণ্য সেভ হয়েছে, কিন্তু ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি। migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+        setSubmitting(false)
+        return
+      }
+    }
+
     setSubmitting(false)
     if (result.error) {
       console.error('Product save failed:', result.error)
@@ -141,6 +208,7 @@ export default function Sell() {
       return
     }
 
+    clearListingDraft()
     navigate(isEditing ? `/products/${id}` : '/my-listings')
   }
 
@@ -154,7 +222,20 @@ export default function Sell() {
 
   return (
     <Layout>
-      <h1 className="text-xl font-semibold text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন পণ্য বিক্রি করুন'}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন পণ্য বিক্রি করুন'}</h1>
+        {!isEditing && (
+          <div className="flex gap-2">
+            <button onClick={handleSaveDraft} className="rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600">
+              ড্রাফট সেভ করুন
+            </button>
+            <button onClick={handleClearDraft} className="rounded-lg px-3 py-2 text-xs font-medium text-error hover:bg-error/5">
+              ড্রাফট মুছুন
+            </button>
+          </div>
+        )}
+      </div>
+      {draftMessage && <p className="mt-2 text-sm text-brand-700">{draftMessage}</p>}
 
       <div className="mt-6 space-y-5">
         <div>
@@ -257,6 +338,29 @@ export default function Sell() {
             আগে থেকে পেমেন্ট করে অর্ডার করতে হবে।
           </p>
         </div>
+
+        {isDigital && (
+          <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">ডিজিটাল ডেলিভারি</label>
+            <select
+              value={digitalDeliveryType}
+              onChange={(e) => setDigitalDeliveryType(e.target.value as typeof digitalDeliveryType)}
+              className="w-full rounded-lg border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+            >
+              <option value="INSTRUCTIONS">ব্যবহারের নির্দেশনা</option>
+              <option value="LICENSE_KEY">লাইসেন্স / এক্টিভেশন কী</option>
+              <option value="DOWNLOAD_LINK">ডাউনলোড লিংক</option>
+            </select>
+            <textarea
+              value={digitalDeliveryText}
+              onChange={(e) => setDigitalDeliveryText(e.target.value)}
+              rows={4}
+              placeholder="পেমেন্ট সম্পন্ন হলে ক্রেতা কী পাবে তা লিখুন। পাবলিক ছবি লিংক এখানে দেবেন না।"
+              className="mt-3 w-full rounded-lg border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+            />
+            <p className="mt-2 text-xs leading-relaxed text-ink-600">ডেলিভারি তথ্য শুধু সম্পন্ন অর্ডারের ক্রেতার লাইব্রেরিতে দেখানো হবে।</p>
+          </div>
+        )}
 
         {!isDigital && (
           <div>

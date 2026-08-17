@@ -1,0 +1,61 @@
+import { supabase } from '@/lib/supabase'
+
+export interface CouponPreview {
+  valid: boolean
+  normalized_code: string
+  discount_amount: number
+  final_price: number
+  message: string
+}
+
+export interface DigitalLibraryItem {
+  order_id: string
+  product_id: string
+  product_title: string
+  product_image: string
+  price: number
+  order_status: string
+  delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
+  delivery_text: string
+  delivery_status: 'PENDING' | 'READY' | 'REVOKED'
+  delivered_at: string | null
+  purchased_at: string
+}
+
+export async function validateCoupon(code: string, productId: string, buyerId: string): Promise<CouponPreview> {
+  const { data, error } = await supabase.rpc('validate_coupon', {
+    p_code: code.trim(),
+    p_product_id: productId,
+    p_buyer_id: buyerId,
+  })
+  if (error || !data?.[0]) {
+    return {
+      valid: false,
+      normalized_code: code.trim().toUpperCase(),
+      discount_amount: 0,
+      final_price: 0,
+      message: 'এই মুহূর্তে কুপন যাচাই করা যাচ্ছে না।',
+    }
+  }
+  return data[0] as CouponPreview
+}
+
+export async function loadDigitalLibrary(userId: string): Promise<DigitalLibraryItem[]> {
+  const { data, error } = await supabase.rpc('get_digital_library', { p_buyer_id: userId })
+  if (error) throw error
+  return (data ?? []) as DigitalLibraryItem[]
+}
+
+export async function loadNotifications(userId: string) {
+  const { data, error } = await supabase.rpc('get_my_notifications', { p_user_id: userId, p_limit: 60 })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function markNotificationRead(notificationId: string, userId: string) {
+  const { error } = await supabase.rpc('mark_notification_read', {
+    p_notification_id: notificationId,
+    p_user_id: userId,
+  })
+  if (error) throw error
+}

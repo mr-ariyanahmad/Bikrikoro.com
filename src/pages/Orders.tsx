@@ -152,6 +152,12 @@ export default function Orders() {
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  to={`/orders/${order.id}`}
+                  className="rounded-lg border border-outline px-3 py-1.5 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+                >
+                  বিস্তারিত দেখুন
+                </Link>
                 {tab === 'buying' && order.status === 'PENDING_PAYMENT' && (
                   <>
                     <ActionButton

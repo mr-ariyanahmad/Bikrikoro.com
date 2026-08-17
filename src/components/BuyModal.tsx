@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
+import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
 
 export function BuyModal({
   product,
@@ -15,9 +16,33 @@ export function BuyModal({
   const [address, setAddress] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
 
-  const escrowFee = Math.max(product.price * 0.01, 10)
-  const total = product.price + escrowFee
+  const discountedPrice = coupon?.valid ? coupon.final_price : product.price
+  const escrowFee = Math.max(discountedPrice * 0.01, 10)
+  const total = discountedPrice + escrowFee
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setError('কুপন কোড লিখুন।')
+      return
+    }
+    setCouponLoading(true)
+    setError(null)
+    try {
+      const result = await validateCoupon(couponCode, product.id, buyerId)
+      setCoupon(result)
+      if (!result.valid) setError(result.message)
+    } catch (err) {
+      console.error('coupon validation failed:', err)
+      setCoupon(null)
+      setError('কুপন যাচাই করা যায়নি।')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
 
   const handleSubmit = async () => {
     if (!product.is_digital && address.trim().length < 8) {
@@ -33,6 +58,7 @@ export function BuyModal({
         productId: product.id,
         buyerId,
         deliveryAddress: product.is_digital ? 'ডিজিটাল পণ্য — কোনো শিপিং ঠিকানা প্রযোজ্য নয়' : address.trim(),
+        couponCode: coupon?.valid ? coupon.normalized_code : undefined,
       })
       const paymentUrl = await startUddoktaPayCheckout(orderId)
       window.location.href = paymentUrl // hand off to UddoktaPay's hosted checkout page
@@ -76,11 +102,34 @@ export function BuyModal({
             </div>
           )}
 
+          <div className="rounded-xl border border-outline p-3">
+            <label className="mb-1.5 block text-sm font-medium text-ink-900" htmlFor="coupon-code">কুপন কোড</label>
+            <div className="flex gap-2">
+              <input
+                id="coupon-code"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCoupon(null) }}
+                placeholder="যেমন: WELCOME10"
+                className="min-w-0 flex-1 rounded-lg border border-outline px-3 py-2 text-sm uppercase outline-none focus:border-brand-500"
+              />
+              <button onClick={handleApplyCoupon} disabled={couponLoading} className="rounded-lg border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 disabled:opacity-50">
+                {couponLoading ? '...' : 'প্রয়োগ'}
+              </button>
+            </div>
+            {coupon?.valid && <p className="mt-2 text-xs font-medium text-brand-700">কুপন প্রয়োগ হয়েছে: {coupon.message || 'ছাড় পাওয়া গেছে'}</p>}
+          </div>
+
           <div className="rounded-lg bg-bg p-3 text-sm">
             <div className="flex justify-between text-ink-600">
               <span>পণ্যের দাম</span>
               <span className="tabular-amount">{formatTaka(product.price)}</span>
             </div>
+            {coupon?.valid && (
+              <div className="mt-1 flex justify-between text-brand-700">
+                <span>কুপন ছাড়</span>
+                <span className="tabular-amount">−{formatTaka(coupon.discount_amount)}</span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between text-ink-600">
               <span>এসক্রো ফি</span>
               <span className="tabular-amount">{formatTaka(escrowFee)}</span>

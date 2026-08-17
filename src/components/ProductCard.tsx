@@ -4,11 +4,13 @@ import { useAuth } from '@/context/AuthContext'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
+import { isCompared, toggleCompared } from '@/lib/compare'
 
 export function ProductCard({ product }: { product: Product }) {
   const { user } = useAuth()
   const [favorited, setFavorited] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [compared, setCompared] = useState(() => isCompared(product.id))
 
   const discount =
     product.original_price && product.original_price > product.price
@@ -25,6 +27,23 @@ export function ProductCard({ product }: { product: Product }) {
       cancelled = true
     }
   }, [user, product.id])
+
+  useEffect(() => {
+    const sync = () => setCompared(isCompared(product.id))
+    window.addEventListener('bikrikoro:compare-changed', sync)
+    return () => window.removeEventListener('bikrikoro:compare-changed', sync)
+  }, [product.id])
+
+  const handleToggleCompare = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const result = toggleCompared(product.id)
+    if (result.limitReached) {
+      window.alert('একসাথে সর্বোচ্চ ৩টি পণ্য তুলনা করা যাবে।')
+      return
+    }
+    setCompared(result.selected)
+  }
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault() // don't navigate to the product when tapping the heart
@@ -90,7 +109,17 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           )}
         </div>
-        <p className="mt-1 truncate text-xs text-ink-300">{product.location}</p>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="truncate text-xs text-ink-300">{product.location || (product.is_digital ? 'ডিজিটাল পণ্য' : '')}</p>
+          <button
+            onClick={handleToggleCompare}
+            className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition ${
+              compared ? 'bg-brand-100 text-brand-700' : 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'
+            }`}
+          >
+            {compared ? 'তুলনায় আছে' : 'তুলনা'}
+          </button>
+        </div>
       </div>
     </Link>
   )

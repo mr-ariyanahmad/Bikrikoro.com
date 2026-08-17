@@ -5,12 +5,21 @@ export async function createPendingOrder(params: {
   productId: string
   buyerId: string
   deliveryAddress: string
+  couponCode?: string
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('create_order_pending_payment', {
-    p_product_id: params.productId,
-    p_buyer_id: params.buyerId,
-    p_delivery_address: params.deliveryAddress,
-  })
+  const couponCode = params.couponCode?.trim()
+  const { data, error } = couponCode
+    ? await supabase.rpc('create_order_pending_payment_with_coupon', {
+        p_product_id: params.productId,
+        p_buyer_id: params.buyerId,
+        p_delivery_address: params.deliveryAddress,
+        p_coupon_code: couponCode,
+      })
+    : await supabase.rpc('create_order_pending_payment', {
+        p_product_id: params.productId,
+        p_buyer_id: params.buyerId,
+        p_delivery_address: params.deliveryAddress,
+      })
   if (error) throw error
   return data as string
 }

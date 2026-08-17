@@ -11,6 +11,7 @@ export default function MyListings() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -26,6 +27,30 @@ export default function MyListings() {
   useEffect(() => {
     load()
   }, [load])
+
+  const handleDuplicate = async (product: Product) => {
+    if (!user) return
+    setDuplicatingId(product.id)
+    const { data, error } = await supabase
+      .from('products')
+      .insert({
+        title: `${product.title} (কপি)`,
+        description: product.description,
+        price: product.price,
+        original_price: product.original_price,
+        images: product.images,
+        category_id: product.category_id,
+        condition: product.condition,
+        location: product.location,
+        is_digital: product.is_digital,
+        seller_id: user.uid,
+      })
+      .select('*')
+      .single()
+    setDuplicatingId(null)
+    if (error || !data) return
+    setProducts((prev) => [data as Product, ...prev])
+  }
 
   const handleDelete = async (productId: string) => {
     if (!confirm('এই লিস্টিংটি মুছে ফেলবেন? এটি আর ফিরিয়ে আনা যাবে না।')) return
@@ -92,6 +117,13 @@ export default function MyListings() {
                 >
                   এডিট
                 </Link>
+                <button
+                  onClick={() => handleDuplicate(product)}
+                  disabled={duplicatingId === product.id}
+                  className="rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-brand-600 hover:border-brand-500 disabled:opacity-50"
+                >
+                  {duplicatingId === product.id ? '...' : 'কপি'}
+                </button>
                 <button
                   onClick={() => handleDelete(product.id)}
                   disabled={deletingId === product.id}
