@@ -3,6 +3,7 @@ import { NavLink, Link } from 'react-router-dom'
 import { Activity, AlertTriangle, Bell, BookOpen, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
+import { permissionForAdminPath } from '@/lib/adminPermissions'
 
 type AdminIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 type AdminLink = { to: string; label: string; icon: AdminIcon; badge?: string }
@@ -40,6 +41,7 @@ const groups: { label: string; links: AdminLink[] }[] = [
       { to: '/admin/blog', label: 'নিউজ ও ব্লগ', icon: Newspaper },
       { to: '/admin/pages', label: 'পাবলিক পেজ', icon: BookOpen },
       { to: '/admin/features', label: 'ফিচার কন্ট্রোল', icon: Settings },
+      { to: '/admin/team', label: 'অ্যাডমিন টিম', icon: Users },
       { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
       { to: '/admin/support', label: 'সাপোর্ট চ্যাট', icon: MessageCircle },
       { to: '/admin/notifications', label: 'নোটিফিকেশন', icon: Bell },
@@ -57,7 +59,7 @@ const groups: { label: string; links: AdminLink[] }[] = [
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
-  const { isAdmin } = useIsAdmin()
+  const { isAdmin, can, roleLabel } = useIsAdmin()
   const [open, setOpen] = useState(false)
 
   return (
@@ -72,11 +74,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white md:hidden" aria-label="মেনু বন্ধ করুন"><X size={20} /></button>
           </div>
           <nav className="flex-1 overflow-y-auto px-4 py-5">
-            {groups.map((group) => (
+            {groups.map((group) => {
+              const visibleLinks = group.links.filter((link) => can(permissionForAdminPath(link.to)))
+              if (visibleLinks.length === 0) return null
+              return (
               <div key={group.label} className="mb-6">
                 <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{group.label}</p>
                 <div className="space-y-1">
-                  {group.links.map((link) => (
+                  {visibleLinks.map((link) => (
                     <NavLink
                       key={link.to}
                       to={link.to}
@@ -91,10 +96,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   ))}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </nav>
           <div className="border-t border-white/10 p-4">
-            <div className="mb-3 truncate rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">{isAdmin ? user?.email ?? 'অ্যাডমিন' : 'অ্যাক্সেস যাচাই হচ্ছে...'}</div>
+            <div className="mb-3 truncate rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">{isAdmin ? `${roleLabel ?? 'অ্যাডমিন'} · ${user?.email ?? ''}` : 'অ্যাক্সেস যাচাই হচ্ছে...'}</div>
             <button onClick={() => logout()} className="flex w-full items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-left text-sm text-white/75 hover:bg-white/10 hover:text-white"><LogOut size={16} />লগআউট</button>
           </div>
         </aside>

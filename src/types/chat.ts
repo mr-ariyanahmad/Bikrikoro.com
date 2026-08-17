@@ -19,7 +19,10 @@ export interface ChatMessage {
 }
 
 export type SellerType = 'INDIVIDUAL' | 'BUSINESS'
+export type ListingMode = 'DIGITAL' | 'PHYSICAL'
+export type BusinessType = 'PERSONAL' | 'BUSINESS' | 'COMPANY'
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type DocumentReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export interface SellerRegistration {
   id: string
@@ -35,4 +38,19 @@ export interface SellerRegistration {
   admin_note: string | null
   submitted_at: string
   reviewed_at: string | null
+  listing_mode?: ListingMode
+  business_type?: BusinessType
+  sector?: string
+}
+
+export interface SellerVerificationDocument {
+  id: string
+  registration_id: string
+  document_type: string
+  document_path: string
+  status: DocumentReviewStatus
+  admin_note: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  submitted_at: string
 }

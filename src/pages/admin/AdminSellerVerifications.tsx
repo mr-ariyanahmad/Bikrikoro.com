@@ -1,149 +1,37 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Check, CheckCircle2, FileCheck2, Link as LinkIcon, X, XCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { AdminShell } from '@/components/admin/AdminShell'
-import { reviewSellerRegistration } from '@/lib/admin'
+import { AdminShell, AdminPageHeader, AdminTableCard } from '@/components/admin/AdminShell'
 import { getVerificationDocUrl } from '@/lib/verification'
 import { formatDateTime } from '@/lib/format'
-import type { SellerRegistration } from '@/types/chat'
+import type { SellerRegistration, SellerVerificationDocument } from '@/types/chat'
+
+type RegistrationWithDocuments = SellerRegistration & { documents: SellerVerificationDocument[] }
 
 export default function AdminSellerVerifications() {
   const { user } = useAuth()
   const adminId = user!.uid
-
-  const [registrations, setRegistrations] = useState<SellerRegistration[]>([])
+  const [registrations, setRegistrations] = useState<RegistrationWithDocuments[]>([])
   const [docUrls, setDocUrls] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
   const [noteById, setNoteById] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
-
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('seller_registrations')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('submitted_at', { ascending: true })
-
-    const rows = data ?? []
-    setRegistrations(rows)
-
+    setLoading(true)
+    const { data } = await supabase.from('seller_registrations').select('*').eq('status', 'PENDING').order('submitted_at', { ascending: true }).range(0, 49)
+    const rows = (data ?? []) as SellerRegistration[]
+    const docs = rows.length ? (await supabase.from('seller_verification_documents').select('*').in('registration_id', rows.map((row) => row.id))).data ?? [] : []
     const urls: Record<string, string> = {}
-    await Promise.all(
-      rows.map(async (r) => {
-        const url = await getVerificationDocUrl(r.document_path)
-        if (url) urls[r.id] = url
-      })
-    )
-    setDocUrls(urls)
-    setLoading(false)
+    await Promise.all((docs as SellerVerificationDocument[]).map(async (doc) => { const url = await getVerificationDocUrl(doc.document_path); if (url) urls[doc.id] = url }))
+    setRegistrations(rows.map((row) => ({ ...row, documents: (docs as SellerVerificationDocument[]).filter((doc) => doc.registration_id === row.id) })))
+    setDocUrls(urls); setLoading(false)
   }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
-
-  const handleReview = async (id: string, status: 'APPROVED' | 'REJECTED') => {
-    setProcessingId(id)
-    try {
-      await reviewSellerRegistration({ adminId, registrationId: id, status, adminNote: noteById[id]?.trim() || '' })
-      await load()
-    } catch {
-      alert('প্রক্রিয়া করা যায়নি — আবার চেষ্টা করুন।')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  return (
-    <AdminShell>
-      <div className="flex items-center gap-2">
-        <Link to="/admin" className="text-ink-600 hover:text-ink-900">
-          ←
-        </Link>
-        <h1 className="text-xl font-semibold text-ink-900">সেলার ভেরিফিকেশন</h1>
-      </div>
-
-      <div className="mt-5 space-y-4">
-        {loading ? (
-          Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-56 animate-pulse rounded-xl bg-outline/40" />
-          ))
-        ) : registrations.length === 0 ? (
-          <div className="rounded-2xl border border-outline bg-surface p-8 text-center text-ink-600">
-            অনুমোদনের অপেক্ষায় কোনো আবেদন নেই।
-          </div>
-        ) : (
-          registrations.map((reg) => (
-            <div key={reg.id} className="rounded-xl border border-outline bg-surface p-4">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">
-                  {reg.seller_type === 'INDIVIDUAL' ? 'ব্যক্তিগত' : 'ব্যবসায়িক'}
-                </span>
-                <span className="text-xs text-ink-300">{formatDateTime(reg.submitted_at)}</span>
-              </div>
-
-              <dl className="mt-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-ink-600">নাম</dt>
-                  <dd className="font-medium text-ink-900">{reg.full_name}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-600">ফোন</dt>
-                  <dd className="font-medium text-ink-900">{reg.phone}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-600">{reg.seller_type === 'INDIVIDUAL' ? 'NID' : 'ট্রেড লাইসেন্স'}</dt>
-                  <dd className="font-medium text-ink-900">{reg.nid_or_business_number}</dd>
-                </div>
-                {reg.business_name && (
-                  <div className="flex justify-between">
-                    <dt className="text-ink-600">ব্যবসার নাম</dt>
-                    <dd className="font-medium text-ink-900">{reg.business_name}</dd>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <dt className="text-ink-600">ঠিকানা</dt>
-                  <dd className="font-medium text-ink-900">{reg.address}</dd>
-                </div>
-              </dl>
-
-              {docUrls[reg.id] && (
-                <img
-                  src={docUrls[reg.id]}
-                  alt="ডকুমেন্ট"
-                  className="mt-3 max-h-56 rounded-lg border border-outline"
-                />
-              )}
-
-              <textarea
-                value={noteById[reg.id] ?? ''}
-                onChange={(e) => setNoteById((prev) => ({ ...prev, [reg.id]: e.target.value }))}
-                rows={2}
-                placeholder="বাতিল করলে কারণ লিখুন (ঐচ্ছিক)"
-                className="mt-3 w-full rounded-lg border border-outline px-3 py-2 text-sm outline-none focus:border-brand-500"
-              />
-
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => handleReview(reg.id, 'APPROVED')}
-                  disabled={processingId === reg.id}
-                  className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
-                >
-                  অনুমোদন করুন
-                </button>
-                <button
-                  onClick={() => handleReview(reg.id, 'REJECTED')}
-                  disabled={processingId === reg.id}
-                  className="rounded-lg border border-error/40 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/5 disabled:opacity-50"
-                >
-                  বাতিল করুন
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </AdminShell>
-  )
+  useEffect(() => { load() }, [load])
+  const reviewDocument = async (documentId: string, status: 'APPROVED' | 'REJECTED') => { setProcessingId(documentId); const { error } = await supabase.rpc('admin_review_verification_document', { p_admin_id: adminId, p_document_id: documentId, p_status: status, p_admin_note: noteById[documentId]?.trim() || '' }); if (error) alert(error.message.includes('permission') ? 'আপনার verification review permission নেই।' : 'Document review করা যায়নি।'); else await load(); setProcessingId(null) }
+  const finalize = async (registrationId: string, status: 'APPROVED' | 'REJECTED') => { setProcessingId(registrationId); const { error } = await supabase.rpc('admin_finalize_seller_verification', { p_admin_id: adminId, p_registration_id: registrationId, p_status: status, p_admin_note: noteById[registrationId]?.trim() || '' }); if (error) alert(error.message.includes('required documents') ? 'সব required document আগে approve করুন।' : 'Application review করা যায়নি।'); else await load(); setProcessingId(null) }
+  return <AdminShell><AdminPageHeader title="সেলার ভেরিফিকেশন রিভিউ" description="প্রতিটি identity, business এবং ownership document আলাদাভাবে review করুন। সব required check pass না হলে approval হবে না।" /><div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-6 text-brand-800"><FileCheck2 className="mr-2 inline-block align-text-bottom" size={17} />Approved seller-এর profile-এ mode ও sector অনুযায়ী trust badge তৈরি হবে। Sensitive documents public করা হয় না।</div>{loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : registrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">অনুমোদনের অপেক্ষায় কোনো আবেদন নেই।</p></AdminTableCard> : <div className="space-y-5">{registrations.map((reg) => { const approvedCount = reg.documents.filter((doc) => doc.status === 'APPROVED').length; return <AdminTableCard key={reg.id}><div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5"><div><h2 className="font-semibold text-slate-900">{reg.full_name}</h2><p className="mt-1 text-xs text-slate-500">{reg.listing_mode === 'DIGITAL' ? 'ডিজিটাল' : 'ফিজিক্যাল'} · {reg.business_type ?? 'PERSONAL'} · {reg.sector ?? 'OTHER'}</p><p className="mt-1 text-xs text-slate-400">জমা: {formatDateTime(reg.submitted_at)}</p></div><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{approvedCount}/{reg.documents.length} document approved</span></div><div className="grid gap-3 p-5 sm:grid-cols-2"><Info label="ফোন" value={reg.phone} /><Info label="NID/Business no." value={reg.nid_or_business_number} /><Info label="ব্যবসার নাম" value={reg.business_name || 'প্রযোজ্য নয়'} /><Info label="ঠিকানা" value={reg.address} /></div><div className="space-y-3 px-5 pb-5">{reg.documents.map((doc) => <div key={doc.id} className="rounded-xl border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-slate-800">{doc.document_type}</p><span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold ${doc.status === 'APPROVED' ? 'bg-brand-50 text-brand-700' : doc.status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{doc.status === 'APPROVED' ? <CheckCircle2 size={12} /> : doc.status === 'REJECTED' ? <XCircle size={12} /> : <FileCheck2 size={12} />}{doc.status}</span></div>{docUrls[doc.id] && <a href={docUrls[doc.id]} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700"><LinkIcon size={13} />Document দেখুন</a>}</div><textarea value={noteById[doc.id] ?? ''} onChange={(e) => setNoteById((current) => ({ ...current, [doc.id]: e.target.value }))} rows={1} placeholder="এই document-এর review note" className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500" /><div className="mt-2 flex gap-2"><button onClick={() => reviewDocument(doc.id, 'APPROVED')} disabled={processingId === doc.id} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"><Check size={13} />Approve</button><button onClick={() => reviewDocument(doc.id, 'REJECTED')} disabled={processingId === doc.id} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-50"><X size={13} />Reject</button></div></div>)}</div><div className="flex flex-wrap gap-2 border-t border-slate-200 p-5"><textarea value={noteById[reg.id] ?? ''} onChange={(e) => setNoteById((current) => ({ ...current, [reg.id]: e.target.value }))} rows={2} placeholder="Final review note" className="min-w-[240px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500" /><button onClick={() => finalize(reg.id, 'APPROVED')} disabled={processingId === reg.id} className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Final approve</button><button onClick={() => finalize(reg.id, 'REJECTED')} disabled={processingId === reg.id} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 disabled:opacity-50">Reject application</button></div></AdminTableCard> })}</div>}<Link to="/admin" className="mt-5 inline-flex text-sm font-semibold text-brand-700">← Admin dashboard</Link></AdminShell>
 }
+
+function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</p></div> }

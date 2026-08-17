@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -21,6 +21,7 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<Product | null>(null)
   const [seller, setSeller] = useState<Profile | null>(null)
+  const [sellerBadges, setSellerBadges] = useState<Array<{ badge_key: string; badge_label: string }>>([])
   const [activeImage, setActiveImage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showBuy, setShowBuy] = useState(false)
@@ -53,6 +54,7 @@ export default function ProductDetail() {
           .eq('id', productData.seller_id)
           .maybeSingle()
         setSeller(sellerData)
+        supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>))
 
         trackProductView(productData.id)
 
@@ -372,6 +374,7 @@ export default function ProductDetail() {
                     ? `★ ${seller.rating} (${seller.review_count} রিভিউ)`
                     : 'এখনো কোনো রিভিউ নেই'}
                 </p>
+                {sellerBadges.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{sellerBadges.slice(0, 3).map((badge) => <span key={badge.badge_key} className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700"><BadgeCheck size={12} />{badge.badge_label}</span>)}</div>}
               </div>
               <span className="shrink-0 text-xs font-medium text-brand-600">প্রোফাইল দেখুন →</span>
             </Link>

@@ -47,6 +47,7 @@ import AdminSupport from '@/pages/admin/AdminSupport'
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
 import AdminFeatureControls from '@/pages/admin/AdminFeatureControls'
+import AdminTeam from '@/pages/admin/AdminTeam'
 
 function AppRoutes() {
   useEnsureProfile()
@@ -391,6 +392,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminFeatureControls />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/team"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminTeam />
             </AdminRoute>
           </ProtectedRoute>
         }

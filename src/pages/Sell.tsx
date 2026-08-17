@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { FileCheck2, Package, ShieldCheck } from 'lucide-react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
@@ -18,6 +19,7 @@ export default function Sell() {
   const { id } = useParams<{ id: string }>()
   const isEditing = Boolean(id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
 
   const [categories, setCategories] = useState<Category[]>([])
@@ -28,6 +30,7 @@ export default function Sell() {
   const [categoryId, setCategoryId] = useState('')
   const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
   const [isDigital, setIsDigital] = useState(false)
+  const [modeSelected, setModeSelected] = useState(isEditing || ['DIGITAL', 'PHYSICAL'].includes(searchParams.get('mode') ?? ''))
   const [supportsCod, setSupportsCod] = useState(false)
   const [freeDelivery, setFreeDelivery] = useState(false)
   const [fastDelivery, setFastDelivery] = useState(false)
@@ -176,6 +179,11 @@ export default function Sell() {
     setSubmitting(true)
     setError(null)
 
+    if (isDigital) {
+      const { data: verification } = await supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('listing_mode', 'DIGITAL').eq('status', 'APPROVED').maybeSingle()
+      if (!verification) { setError('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।'); setSubmitting(false); return }
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim(),
@@ -232,6 +240,10 @@ export default function Sell() {
         <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
       </Layout>
     )
+  }
+
+  if (!isEditing && !modeSelected) {
+    return <Layout wide><div className="mx-auto max-w-3xl"><div className="rounded-3xl bg-ink-900 p-6 text-white sm:p-8"><p className="text-sm font-semibold text-brand-300">Seller setup</p><h1 className="mt-2 text-2xl font-bold">আপনি কী বিক্রি করবেন?</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে listing-এর ধরন নির্বাচন করুন। Digital product seller হলে publish করার আগে শক্ত verification লাগবে।</p></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><button onClick={() => navigate('/become-seller/verify?mode=DIGITAL')} className="rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white"><FileCheck2 size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ডিজিটাল</span><span className="mt-1 block text-xs text-ink-500">কোড, ফাইল, course, service বা software</span></span></div><p className="mt-4 text-sm font-semibold text-brand-700">আগে verification করুন →</p></button><button onClick={() => { setIsDigital(false); setModeSelected(true) }} className="rounded-2xl border border-outline bg-surface p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg text-brand-600"><Package size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ফিজিক্যাল</span><span className="mt-1 block text-xs text-ink-500">Courier-এ পাঠানো যাবে এমন পণ্য</span></span></div><p className="mt-4 text-sm font-semibold text-ink-600">Listing form-এ যান →</p></button></div><div className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Admin approval, document verification এবং sector badge ক্রেতার trust বাড়াতে সাহায্য করবে।</div></div></Layout>
   }
 
   return (

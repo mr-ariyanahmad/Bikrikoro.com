@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { SellerType } from '@/types/chat'
+import type { BusinessType, ListingMode, SellerType } from '@/types/chat'
 
 const BUCKET = 'seller-verification-docs'
 
@@ -16,6 +16,44 @@ export async function uploadVerificationDocument(file: File, userId: string): Pr
 export async function getVerificationDocUrl(path: string): Promise<string | null> {
   const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 10)
   return data?.signedUrl ?? null
+}
+
+export async function uploadVerificationDocuments(files: Array<{ documentType: string; file: File }>, userId: string) {
+  return Promise.all(files.map(async ({ documentType, file }) => ({ document_type: documentType, document_path: await uploadVerificationDocument(file, userId) })))
+}
+
+export async function getSellerDocumentRequirements(listingMode: ListingMode, businessType: BusinessType, sector: string) {
+  const { data, error } = await supabase.rpc('get_seller_document_requirements', { p_listing_mode: listingMode, p_business_type: businessType, p_sector: sector })
+  if (error) throw error
+  return (data ?? []) as Array<{ document_type: string; document_label: string; help_text: string; required: boolean; sort_order: number }>
+}
+
+export async function submitSellerRegistrationV2(params: {
+  userId: string
+  listingMode: ListingMode
+  businessType: BusinessType
+  sector: string
+  fullName: string
+  phone: string
+  nidOrBusinessNumber: string
+  businessName: string | null
+  address: string
+  documents: Array<{ document_type: string; document_path: string }>
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('submit_seller_registration_v2', {
+    p_user_id: params.userId,
+    p_listing_mode: params.listingMode,
+    p_business_type: params.businessType,
+    p_sector: params.sector,
+    p_full_name: params.fullName,
+    p_phone: params.phone,
+    p_nid_or_business_number: params.nidOrBusinessNumber,
+    p_business_name: params.businessName,
+    p_address: params.address,
+    p_documents: params.documents,
+  })
+  if (error) throw error
+  return data as string
 }
 
 export async function submitSellerRegistration(params: {

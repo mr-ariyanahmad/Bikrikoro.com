@@ -1,232 +1,78 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, CheckCircle2, FileCheck2, ShieldCheck, Upload, XCircle } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { supabase } from '@/lib/supabase'
-import { uploadVerificationDocument, getVerificationDocUrl, submitSellerRegistration } from '@/lib/verification'
-import type { SellerRegistration, SellerType } from '@/types/chat'
+import { getSellerDocumentRequirements, getVerificationDocUrl, submitSellerRegistrationV2, uploadVerificationDocuments } from '@/lib/verification'
+import type { BusinessType, ListingMode, SellerRegistration } from '@/types/chat'
+
+type Requirement = { document_type: string; document_label: string; help_text: string; required: boolean; sort_order: number }
+const SECTORS = [['SOFTWARE', 'Software / SaaS'], ['EDUCATION', 'Education / Course'], ['CREATIVE', 'Creative / Media'], ['RETAIL', 'Retail / Reseller'], ['SERVICES', 'Professional Services'], ['OTHER', 'অন্যান্য']] as const
+const FALLBACK_REQUIREMENTS: Requirement[] = [
+  { document_type: 'NID_FRONT', document_label: 'NID-এর সামনের অংশ', help_text: 'পরিষ্কার ও সম্পূর্ণ ছবি দিন।', required: true, sort_order: 10 },
+  { document_type: 'NID_BACK', document_label: 'NID-এর পেছনের অংশ', help_text: 'লেখা ও QR/বারকোড যেন বোঝা যায়।', required: true, sort_order: 20 },
+  { document_type: 'SELFIE', document_label: 'NID হাতে selfie', help_text: 'মুখ ও NID দুটোই পরিষ্কার দেখা যেতে হবে।', required: true, sort_order: 30 },
+]
 
 export default function SellerVerification() {
   const { user } = useAuth()
   const uid = user!.uid
-
+  const [searchParams] = useSearchParams()
   const [existing, setExisting] = useState<SellerRegistration | null>(null)
   const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const [sellerType, setSellerType] = useState<SellerType>('INDIVIDUAL')
+  const [loadingRequirements, setLoadingRequirements] = useState(false)
+  const [requirementsError, setRequirementsError] = useState<string | null>(null)
+  const [requirements, setRequirements] = useState<Requirement[]>(FALLBACK_REQUIREMENTS)
+  const [listingMode, setListingMode] = useState<ListingMode>(searchParams.get('mode') === 'PHYSICAL' ? 'PHYSICAL' : 'DIGITAL')
+  const [businessType, setBusinessType] = useState<BusinessType>('PERSONAL')
+  const [sector, setSector] = useState('OTHER')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [idNumber, setIdNumber] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [address, setAddress] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<Record<string, File | null>>({})
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('seller_registrations')
-        .select('*')
-        .eq('user_id', uid)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
+    supabase.from('seller_registrations').select('*').eq('user_id', uid).order('submitted_at', { ascending: false }).limit(1).maybeSingle().then(async ({ data }) => {
       setExisting(data)
-      if (data) {
-        const url = await getVerificationDocUrl(data.document_path)
-        setDocPreviewUrl(url)
-      }
+      if (data?.document_path) setDocPreviewUrl(await getVerificationDocUrl(data.document_path))
       setLoading(false)
-    }
-    load()
+    })
   }, [uid])
 
-  const isValid =
-    fullName.trim().length >= 3 &&
-    phone.trim().length >= 11 &&
-    idNumber.trim().length >= 5 &&
-    address.trim().length >= 5 &&
-    file !== null &&
-    (sellerType === 'INDIVIDUAL' || businessName.trim().length >= 2)
+  useEffect(() => {
+    setLoadingRequirements(true); setRequirementsError(null)
+    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : FALLBACK_REQUIREMENTS)).catch(() => { setRequirementsError('Document checklist লোড করা যায়নি। Migration 023 প্রয়োগ না হওয়া পর্যন্ত নিরাপদ basic checklist দেখানো হচ্ছে।'); setRequirements(FALLBACK_REQUIREMENTS) }).finally(() => setLoadingRequirements(false))
+  }, [businessType, listingMode, sector])
+
+  const requiredRequirements = useMemo(() => requirements.filter((item) => item.required), [requirements])
+  const isValid = fullName.trim().length >= 3 && phone.replace(/\D/g, '').length >= 11 && idNumber.trim().length >= 5 && address.trim().length >= 5 && (businessType === 'PERSONAL' || businessName.trim().length >= 2) && requiredRequirements.every((item) => files[item.document_type])
 
   const handleSubmit = async () => {
-    if (!isValid || !file) return
-    setSubmitting(true)
-    setError(null)
-
+    if (!isValid || submitting) return
+    setSubmitting(true); setError(null)
     try {
-      const documentPath = await uploadVerificationDocument(file, uid)
-      await submitSellerRegistration({
-        userId: uid,
-        sellerType,
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        nidOrBusinessNumber: idNumber.trim(),
-        businessName: sellerType === 'BUSINESS' ? businessName.trim() : null,
-        address: address.trim(),
-        documentPath,
-      })
+      const uploaded = await uploadVerificationDocuments(requiredRequirements.map((item) => ({ documentType: item.document_type, file: files[item.document_type]! })), uid)
+      await submitSellerRegistrationV2({ userId: uid, listingMode, businessType, sector, fullName: fullName.trim(), phone: phone.trim(), nidOrBusinessNumber: idNumber.trim(), businessName: businessType === 'PERSONAL' ? null : businessName.trim(), address: address.trim(), documents: uploaded })
       window.location.reload()
     } catch (err) {
-      console.error('Seller registration submit failed:', err)
-      const message =
-        err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : ''
-      setError(`আবেদন জমা দেওয়া যায়নি — আবার চেষ্টা করুন।${message ? ` (${message})` : ''}`)
+      console.error('Seller verification submit failed:', err)
+      setError(err instanceof Error ? err.message : 'আবেদন জমা দেওয়া যায়নি। সব তথ্য ও document আবার পরীক্ষা করুন।')
       setSubmitting(false)
     }
   }
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="h-72 animate-pulse rounded-2xl bg-outline/40" />
-      </Layout>
-    )
-  }
+  if (loading) return <Layout wide><div className="h-96 animate-pulse rounded-3xl bg-outline/40" /></Layout>
+  if (existing) return <Layout wide><div className="mx-auto max-w-3xl"><Link to="/become-seller" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft size={16} />Seller page-এ ফিরুন</Link><div className="mt-5 rounded-3xl border border-outline bg-surface p-5 sm:p-7"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-ink-500">Verification application</p><h1 className="mt-1 text-2xl font-bold text-ink-900">আপনার আবেদন জমা হয়েছে</h1></div><StatusBadge status={existing.status} /></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><Info label="Listing mode" value={existing.listing_mode === 'DIGITAL' ? 'ডিজিটাল' : 'ফিজিক্যাল'} /><Info label="Business type" value={existing.business_type === 'COMPANY' ? 'কোম্পানি' : existing.business_type === 'BUSINESS' ? 'ব্যবসায়িক' : 'পারসোনাল'} /><Info label="নাম" value={existing.full_name} /><Info label="Sector" value={existing.sector || 'OTHER'} /></div>{docPreviewUrl && <img src={docPreviewUrl} alt="জমা দেওয়া document" className="mt-5 max-h-52 rounded-xl border border-outline" />}{existing.status === 'REJECTED' && <p className="mt-5 rounded-xl bg-error/10 p-3 text-sm text-error">{existing.admin_note || 'Admin review থেকে পরিবর্তন চাওয়া হয়েছে।'}</p>}<p className="mt-5 text-xs leading-5 text-ink-500">প্রতিটি document আলাদাভাবে review করা হয়। অনুমোদনের পর আপনার profile-এ sector অনুযায়ী trust badge দেখা যাবে।</p></div></div></Layout>
 
-  if (existing) {
-    return (
-      <Layout>
-        <h1 className="text-xl font-semibold text-ink-900">সেলার ভেরিফিকেশন</h1>
-        <div className="mt-5 rounded-2xl border border-outline bg-surface p-5">
-          <StatusBadge status={existing.status} />
-          <dl className="mt-4 space-y-2 text-sm">
-            <Row label="নাম" value={existing.full_name} />
-            <Row label="ধরন" value={existing.seller_type === 'INDIVIDUAL' ? 'ব্যক্তিগত' : 'ব্যবসায়িক'} />
-            {existing.business_name && <Row label="ব্যবসার নাম" value={existing.business_name} />}
-            <Row label="জমা দেওয়া হয়েছে" value={new Date(existing.submitted_at).toLocaleDateString('bn-BD')} />
-          </dl>
-          {docPreviewUrl && (
-            <img src={docPreviewUrl} alt="জমা দেওয়া ডকুমেন্ট" className="mt-4 max-h-48 rounded-lg border border-outline" />
-          )}
-          {existing.status === 'REJECTED' && existing.admin_note && (
-            <p className="mt-4 rounded-lg bg-error/10 p-3 text-sm text-error">{existing.admin_note}</p>
-          )}
-          {existing.status === 'REJECTED' && (
-            <button
-              onClick={() => setExisting(null)}
-              className="mt-4 rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500"
-            >
-              আবার আবেদন করুন
-            </button>
-          )}
-        </div>
-      </Layout>
-    )
-  }
-
-  return (
-    <Layout>
-      <h1 className="text-xl font-semibold text-ink-900">সেলার ভেরিফিকেশন</h1>
-      <p className="mt-1 text-sm text-ink-600">
-        ভেরিফাই করা সেলারের প্রোফাইলে একটা ব্যাজ দেখা যায়, যা ক্রেতাদের বাড়তি আস্থা দেয়।
-      </p>
-
-      <div className="mt-6 space-y-5">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-900">ধরন</label>
-          <div className="flex rounded-lg border border-outline p-1">
-            {(['INDIVIDUAL', 'BUSINESS'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setSellerType(t)}
-                className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                  sellerType === t ? 'bg-brand-500 text-white' : 'text-ink-600'
-                }`}
-              >
-                {t === 'INDIVIDUAL' ? 'ব্যক্তিগত' : 'ব্যবসায়িক'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Field label="পূর্ণ নাম" value={fullName} onChange={setFullName} placeholder="আপনার আইডি অনুযায়ী নাম" />
-        <Field label="ফোন নম্বর" value={phone} onChange={setPhone} placeholder="০১XXXXXXXXX" type="tel" />
-        <Field
-          label={sellerType === 'INDIVIDUAL' ? 'NID নম্বর' : 'ট্রেড লাইসেন্স নম্বর'}
-          value={idNumber}
-          onChange={setIdNumber}
-        />
-        {sellerType === 'BUSINESS' && (
-          <Field label="ব্যবসার নাম" value={businessName} onChange={setBusinessName} />
-        )}
-        <Field label="ঠিকানা" value={address} onChange={setAddress} />
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-900">
-            {sellerType === 'INDIVIDUAL' ? 'NID কার্ডের ছবি' : 'ট্রেড লাইসেন্সের ছবি'}
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-ink-600"
-          />
-          <p className="mt-1 text-xs text-ink-300">এই ডকুমেন্ট শুধু BikriKoro পর্যালোচনার জন্য ব্যবহৃত হবে, কোথাও প্রকাশ করা হবে না।</p>
-        </div>
-
-        {error && <p className="text-sm text-error">{error}</p>}
-
-        <button
-          onClick={handleSubmit}
-          disabled={!isValid || submitting}
-          className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? 'জমা হচ্ছে...' : 'আবেদন জমা দিন'}
-        </button>
-      </div>
-    </Layout>
-  )
+  return <Layout wide><div className="mx-auto max-w-3xl"><Link to="/become-seller" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft size={16} />Seller page-এ ফিরুন</Link><div className="mt-4 rounded-3xl bg-ink-900 p-5 text-white sm:p-7"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-brand-300" size={25} /><div><p className="text-sm font-semibold text-brand-300">Strong verification</p><h1 className="mt-1 text-2xl font-bold">Verified seller হওয়ার আবেদন</h1><p className="mt-2 text-sm leading-6 text-white/70">Digital product seller-এর ক্ষেত্রে identity, business এবং product ownership—সবগুলো আলাদা করে যাচাই করা হবে।</p></div></div></div><div className="mt-5 space-y-5"><section className="rounded-2xl border border-outline bg-surface p-4 sm:p-5"><h2 className="font-bold text-ink-900">১. আপনি কী বিক্রি করবেন?</h2><div className="mt-3 grid gap-3 sm:grid-cols-2">{([['DIGITAL', 'ডিজিটাল', 'কোড, ফাইল, course, service বা software'], ['PHYSICAL', 'ফিজিক্যাল', 'হাতে পৌঁছানো পণ্য ও courier delivery']] as const).map(([value, title, body]) => <button key={value} onClick={() => setListingMode(value)} className={`rounded-2xl border p-4 text-left ${listingMode === value ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-outline'}`}><span className="block font-bold text-ink-900">{title}</span><span className="mt-1 block text-xs leading-5 text-ink-500">{body}</span></button>)}</div></section><section className="rounded-2xl border border-outline bg-surface p-4 sm:p-5"><h2 className="font-bold text-ink-900">২. আপনার seller identity</h2><div className="mt-3 grid gap-3 sm:grid-cols-3">{([['PERSONAL', 'পারসোনাল', 'নিজের নামে'], ['BUSINESS', 'ব্যবসায়িক', 'Trade license সহ'], ['COMPANY', 'কোম্পানি', 'Company registration সহ']] as const).map(([value, title, body]) => <button key={value} onClick={() => setBusinessType(value)} className={`rounded-xl border p-3 text-left ${businessType === value ? 'border-brand-500 bg-brand-50' : 'border-outline'}`}><span className="block text-sm font-bold text-ink-900">{title}</span><span className="mt-1 block text-xs text-ink-500">{body}</span></button>)}</div></section><section className="rounded-2xl border border-outline bg-surface p-4 sm:p-5"><h2 className="font-bold text-ink-900">৩. Sector নির্বাচন করুন</h2><select value={sector} onChange={(e) => setSector(e.target.value)} className="mt-3 w-full rounded-xl border border-outline bg-surface px-3 py-3 text-sm outline-none focus:border-brand-500">{SECTORS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></section><section className="rounded-2xl border border-outline bg-surface p-4 sm:p-5"><h2 className="font-bold text-ink-900">৪. পরিচয় ও যোগাযোগ</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="পূর্ণ নাম" value={fullName} onChange={setFullName} placeholder="NID অনুযায়ী নাম" /><Field label="ফোন নম্বর" value={phone} onChange={setPhone} placeholder="০১XXXXXXXXX" type="tel" /><Field label={businessType === 'PERSONAL' ? 'NID নম্বর' : 'Trade license / business number'} value={idNumber} onChange={setIdNumber} /><Field label="ব্যবসা/কোম্পানির নাম" value={businessName} onChange={setBusinessName} placeholder={businessType === 'PERSONAL' ? 'প্রযোজ্য নয়' : 'রেজিস্টার্ড নাম'} /><div className="sm:col-span-2"><Field label="পূর্ণ ঠিকানা" value={address} onChange={setAddress} placeholder="বাড়ি, রোড, এলাকা, জেলা" /></div></div></section><section className="rounded-2xl border border-brand-200 bg-brand-50/50 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-bold text-ink-900">৫. প্রয়োজনীয় documents</h2><p className="mt-1 text-xs leading-5 text-ink-600">Admin প্রতিটি document আলাদাভাবে যাচাই করবেন। অস্পষ্ট, edited বা অন্যের document দিলে আবেদন বাতিল হতে পারে।</p></div><FileCheck2 className="shrink-0 text-brand-600" size={22} /></div>{requirementsError && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{requirementsError}</p>}{loadingRequirements ? <div className="mt-4 h-24 animate-pulse rounded-xl bg-white/70" /> : <div className="mt-4 space-y-3">{requiredRequirements.map((item) => <label key={item.document_type} className="block rounded-xl border border-brand-100 bg-white p-3"><span className="flex items-center justify-between gap-2 text-sm font-semibold text-ink-900"><span>{item.document_label}{item.required && <b className="ml-1 text-error">*</b>}</span>{files[item.document_type] ? <CheckCircle2 size={17} className="text-brand-600" /> : <Upload size={17} className="text-ink-300" />}</span><span className="mt-1 block text-xs leading-5 text-ink-500">{item.help_text}</span><input type="file" accept="image/*,.pdf" onChange={(e) => setFiles((current) => ({ ...current, [item.document_type]: e.target.files?.[0] ?? null }))} className="mt-2 w-full text-xs text-ink-600" />{files[item.document_type] && <span className="mt-1 block truncate text-xs text-brand-700">{files[item.document_type]?.name}</span>}</label>)}</div>}</section>{error && <p className="rounded-xl bg-error/10 p-3 text-sm text-error">{error}</p>}<button onClick={handleSubmit} disabled={!isValid || submitting} className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'Document secure upload হচ্ছে...' : 'Verification application জমা দিন'}</button><p className="text-center text-xs leading-5 text-ink-400">আপনার private documents signed access-এ থাকবে এবং কেবল authorized admin review করতে পারবেন।</p></div></div></Layout>
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  type?: string
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-ink-900">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-      />
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt className="text-ink-600">{label}</dt>
-      <dd className="font-medium text-ink-900">{value}</dd>
-    </div>
-  )
-}
-
-function StatusBadge({ status }: { status: SellerRegistration['status'] }) {
-  const config = {
-    PENDING: { label: 'পর্যালোচনাধীন', className: 'bg-warning/10 text-warning' },
-    APPROVED: { label: 'অনুমোদিত ✓', className: 'bg-brand-100 text-brand-700' },
-    REJECTED: { label: 'বাতিল হয়েছে', className: 'bg-error/10 text-error' },
-  }[status]
-
-  return (
-    <span className={`inline-block rounded-full px-3 py-1 text-sm font-semibold ${config.className}`}>
-      {config.label}
-    </span>
-  )
-}
+function Field({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) { return <label className="block text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{label}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-outline px-3 py-2.5 outline-none focus:border-brand-500" /></label> }
+function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-bg p-3"><p className="text-xs text-ink-500">{label}</p><p className="mt-1 text-sm font-semibold text-ink-900">{value}</p></div> }
+function StatusBadge({ status }: { status: SellerRegistration['status'] }) { const config = { PENDING: ['পর্যালোচনাধীন', 'bg-warning/10 text-warning'], APPROVED: ['অনুমোদিত ✓', 'bg-brand-100 text-brand-700'], REJECTED: ['পরিবর্তন প্রয়োজন', 'bg-error/10 text-error'] }[status]; return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${config[1]}`}>{status === 'APPROVED' ? <CheckCircle2 size={14} /> : status === 'REJECTED' ? <XCircle size={14} /> : <ShieldCheck size={14} />}{config[0]}</span> }
