@@ -83,7 +83,12 @@ export default function Login() {
       await loginWithGoogle()
     } catch (err) {
       console.error('Google login failed:', err)
-      setError('গুগল দিয়ে লগইন করা যায়নি — আবার চেষ্টা করুন।')
+      const code = (err as { code?: string }).code
+      if (code === 'auth/unauthorized-domain') setError('এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।')
+      else if (code === 'auth/account-exists-with-different-credential') setError('এই Google email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।')
+      else if (code === 'auth/popup-closed-by-user') setError('Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।')
+      else if (code === 'auth/network-request-failed') setError('ইন্টারনেট সংযোগ বা Google service-এর সমস্যা হয়েছে।')
+      else setError(`গুগল দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`)
     } finally {
       setGoogleLoading(false)
     }

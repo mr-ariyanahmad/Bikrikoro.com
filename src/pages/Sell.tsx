@@ -28,6 +28,10 @@ export default function Sell() {
   const [categoryId, setCategoryId] = useState('')
   const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
   const [isDigital, setIsDigital] = useState(false)
+  const [supportsCod, setSupportsCod] = useState(false)
+  const [freeDelivery, setFreeDelivery] = useState(false)
+  const [fastDelivery, setFastDelivery] = useState(false)
+  const [freeReturn, setFreeReturn] = useState(false)
   const [digitalDeliveryType, setDigitalDeliveryType] = useState<'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'>('INSTRUCTIONS')
   const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
   const [location, setLocation] = useState('')
@@ -86,6 +90,10 @@ export default function Sell() {
         setCategoryId(data.category_id)
         setCondition(data.condition)
         setIsDigital(Boolean(data.is_digital))
+        setSupportsCod(Boolean(data.supports_cod))
+        setFreeDelivery(Boolean(data.free_delivery))
+        setFastDelivery(Boolean(data.fast_delivery))
+        setFreeReturn(Boolean(data.free_return))
         setLocation(data.location || '')
         setImages(data.images.map((url: string) => ({ url })))
         const { data: delivery } = await supabase
@@ -160,6 +168,8 @@ export default function Sell() {
     (isDigital || location.trim().length >= 2) &&
     images.length > 0 &&
     !images.some((img) => img.uploading)
+  const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
+  const qualityScore = Math.round((qualityChecks.filter(Boolean).length / qualityChecks.length) * 100)
 
   const handleSubmit = async () => {
     if (!user || !isValid) return
@@ -173,7 +183,11 @@ export default function Sell() {
       original_price: originalPrice ? Number(originalPrice) : null,
       category_id: categoryId,
       condition,
-      is_digital: isDigital,
+      is_digital:       isDigital,
+      supports_cod: !isDigital && supportsCod,
+      free_delivery: !isDigital && freeDelivery,
+      fast_delivery: !isDigital && fastDelivery,
+      free_return: !isDigital && freeReturn,
       location: isDigital ? '' : location.trim(),
       images: images.map((img) => img.url),
       seller_id: user.uid,
@@ -324,20 +338,11 @@ export default function Sell() {
         </div>
 
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-ink-900">
-            <input
-              type="checkbox"
-              checked={isDigital}
-              onChange={(e) => setIsDigital(e.target.checked)}
-              className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500"
-            />
-            এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)
-          </label>
-          <p className="mt-1 text-xs text-ink-300">
-            ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না, এবং কোনো ক্যাশ অন ডেলিভারি হয় না — শুধু বিকাশ/নগদ/রকেটে
-            আগে থেকে পেমেন্ট করে অর্ডার করতে হবে।
-          </p>
+          <label className="flex items-center gap-2 text-sm font-medium text-ink-900"><input type="checkbox" checked={isDigital} onChange={(e) => setIsDigital(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)</label>
+          <p className="mt-1 text-xs text-ink-300">ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না, এবং কোনো ক্যাশ অন ডেলিভারি হয় না — আগে থেকে পেমেন্ট করে অর্ডার করতে হবে।</p>
         </div>
+
+        {!isDigital && <div className="rounded-xl border border-outline bg-bg p-4"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-ink-900">ক্রেতার জন্য ডেলিভারি ব্যাজ</p><p className="mt-1 text-xs text-ink-500">শুধু আপনি সত্যিই দিতে পারবেন এমন সুবিধা বেছে নিন।</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${qualityScore >= 80 ? 'bg-success/10 text-success' : 'bg-amber-50 text-amber-700'}`}>Listing quality {qualityScore}%</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{[[supportsCod, setSupportsCod, 'ক্যাশ অন ডেলিভারি (COD)'], [freeDelivery, setFreeDelivery, 'ফ্রি ডেলিভারি'], [fastDelivery, setFastDelivery, 'দ্রুত ডেলিভারি'], [freeReturn, setFreeReturn, 'ফ্রি রিটার্ন']].map(([checked, setter, label]) => <label key={label as string} className="flex items-center gap-2 rounded-lg border border-outline bg-surface px-3 py-2 text-sm text-ink-700"><input type="checkbox" checked={checked as boolean} onChange={(e) => (setter as (value: boolean) => void)(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />{label as string}</label>)}</div></div>}
 
         {isDigital && (
           <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">

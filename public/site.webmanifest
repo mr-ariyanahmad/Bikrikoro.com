@@ -1,13 +1,14 @@
 {
-  "name": "BikriKoro.Com",
+  "name": "BikriKoro — নিরাপদ অনলাইন কেনাবেচা",
   "short_name": "BikriKoro",
   "description": "বাংলাদেশের এসক্রো-সুরক্ষিত অনলাইন কেনাবেচার প্ল্যাটফর্ম",
+  "lang": "bn-BD",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F7F9FA",
+  "background_color": "#F7FAF8",
   "theme_color": "#017C50",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

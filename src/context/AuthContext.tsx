@@ -6,6 +6,8 @@ import {
   sendPasswordResetEmail,
   updatePassword,
   sendEmailVerification,
+  getRedirectResult,
+  signInWithRedirect,
   updateProfile,
   signOut as firebaseSignOut,
   RecaptchaVerifier,
@@ -55,6 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  useEffect(() => {
+    // Redirect is the reliable path on mobile browsers and on browsers that block
+    // third-party popup storage. The result is resolved once when the app returns.
+    getRedirectResult(auth).catch((error) => {
+      console.warn('Google redirect sign-in failed:', error)
+    })
+  }, [])
+
   const sendOtp = (phoneE164: string) =>
     signInWithPhoneNumber(auth, phoneE164, getRecaptchaVerifier())
 
@@ -89,8 +99,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // (e.g. bikrikoro.com and localhost) under Authorized domains, or the
   // popup will fail with auth/unauthorized-domain.
   const googleProvider = new GoogleAuthProvider()
+  googleProvider.setCustomParameters({ prompt: 'select_account' })
   const loginWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider)
+    const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    if (isMobileBrowser) {
+      await signInWithRedirect(auth, googleProvider)
+      return
+    }
+    try {
+      await signInWithPopup(auth, googleProvider)
+    } catch (error) {
+      const code = (error as { code?: string }).code
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        await signInWithRedirect(auth, googleProvider)
+        return
+      }
+      throw error
+    }
   }
 
   const logout = () => firebaseSignOut(auth)

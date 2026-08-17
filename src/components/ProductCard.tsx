@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { RotateCcw, ShieldCheck, Truck, Zap } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product } from '@/types/product'
@@ -87,6 +88,13 @@ export function ProductCard({ product }: { product: Product }) {
             এসক্রো সুরক্ষিত
           </span>
         )}
+        <div className="absolute bottom-2 left-2 flex max-w-[85%] flex-wrap gap-1">
+          {product.is_digital && <span className="inline-flex items-center gap-1 rounded-md bg-violet-600/90 px-1.5 py-1 text-[10px] font-semibold text-white">ডিজিটাল ডেলিভারি</span>}
+          {!product.is_digital && product.supports_cod && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><ShieldCheck size={11} />COD</span>}
+          {!product.is_digital && product.free_delivery && <span className="inline-flex items-center gap-1 rounded-md bg-sky-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><Truck size={11} />ফ্রি ডেলিভারি</span>}
+          {!product.is_digital && product.fast_delivery && <span className="inline-flex items-center gap-1 rounded-md bg-orange-500/90 px-1.5 py-1 text-[10px] font-semibold text-white"><Zap size={11} />দ্রুত</span>}
+          {!product.is_digital && product.free_return && <span className="inline-flex items-center gap-1 rounded-md bg-ink-800/80 px-1.5 py-1 text-[10px] font-semibold text-white"><RotateCcw size={11} />ফ্রি রিটার্ন</span>}
+        </div>
         {user && (
           <button
             onClick={handleToggleFavorite}

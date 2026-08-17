@@ -19,6 +19,10 @@ export interface Product {
   seller_id: string
   view_count: number
   is_escrow_protected: boolean
+  supports_cod?: boolean
+  free_delivery?: boolean
+  fast_delivery?: boolean
+  free_return?: boolean
   latitude: number | null
   longitude: number | null
   created_at: string

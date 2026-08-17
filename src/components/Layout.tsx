@@ -1,154 +1,77 @@
-import { type ReactNode, useState } from 'react'
+import { type ComponentType, type ReactNode, useState } from 'react'
+import { Bell, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { SearchBar } from '@/components/SearchBar'
 
-const NAV_LINKS = [
-  { to: '/', label: 'হোম' },
-  { to: '/products', label: 'প্রোডাক্ট' },
-  { to: '/compare', label: 'তুলনা' },
-  { to: '/sell', label: 'বিক্রি করুন' },
-  { to: '/become-seller', label: 'বিক্রেতা হোন' },
-  { to: '/my-listings', label: 'আমার লিস্টিং' },
-  { to: '/orders', label: 'অর্ডার' },
-  { to: '/library', label: 'ডিজিটাল লাইব্রেরি' },
-  { to: '/notifications', label: 'নোটিফিকেশন' },
-  { to: '/chat', label: 'চ্যাট' },
-  { to: '/wallet', label: 'ওয়ালেট' },
-  { to: '/account', label: 'অ্যাকাউন্ট' },
+type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+type NavItem = { to: string; label: string; icon: Icon }
+
+const NAV_LINKS: NavItem[] = [
+  { to: '/', label: 'হোম', icon: Home },
+  { to: '/products', label: 'প্রোডাক্ট', icon: ShoppingBag },
+  { to: '/compare', label: 'তুলনা', icon: Package },
+  { to: '/sell', label: 'বিক্রি করুন', icon: WalletCards },
+  { to: '/orders', label: 'অর্ডার', icon: Package },
 ]
+const ACCOUNT_LINKS: NavItem[] = [
+  { to: '/library', label: 'ডিজিটাল লাইব্রেরি', icon: Package },
+  { to: '/notifications', label: 'নোটিফিকেশন', icon: Bell },
+  { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
+  { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
+  { to: '/addresses', label: 'সেভড ঠিকানা', icon: MapPin },
+  { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
+]
+const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
 export function Layout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { user, logout } = useAuth()
   const { isAdmin } = useIsAdmin()
   const [menuOpen, setMenuOpen] = useState(false)
-
-  const navLinks = isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন' }] : NAV_LINKS
+  const [cityOpen, setCityOpen] = useState(false)
+  const navLinks = isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS
+  const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
 
   return (
-    <div className="min-h-screen bg-bg">
-      <header className="sticky top-0 z-40 border-b border-outline bg-surface/95 backdrop-blur">
-        <div className={`mx-auto flex items-center gap-4 px-5 py-3.5 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
-          <Link to="/" className="flex shrink-0 items-center gap-2">
-            <img src="/icon-192.png" alt="BikriKoro" className="h-8 w-8 rounded-lg" />
-            <span className="hidden font-semibold text-ink-900 sm:inline">
-              Bikrikoro<span className="text-brand-600">.Com</span>
-            </span>
-          </Link>
+    <div className="min-h-screen bg-bg text-ink-900">
+      <header className="sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur">
+        <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
+          <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
+            <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
+              <img src="/icon-192.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" />
+              <span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span>
+            </Link>
 
-          <div className="hidden flex-1 sm:block">
-            <SearchBar />
-          </div>
+            <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
 
-          <div className="ml-auto flex items-center gap-3">
-            {user && (
-              <Link to="/favorites" className="text-lg text-ink-600 hover:text-error" aria-label="পছন্দের তালিকা">
-                ♡
-              </Link>
-            )}
-            {user ? (
-              <button
-                onClick={() => logout()}
-                className="hidden text-sm font-medium text-ink-600 hover:text-error sm:inline"
-              >
-                লগআউট
-              </button>
-            ) : (
-              <Link
-                to="/login"
-                className="rounded-lg bg-brand-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-600"
-              >
-                লগইন
-              </Link>
-            )}
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="text-ink-600 md:hidden"
-              aria-label="মেনু"
-            >
-              {menuOpen ? '✕' : '☰'}
-            </button>
-          </div>
-        </div>
-
-        <nav className="hidden items-center gap-6 border-t border-outline px-5 py-2.5 md:flex">
-          <div className={`mx-auto flex w-full items-center gap-6 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  `text-sm font-medium transition ${
-                    isActive ? 'text-brand-600' : 'text-ink-600 hover:text-ink-900'
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </div>
-        </nav>
-
-        <div className="border-t border-outline px-5 py-2.5 sm:hidden">
-          <SearchBar compact />
-        </div>
-
-        {menuOpen && (
-          <nav className="border-t border-outline bg-surface px-5 py-3 md:hidden">
-            <div className="flex flex-col gap-3">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `text-sm font-medium ${isActive ? 'text-brand-600' : 'text-ink-600'}`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-              {user && (
-                <NavLink
-                  to="/favorites"
-                  onClick={() => setMenuOpen(false)}
-                  className="text-sm font-medium text-ink-600"
-                >
-                  পছন্দের তালিকা
-                </NavLink>
-              )}
-              {user && (
-                <button
-                  onClick={() => logout()}
-                  className="text-left text-sm font-medium text-error"
-                >
-                  লগআউট
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+              <div className="relative hidden md:block">
+                <button onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl border border-outline bg-bg px-3 py-2 text-sm font-medium text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={cityOpen}>
+                  <MapPin size={16} className="text-brand-600" /><span>খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} />
                 </button>
-              )}
+                {cityOpen && <div className="absolute right-0 top-12 z-50 w-44 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={() => setCityOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700"><MapPin size={14} />{city}</Link>)}</div>}
+              </div>
+              {user && <Link to="/favorites" className="hidden rounded-xl p-2 text-ink-500 hover:bg-red-50 hover:text-red-500 sm:block" aria-label="পছন্দের তালিকা"><Heart size={20} strokeWidth={1.8} /></Link>}
+              {user ? <Link to="/account" className="hidden items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-300 hover:text-brand-700 sm:flex"><UserRound size={16} />অ্যাকাউন্ট</Link> : <Link to="/login" className="rounded-xl bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 sm:px-4">লগইন</Link>}
+              <button onClick={() => setMenuOpen((open) => !open)} className="rounded-xl border border-outline p-2 text-ink-700 hover:border-brand-300 hover:text-brand-700 md:hidden" aria-label={menuOpen ? 'মেনু বন্ধ করুন' : 'মেনু খুলুন'}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
             </div>
-          </nav>
-        )}
-      </header>
-
-      <main className={`mx-auto px-5 py-8 ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>{children}</main>
-
-      <footer className="border-t border-outline">
-        <div className={`mx-auto flex flex-col items-center gap-3 px-5 py-6 text-xs text-ink-300 sm:flex-row sm:justify-between ${wide ? 'max-w-6xl' : 'max-w-2xl'}`}>
-          <span>© {new Date().getFullYear()} Bikrikoro.Com</span>
-          <div className="flex gap-4">
-            <Link to="/about" className="hover:text-ink-600">
-              আমাদের সম্পর্কে
-            </Link>
-            <Link to="/contact" className="hover:text-ink-600">
-              যোগাযোগ
-            </Link>
-            <Link to="/privacy" className="hover:text-ink-600">
-              প্রাইভেসি পলিসি
-            </Link>
           </div>
+
+          <div className="border-t border-outline/70 py-2.5 sm:hidden"><SearchBar compact /></div>
+
+          <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
+            <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
+            <div className="flex items-center gap-1.5"><div className="relative"><button onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} /></Link></div>
+          </nav>
+
+          {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}
         </div>
-      </footer>
+      </header>
+      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
+      <footer className="border-t border-outline bg-surface"><div className={`mx-auto ${maxWidth} flex flex-col items-center gap-3 px-5 py-7 text-xs text-ink-300 sm:flex-row sm:justify-between`}><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/about" className="hover:text-ink-600">আমাদের সম্পর্কে</Link><Link to="/contact" className="hover:text-ink-600">যোগাযোগ</Link><Link to="/privacy" className="hover:text-ink-600">প্রাইভেসি পলিসি</Link></div></div></footer>
     </div>
   )
 }
+
+function MobileNavLink({ item, onClose }: { item: NavItem; onClose: () => void }) { return <NavLink to={item.to} end={item.to === '/'} onClick={onClose} className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-bg'}`}><item.icon size={17} strokeWidth={1.8} />{item.label}</NavLink> }

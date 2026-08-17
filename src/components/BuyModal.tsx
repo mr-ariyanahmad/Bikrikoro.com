@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { supabase } from '@/lib/supabase'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
@@ -19,6 +20,19 @@ export function BuyModal({
   const [couponCode, setCouponCode] = useState('')
   const [coupon, setCoupon] = useState<CouponPreview | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState<Array<{ id: string; label: string; recipient_name: string; phone: string; address_line: string; city: string; area: string; postal_code: string | null }>>([])
+  const [selectedAddressId, setSelectedAddressId] = useState('')
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false)
+
+  useEffect(() => {
+    if (product.is_digital) return
+    supabase.rpc('list_saved_addresses', { p_user_id: buyerId }).then(({ data }) => {
+      const addresses = (data ?? []) as typeof savedAddresses
+      setSavedAddresses(addresses)
+      const defaultAddress = addresses[0]
+      if (defaultAddress) { setSelectedAddressId(defaultAddress.id); setAddress(`${defaultAddress.recipient_name}, ${defaultAddress.phone}, ${defaultAddress.address_line}, ${defaultAddress.area}, ${defaultAddress.city}`) }
+    })
+  }, [buyerId, product.is_digital])
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
   const escrowFee = Math.max(discountedPrice * 0.01, 10)
@@ -49,6 +63,7 @@ export function BuyModal({
       setError('ডেলিভারি ঠিকানা লিখুন (কমপক্ষে ৮ অক্ষর)')
       return
     }
+    if (!acceptedPolicy) { setError('অর্ডার করতে return/refund policy মেনে নেওয়া আবশ্যক।'); return }
     setSubmitting(true)
     setError(null)
 
@@ -92,13 +107,9 @@ export function BuyModal({
           ) : (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink-900">ডেলিভারি ঠিকানা</label>
-              <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                rows={2}
-                placeholder="বাসা/রোড/এলাকা, শহর"
-                className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-              />
+              {savedAddresses.length > 0 && <select value={selectedAddressId} onChange={(e) => { const next = savedAddresses.find((item) => item.id === e.target.value); setSelectedAddressId(e.target.value); if (next) setAddress(`${next.recipient_name}, ${next.phone}, ${next.address_line}, ${next.area}, ${next.city}`) }} className="mb-2 w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500"><option value="">সেভড ঠিকানা বেছে নিন</option>{savedAddresses.map((saved) => <option key={saved.id} value={saved.id}>{saved.label} — {saved.address_line}, {saved.city}</option>)}</select>}
+              <textarea value={address} onChange={(e) => { setAddress(e.target.value); setSelectedAddressId('') }} rows={2} placeholder="বাসা/রোড/এলাকা, শহর" className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+              <p className="mt-1 text-xs text-ink-400">ঠিকানা পরে <span className="font-medium text-brand-600">সেভড ঠিকানা</span> পেজ থেকেও বদলাতে পারবেন।</p>
             </div>
           )}
 
@@ -140,11 +151,12 @@ export function BuyModal({
             </div>
           </div>
 
+          <label className="flex items-start gap-2 rounded-xl border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input type="checkbox" checked={acceptedPolicy} onChange={(e) => setAcceptedPolicy(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline text-brand-500 focus:ring-brand-500" />আমি BikriKoro-এর return/refund policy পড়েছি এবং অর্ডারের পণ্যের ধরন অনুযায়ী প্রযোজ্য নিয়ম মেনে নিচ্ছি।</label>
           {error && <p className="text-sm text-error">{error}</p>}
 
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || !acceptedPolicy}
             className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'পেমেন্ট পেজে নিয়ে যাচ্ছে...' : 'বিকাশ/নগদ/রকেট দিয়ে পেমেন্ট করুন'}

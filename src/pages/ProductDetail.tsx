@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -9,6 +10,7 @@ import { RecommendedProducts } from '@/components/RecommendedProducts'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
+import { askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, Profile } from '@/types/product'
 
@@ -26,6 +28,14 @@ export default function ProductDetail() {
   const [favorited, setFavorited] = useState(false)
   const [togglingFavorite, setTogglingFavorite] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [alertEnabled, setAlertEnabled] = useState(false)
+  const [followingSeller, setFollowingSeller] = useState(false)
+  const [questions, setQuestions] = useState<ProductQuestion[]>([])
+  const [questionText, setQuestionText] = useState('')
+  const [featureMessage, setFeatureMessage] = useState<string | null>(null)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('ভুল বা বিভ্রান্তিকর তথ্য')
+  const [reportDetails, setReportDetails] = useState('')
   const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
@@ -62,6 +72,11 @@ export default function ProductDetail() {
     if (!user || !id) return
     isFavorited(user.uid, id).then(setFavorited)
   }, [user, id])
+
+  useEffect(() => {
+    if (!id) return
+    listProductQuestions(id).then(setQuestions).catch(() => setQuestions([]))
+  }, [id])
 
   if (loading) {
     return (
@@ -126,6 +141,27 @@ export default function ProductDetail() {
     } finally {
       setTogglingFavorite(false)
     }
+  }
+
+  const handleAlert = async (type: 'PRICE_DROP' | 'BACK_IN_STOCK') => {
+    if (!user) { navigate('/login'); return }
+    try { setAlertEnabled(await toggleProductAlert(user.uid, product.id, type)); setFeatureMessage(type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার available হলে আপনাকে জানানো হবে।') } catch { setFeatureMessage('Alert চালু করা যায়নি — 016 migration run করা হয়েছে কি না দেখুন।') }
+  }
+
+  const handleFollow = async () => {
+    if (!user) { navigate('/login'); return }
+    try { setFollowingSeller(await toggleSellerFollow(user.uid, product.seller_id)); setFeatureMessage(followingSeller ? 'Seller follow বন্ধ হয়েছে।' : 'Seller follow করা হয়েছে।') } catch { setFeatureMessage('Seller follow চালু করা যায়নি।') }
+  }
+
+  const handleAsk = async () => {
+    if (!user) { navigate('/login'); return }
+    if (!questionText.trim()) return
+    try { await askProductQuestion(user.uid, product.id, questionText.trim()); setQuestionText(''); setFeatureMessage('আপনার প্রশ্ন জমা হয়েছে। Seller উত্তর দিলে এখানে দেখা যাবে।'); setQuestions(await listProductQuestions(product.id)) } catch { setFeatureMessage('প্রশ্ন জমা দেওয়া যায়নি।') }
+  }
+
+  const handleReport = async () => {
+    if (!user) { navigate('/login'); return }
+    try { await reportProduct(user.uid, product.id, reportReason, reportDetails); setShowReport(false); setReportDetails(''); setFeatureMessage('Report জমা হয়েছে। আমাদের team review করবে।') } catch { setFeatureMessage('Report জমা দেওয়া যায়নি।') }
   }
 
   return (
@@ -254,6 +290,13 @@ export default function ProductDetail() {
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
             <button
+              onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-medium ${alertEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}
+            >
+              <Bell size={14} />{alertEnabled ? 'Alert চালু আছে' : product.is_digital ? 'দাম কমলে জানাবেন' : 'স্টক এলে জানাবেন'}
+            </button>
+            <button onClick={() => setShowReport(true)} className="inline-flex items-center gap-1.5 rounded-full border border-outline px-3 py-1.5 font-medium text-ink-600 hover:border-error hover:text-error"><Flag size={14} />Report</button>
+            <button
               onClick={handleShare}
               className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
             >
@@ -328,6 +371,14 @@ export default function ProductDetail() {
               <span className="shrink-0 text-xs font-medium text-brand-600">প্রোফাইল দেখুন →</span>
             </Link>
           )}
+          {seller && <button onClick={handleFollow} className={`mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${followingSeller ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}><UserPlus size={16} />{followingSeller ? 'Seller follow করা আছে' : 'Seller follow করুন'}</button>}
+
+          <section className="mt-6 rounded-2xl border border-outline bg-surface p-4">
+            <div className="flex items-center gap-2"><MessageCircleQuestion size={19} className="text-brand-600" /><h2 className="font-semibold text-ink-900">প্রশ্ন ও উত্তর</h2></div>
+            <div className="mt-3 space-y-3">{questions.length === 0 ? <p className="text-sm text-ink-500">এখনো কোনো প্রশ্ন নেই। প্রথম প্রশ্নটি করুন।</p> : questions.map((question) => <div key={question.id} className="rounded-xl bg-bg p-3"><p className="text-sm font-medium text-ink-800">প্রশ্ন: {question.question}</p>{question.answer && <p className="mt-2 text-sm text-ink-600">উত্তর: {question.answer}</p>}</div>)}</div>
+            {user ? <div className="mt-3 flex gap-2"><input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="এই পণ্য সম্পর্কে প্রশ্ন করুন..." className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button onClick={handleAsk} className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white">জিজ্ঞাসা</button></div> : <Link to="/login" className="mt-3 inline-block text-sm font-semibold text-brand-600">প্রশ্ন করতে লগইন করুন</Link>}
+          </section>
+          {featureMessage && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{featureMessage}</p>}
 
           <div className="mt-6 space-y-2">
             {isOwnListing ? (
@@ -373,9 +424,8 @@ export default function ProductDetail() {
         mode={{ type: 'related', categoryId: product.category_id, excludeProductId: product.id }}
       />
 
-      {showBuy && user && (
-        <BuyModal product={product} buyerId={user.uid} onClose={() => setShowBuy(false)} />
-      )}
+      {showBuy && user && <BuyModal product={product} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
+      {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">Listing report করুন</h2><p className="mt-1 text-sm text-ink-500">কেন listing-টি সমস্যা মনে হচ্ছে?</p><select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="mt-4 w-full rounded-xl border border-outline px-3 py-2.5 text-sm"><option>ভুল বা বিভ্রান্তিকর তথ্য</option><option>নিষিদ্ধ পণ্য</option><option>ভুয়া বা প্রতারণামূলক listing</option><option>অন্য কারণ</option></select><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button onClick={() => setShowReport(false)} className="flex-1 rounded-xl border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button onClick={handleReport} className="flex-1 rounded-xl bg-error py-2.5 text-sm font-semibold text-white">Report পাঠান</button></div></div></div>}
     </Layout>
   )
 }
