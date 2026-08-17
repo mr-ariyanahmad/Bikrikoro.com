@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { X } from 'lucide-react'
 import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import { supabase } from '@/lib/supabase'
 import type { Product } from '@/types/product'
@@ -63,7 +65,7 @@ export function BuyModal({
       setError('ডেলিভারি ঠিকানা লিখুন (কমপক্ষে ৮ অক্ষর)')
       return
     }
-    if (!acceptedPolicy) { setError('অর্ডার করতে return/refund policy মেনে নেওয়া আবশ্যক।'); return }
+    if (!acceptedPolicy) { setError('অর্ডার করতে প্রাইভেসি পলিসি ও রিটার্ন/রিফান্ড নীতি মেনে নেওয়া আবশ্যক।'); return }
     setSubmitting(true)
     setError(null)
 
@@ -88,12 +90,13 @@ export function BuyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/40 sm:items-center">
-      <div className="w-full max-w-md rounded-t-2xl bg-surface p-6 sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-ink-900/55" role="dialog" aria-modal="true" aria-labelledby="confirm-order-title">
+      <div className="flex min-h-full items-start justify-center sm:items-center sm:p-5">
+        <div className="min-h-screen w-full bg-surface p-4 sm:min-h-0 sm:max-w-lg sm:rounded-2xl sm:p-6 sm:shadow-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink-900">অর্ডার নিশ্চিত করুন</h2>
-          <button onClick={onClose} className="text-ink-300 hover:text-ink-600" aria-label="বন্ধ করুন">
-            ✕
+          <h2 id="confirm-order-title" className="text-lg font-semibold text-ink-900">অর্ডার নিশ্চিত করুন</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-bg hover:text-ink-700" aria-label="বন্ধ করুন">
+            <X size={19} />
           </button>
         </div>
 
@@ -124,7 +127,7 @@ export function BuyModal({
                 className="min-w-0 flex-1 rounded-lg border border-outline px-3 py-2 text-sm uppercase outline-none focus:border-brand-500"
               />
               <button onClick={handleApplyCoupon} disabled={couponLoading} className="rounded-lg border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 disabled:opacity-50">
-                {couponLoading ? '...' : 'প্রয়োগ'}
+                {couponLoading ? 'যাচাই হচ্ছে…' : 'প্রয়োগ করুন'}
               </button>
             </div>
             {coupon?.valid && <p className="mt-2 text-xs font-medium text-brand-700">কুপন প্রয়োগ হয়েছে: {coupon.message || 'ছাড় পাওয়া গেছে'}</p>}
@@ -151,7 +154,7 @@ export function BuyModal({
             </div>
           </div>
 
-          <label className="flex items-start gap-2 rounded-xl border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input type="checkbox" checked={acceptedPolicy} onChange={(e) => setAcceptedPolicy(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline text-brand-500 focus:ring-brand-500" />আমি BikriKoro-এর return/refund policy পড়েছি এবং অর্ডারের পণ্যের ধরন অনুযায়ী প্রযোজ্য নিয়ম মেনে নিচ্ছি।</label>
+          <div className="flex items-start gap-2 rounded-xl border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input id="order-policy-consent" type="checkbox" checked={acceptedPolicy} onChange={(e) => setAcceptedPolicy(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline text-brand-500 focus:ring-brand-500" /><label htmlFor="order-policy-consent">আমি BikriKoro-এর <Link to="/privacy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>প্রাইভেসি পলিসি</Link> এবং <Link to="/return-policy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>রিটার্ন ও রিফান্ড নীতি</Link> পড়েছি এবং অর্ডারের পণ্যের ধরন অনুযায়ী প্রযোজ্য নিয়ম মেনে নিচ্ছি।</label></div>
           {error && <p className="text-sm text-error">{error}</p>}
 
           <button
@@ -165,6 +168,7 @@ export function BuyModal({
             UddoktaPay-এর নিরাপদ পেমেন্ট পেজে নিয়ে যাওয়া হবে। টাকা এসক্রোতে জমা থাকবে — পণ্য হাতে পাওয়ার আগে বিক্রেতাকে
             দেওয়া হবে না।
           </p>
+        </div>
         </div>
       </div>
     </div>
