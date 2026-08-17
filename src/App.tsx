@@ -32,6 +32,7 @@ import AboutUs from '@/pages/AboutUs'
 import ContactUs from '@/pages/ContactUs'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminOrders from '@/pages/admin/AdminOrders'
+import AdminDeliveries from '@/pages/admin/AdminDeliveries'
 import AdminCustomers from '@/pages/admin/AdminCustomers'
 import AdminCoupons from '@/pages/admin/AdminCoupons'
 import AdminCatalogue from '@/pages/admin/AdminCatalogue'
@@ -39,6 +40,8 @@ import AdminReviews from '@/pages/admin/AdminReviews'
 import AdminContent from '@/pages/admin/AdminContent'
 import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminSystemStatus from '@/pages/admin/AdminSystemStatus'
+import AdminFinance from '@/pages/admin/AdminFinance'
+import AdminSupport from '@/pages/admin/AdminSupport'
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
 
@@ -221,7 +224,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AdminRoute>
-              <AdminOrders deliveriesOnly />
+              <AdminDeliveries />
             </AdminRoute>
           </ProtectedRoute>
         }
@@ -242,6 +245,36 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminCoupons />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/finance"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminFinance />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/support"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSupport />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/notifications"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSupport />
             </AdminRoute>
           </ProtectedRoute>
         }

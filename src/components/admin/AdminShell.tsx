@@ -1,47 +1,54 @@
-import { useState, type ReactNode } from 'react'
-import { NavLink, Link, useLocation } from 'react-router-dom'
+import { useState, type ComponentType, type ReactNode } from 'react'
+import { NavLink, Link } from 'react-router-dom'
+import { Activity, AlertTriangle, Bell, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 
-const groups = [
+type AdminIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+type AdminLink = { to: string; label: string; icon: AdminIcon; badge?: string }
+
+const groups: { label: string; links: AdminLink[] }[] = [
   {
     label: 'ওভারভিউ',
-    links: [{ to: '/admin', label: 'ড্যাশবোর্ড', icon: '▦' }],
+    links: [{ to: '/admin', label: 'ড্যাশবোর্ড', icon: LayoutDashboard }],
   },
   {
     label: 'সেলস',
     links: [
-      { to: '/admin/orders', label: 'অর্ডার', icon: '▣' },
-      { to: '/admin/deliveries', label: 'ডেলিভারি', icon: '▱' },
-      { to: '/admin/customers', label: 'কাস্টমার', icon: '♙' },
-      { to: '/admin/coupons', label: 'কুপন', icon: '◇' },
-      { to: '/admin/reviews', label: 'রিভিউ', icon: '☆' },
-      { to: '/admin/disputes', label: 'ডিসপিউট', icon: '!' },
+      { to: '/admin/orders', label: 'অর্ডার', icon: ShoppingBag },
+      { to: '/admin/deliveries', label: 'ডেলিভারি', icon: Truck },
+      { to: '/admin/customers', label: 'কাস্টমার', icon: Users },
+      { to: '/admin/coupons', label: 'কুপন', icon: TicketPercent },
+      { to: '/admin/reviews', label: 'রিভিউ', icon: Star },
+      { to: '/admin/disputes', label: 'ডিসপিউট', icon: AlertTriangle },
+      { to: '/admin/finance', label: 'পেআউট', icon: Wallet },
     ],
   },
   {
     label: 'ক্যাটালগ',
     links: [
-      { to: '/admin/products', label: 'প্রোডাক্ট', icon: '□' },
-      { to: '/admin/categories', label: 'ক্যাটাগরি', icon: '⌑' },
-      { to: '/admin/industries', label: 'ইন্ডাস্ট্রি', icon: '⌂' },
+      { to: '/admin/products', label: 'প্রোডাক্ট', icon: Package },
+      { to: '/admin/categories', label: 'ক্যাটাগরি', icon: Tags },
+      { to: '/admin/industries', label: 'ইন্ডাস্ট্রি', icon: Factory },
     ],
   },
   {
     label: 'কনটেন্ট',
     links: [
-      { to: '/admin/gallery', label: 'গ্যালারি', icon: '▧' },
-      { to: '/admin/downloads', label: 'ডাউনলোড', icon: '⇩' },
-      { to: '/admin/blog', label: 'নিউজ ও ব্লগ', icon: '▤' },
-      { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: '✓' },
+      { to: '/admin/gallery', label: 'গ্যালারি', icon: ImageIcon },
+      { to: '/admin/downloads', label: 'ডাউনলোড', icon: Download },
+      { to: '/admin/blog', label: 'নিউজ ও ব্লগ', icon: Newspaper },
+      { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
+      { to: '/admin/support', label: 'সাপোর্ট চ্যাট', icon: MessageCircle },
+      { to: '/admin/notifications', label: 'নোটিফিকেশন', icon: Bell },
     ],
   },
   {
     label: 'সিস্টেম',
     links: [
-      { to: '/admin/invoice-settings', label: 'ইনভয়েস সেটিংস', icon: '▤' },
-      { to: '/admin/site-settings', label: 'সাইট সেটিংস', icon: '⚙' },
-      { to: '/admin/system-status', label: 'সিস্টেম স্ট্যাটাস', icon: '▣' },
+      { to: '/admin/invoice-settings', label: 'ইনভয়েস সেটিংস', icon: FileText },
+      { to: '/admin/site-settings', label: 'সাইট সেটিংস', icon: Settings },
+      { to: '/admin/system-status', label: 'সিস্টেম স্ট্যাটাস', icon: Activity },
     ],
   },
 ]
@@ -50,7 +57,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const { isAdmin } = useIsAdmin()
   const [open, setOpen] = useState(false)
-  const location = useLocation()
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-ink-900">
@@ -61,7 +67,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <Link to="/admin" onClick={() => setOpen(false)} className="text-xl font-semibold tracking-tight">
               BikriKoro <span className="text-brand-300">Admin</span>
             </Link>
-            <button onClick={() => setOpen(false)} className="text-2xl text-white/60 hover:text-white md:hidden" aria-label="মেনু বন্ধ করুন">×</button>
+            <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white md:hidden" aria-label="মেনু বন্ধ করুন"><X size={20} /></button>
           </div>
           <nav className="flex-1 overflow-y-auto px-4 py-5">
             {groups.map((group) => (
@@ -76,8 +82,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
                       onClick={() => setOpen(false)}
                       className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-[#0e6bdc] text-white shadow-lg shadow-blue-950/30' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                     >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md border border-current/30 text-base">{link.icon}</span>
-                      <span>{link.label}</span>
+                      <span className="flex h-6 w-6 items-center justify-center"><link.icon size={17} strokeWidth={1.8} /></span>
+                      <span className="flex-1">{link.label}</span>
+                      {link.badge && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">{link.badge}</span>}
                     </NavLink>
                   ))}
                 </div>
@@ -86,21 +93,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="border-t border-white/10 p-4">
             <div className="mb-3 truncate rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">{isAdmin ? user?.email ?? 'অ্যাডমিন' : 'অ্যাক্সেস যাচাই হচ্ছে...'}</div>
-            <button onClick={() => logout()} className="w-full rounded-xl border border-white/15 px-3 py-2 text-left text-sm text-white/75 hover:bg-white/10 hover:text-white">লগআউট</button>
+            <button onClick={() => logout()} className="flex w-full items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-left text-sm text-white/75 hover:bg-white/10 hover:text-white"><LogOut size={16} />লগআউট</button>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/90 px-4 shadow-sm backdrop-blur md:px-8">
             <div className="flex items-center gap-3">
-              <button onClick={() => setOpen(true)} className="rounded-xl border border-slate-200 px-3 py-2 text-xl text-ink-700 md:hidden" aria-label="অ্যাডমিন মেনু খুলুন">☰</button>
+              <button onClick={() => setOpen(true)} className="rounded-xl border border-slate-200 p-2 text-ink-700 md:hidden" aria-label="অ্যাডমিন মেনু খুলুন"><Menu size={20} /></button>
               <div>
                 <p className="text-xs font-medium text-slate-400">BikriKoro.Com</p>
                 <p className="text-sm font-semibold text-slate-800">অ্যাডমিন ওয়ার্কস্পেস</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to="/" className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:border-brand-500 hover:text-brand-600">সাইট দেখুন</Link>
+              <Link to="/" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:border-brand-500 hover:text-brand-600">সাইট দেখুন <ExternalLink size={15} /></Link>
               <span className="hidden h-9 w-9 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700 sm:flex">{(user?.displayName || user?.email || 'A').charAt(0).toUpperCase()}</span>
             </div>
           </header>
@@ -109,7 +116,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
-      <div aria-hidden="true" className="hidden">{location.pathname}</div>
     </div>
   )
 }

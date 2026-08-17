@@ -21,16 +21,13 @@ export default function AdminOrders({ deliveriesOnly = false }: { deliveriesOnly
 
   const load = useCallback(async () => {
     setLoading(true)
-    let request = supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100)
-    if (status) request = request.eq('status', status)
-    if (id) request = request.eq('id', id)
-    const { data, error: loadError } = await request
-    if (loadError) setError('অর্ডার লোড করা যায়নি।')
+    const { data, error: loadError } = await supabase.rpc('admin_list_orders', { p_admin_id: user?.uid, p_status: status || null })
+    if (loadError) setError('অর্ডার লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
     const result = (data ?? []) as AdminOrder[]
     setOrders(result)
-    setSelected(id ? result[0] ?? null : null)
+    setSelected(id ? result.find((order) => order.id === id) ?? null : null)
     setLoading(false)
-  }, [id, status])
+  }, [id, status, user?.uid])
 
   useEffect(() => { load() }, [load])
 

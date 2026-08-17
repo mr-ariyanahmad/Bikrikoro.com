@@ -1,22 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { formatDate } from '@/lib/format'
 
 type Customer = { id: string; name: string; email: string | null; phone: string | null; is_verified: boolean; created_at: string }
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([])
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    supabase.from('profiles').select('id, name, email, phone, is_verified, created_at').order('created_at', { ascending: false }).limit(200).then(({ data, error: loadError }) => {
+  const load = useCallback(() => {
+    setLoading(true)
+    supabase.rpc('admin_list_customers', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
       setCustomers((data ?? []) as Customer[])
-      if (loadError) setError('কাস্টমার লোড করা যায়নি।')
+      if (loadError) setError('কাস্টমার লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
       setLoading(false)
     })
-  }, [])
+  }, [user?.uid])
+  useEffect(() => { load() }, [load])
   const visible = useMemo(() => {
     const value = query.trim().toLowerCase()
     return value ? customers.filter((customer) => `${customer.name} ${customer.email ?? ''} ${customer.phone ?? ''} ${customer.id}`.toLowerCase().includes(value)) : customers
