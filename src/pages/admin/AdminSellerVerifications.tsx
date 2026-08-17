@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { Layout } from '@/components/Layout'
+import { AdminShell } from '@/components/admin/AdminShell'
 import { reviewSellerRegistration } from '@/lib/admin'
 import { getVerificationDocUrl } from '@/lib/verification'
 import { formatDateTime } from '@/lib/format'
@@ -56,7 +56,7 @@ export default function AdminSellerVerifications() {
   }
 
   return (
-    <Layout wide>
+    <AdminShell>
       <div className="flex items-center gap-2">
         <Link to="/admin" className="text-ink-600 hover:text-ink-900">
           ←
@@ -144,6 +144,6 @@ export default function AdminSellerVerifications() {
           ))
         )}
       </div>
-    </Layout>
+    </AdminShell>
   )
 }

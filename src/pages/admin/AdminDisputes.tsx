@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { Layout } from '@/components/Layout'
+import { AdminShell } from '@/components/admin/AdminShell'
 import { resolveDispute } from '@/lib/admin'
 import { formatDateTime } from '@/lib/format'
 import type { OrderDispute } from '@/types/order'
@@ -48,7 +48,7 @@ export default function AdminDisputes() {
   }
 
   return (
-    <Layout wide>
+    <AdminShell>
       <div className="flex items-center gap-2">
         <Link to="/admin" className="text-ink-600 hover:text-ink-900">
           ←
@@ -115,6 +115,6 @@ export default function AdminDisputes() {
           ))
         )}
       </div>
-    </Layout>
+    </AdminShell>
   )
 }

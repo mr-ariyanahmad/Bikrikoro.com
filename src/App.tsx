@@ -31,6 +31,14 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy'
 import AboutUs from '@/pages/AboutUs'
 import ContactUs from '@/pages/ContactUs'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
+import AdminOrders from '@/pages/admin/AdminOrders'
+import AdminCustomers from '@/pages/admin/AdminCustomers'
+import AdminCoupons from '@/pages/admin/AdminCoupons'
+import AdminCatalogue from '@/pages/admin/AdminCatalogue'
+import AdminReviews from '@/pages/admin/AdminReviews'
+import AdminContent from '@/pages/admin/AdminContent'
+import AdminSettings from '@/pages/admin/AdminSettings'
+import AdminSystemStatus from '@/pages/admin/AdminSystemStatus'
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
 
@@ -184,6 +192,156 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/orders/:id"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminOrders />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/orders"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminOrders />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/deliveries"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminOrders deliveriesOnly />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/customers"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCustomers />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/coupons"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCoupons />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/products"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCatalogue />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/categories"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCatalogue mode="categories" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/industries"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCatalogue mode="industries" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reviews"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminReviews />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/gallery"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminContent mode="gallery" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/downloads"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminContent mode="downloads" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/blog"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminContent mode="blog" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/invoice-settings"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSettings mode="invoice" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/site-settings"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSettings mode="site" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/system-status"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSystemStatus />
             </AdminRoute>
           </ProtectedRoute>
         }
