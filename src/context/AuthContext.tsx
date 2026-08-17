@@ -18,6 +18,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
+import { registerPushToken } from '@/lib/pushNotifications'
 
 interface AuthContextValue {
   user: FirebaseUser | null
@@ -56,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    void registerPushToken(user.uid)
+  }, [user?.uid])
 
   useEffect(() => {
     // Redirect is the reliable path on mobile browsers and on browsers that block

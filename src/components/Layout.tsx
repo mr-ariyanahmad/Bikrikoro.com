@@ -1,9 +1,11 @@
-import { type ComponentType, type ReactNode, useState } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
 import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { SearchBar } from '@/components/SearchBar'
+import { loadUnreadNotificationCount } from '@/lib/marketplace'
+import { supabase } from '@/lib/supabase'
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 type NavItem = { to: string; label: string; icon: Icon }
@@ -32,8 +34,32 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
   const { isAdmin } = useIsAdmin()
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const navLinks = isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0)
+      return
+    }
+    let active = true
+    void loadUnreadNotificationCount(user.uid).then((count) => { if (active) setUnreadCount(count) }).catch(() => undefined)
+    const onChanged = (event: Event) => {
+      const count = (event as CustomEvent<{ unreadCount?: number }>).detail?.unreadCount
+      if (typeof count === 'number') setUnreadCount(count)
+    }
+    const channel = supabase
+      .channel(`header-notifications-${user.uid}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, () => setUnreadCount((count) => count + 1))
+      .subscribe()
+    window.addEventListener('bikrikoro-notifications-changed', onChanged)
+    return () => {
+      active = false
+      window.removeEventListener('bikrikoro-notifications-changed', onChanged)
+      void supabase.removeChannel(channel)
+    }
+  }, [user])
 
   return (
     <div className="min-h-screen bg-bg text-ink-900">
@@ -64,7 +90,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
 
           <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
             <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
-            <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />Settings ও Help</Link><div className="relative"><button onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} /></Link></div>
+            <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />Settings ও Help</Link><div className="relative"><button onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div>
           </nav>
 
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}

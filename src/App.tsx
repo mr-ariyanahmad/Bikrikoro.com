@@ -44,6 +44,7 @@ import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminSystemStatus from '@/pages/admin/AdminSystemStatus'
 import AdminFinance from '@/pages/admin/AdminFinance'
 import AdminSupport from '@/pages/admin/AdminSupport'
+import AdminNotifications from '@/pages/admin/AdminNotifications'
 
 import AdminDisputes from '@/pages/admin/AdminDisputes'
 import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
@@ -312,7 +313,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AdminRoute>
-              <AdminSupport />
+              <AdminNotifications />
             </AdminRoute>
           </ProtectedRoute>
         }

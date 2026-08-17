@@ -65,3 +65,9 @@ export async function markAllNotificationsRead(userId: string) {
   if (error) throw error
   return Number(data ?? 0)
 }
+
+export async function loadUnreadNotificationCount(userId: string) {
+  const { data, error } = await supabase.rpc('get_my_unread_notification_count', { p_user_id: userId })
+  if (error) throw error
+  return Number(data ?? 0)
+}
