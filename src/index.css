@@ -69,3 +69,56 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Admin workspace theme: keep existing page markup consistent with BikriKoro brand tokens. */
+.admin-theme .bg-white,
+.admin-theme .bg-white\/90 {
+  background-color: var(--color-surface) !important;
+}
+
+.admin-theme .bg-slate-50,
+.admin-theme .bg-slate-100 {
+  background-color: var(--color-bg) !important;
+}
+
+.admin-theme .border-slate-100,
+.admin-theme .border-slate-200,
+.admin-theme .border-slate-300 {
+  border-color: var(--color-outline) !important;
+}
+
+.admin-theme .text-slate-900,
+.admin-theme .text-slate-800 {
+  color: var(--color-ink-900) !important;
+}
+
+.admin-theme .text-slate-700,
+.admin-theme .text-slate-600 {
+  color: var(--color-ink-600) !important;
+}
+
+.admin-theme .text-slate-500,
+.admin-theme .text-slate-400 {
+  color: var(--color-ink-300) !important;
+}
+
+.admin-theme .bg-blue-50,
+.admin-theme .bg-blue-100 {
+  background-color: var(--color-brand-50) !important;
+}
+
+.admin-theme .text-blue-700,
+.admin-theme .text-blue-600 {
+  color: var(--color-brand-700) !important;
+}
+
+.admin-theme .border-blue-200,
+.admin-theme .border-blue-300,
+.admin-theme .border-blue-500 {
+  border-color: var(--color-brand-100) !important;
+}
+
+.admin-theme .bg-blue-500,
+.admin-theme .bg-blue-600 {
+  background-color: var(--color-brand-500) !important;
+}
