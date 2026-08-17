@@ -29,3 +29,5 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+// Keep Firebase's built-in account emails aligned with the Bengali-first UI.
+auth.languageCode = 'bn'

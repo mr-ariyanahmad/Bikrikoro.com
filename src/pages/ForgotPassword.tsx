@@ -44,13 +44,13 @@ export default function ForgotPassword() {
             <img src="/icon-192.png" alt="BikriKoro" className="mx-auto mb-4 h-14 w-14 rounded-2xl" />
             <h1 className="text-xl font-semibold text-ink-900">পাসওয়ার্ড ভুলে গেছেন?</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">
-              আপনার অ্যাকাউন্টের ইমেইল দিন। আমরা পাসওয়ার্ড নতুন করে সেট করার একটি লিংক পাঠাব।
+              Email/Password দিয়ে তৈরি অ্যাকাউন্টের ইমেইল দিন। ফোন OTP বা Google দিয়ে তৈরি অ্যাকাউন্টের আলাদা পাসওয়ার্ড থাকে না।
             </p>
           </div>
 
           {sent ? (
             <div className="mt-6 rounded-xl bg-brand-50 p-4 text-center text-sm leading-relaxed text-brand-700">
-              রিসেট লিংক পাঠানো হয়েছে। আপনার ইনবক্স ও spam folder দেখুন, তারপর ইমেইলের লিংকে চাপুন।
+              রিসেট লিংক পাঠানোর অনুরোধ গ্রহণ করা হয়েছে। Email/Password অ্যাকাউন্ট হলে ইনবক্স ও spam folder দেখুন। না এলে Firebase Console-এর Users তালিকায় এই ইমেইলের provider যাচাই করুন।
               <Link to="/login" className="mt-3 block font-semibold underline">
                 লগইনে ফিরে যান
               </Link>
