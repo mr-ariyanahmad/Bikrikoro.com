@@ -113,8 +113,10 @@ export default function ProductDetail() {
     }
   }
 
+  const getShareUrl = () => `${window.location.origin}/api/product-preview?id=${encodeURIComponent(product.id)}`
+
   const handleShare = async () => {
-    const url = window.location.href
+    const url = getShareUrl()
     try {
       if (navigator.share) {
         await navigator.share({ title: product.title, text: `${product.title} — ${formatTaka(product.price)}`, url })
@@ -130,7 +132,7 @@ export default function ProductDetail() {
   }
 
   const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`${product.title} — ${formatTaka(product.price)}\n${window.location.href}`)
+    const text = encodeURIComponent(`${product.title} — ${formatTaka(product.price)}\n${getShareUrl()}`)
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
   }
 
