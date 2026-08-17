@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { ReviewModal } from '@/components/ReviewModal'
 import { confirmOrderDelivery, buyerCancelOrder, sellerMarkShipped, sellerCancelOrder } from '@/lib/orders'
 import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
@@ -36,6 +37,7 @@ export default function Orders() {
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [disputeTarget, setDisputeTarget] = useState<Order | null>(null)
   const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
+  const [sellerCancelTarget, setSellerCancelTarget] = useState<Order | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -222,11 +224,7 @@ export default function Orders() {
                     label="বাতিল করুন"
                     variant="danger"
                     loading={processingId === order.id}
-                    onClick={() => {
-                      if (confirm('অর্ডারটি বাতিল করবেন? ক্রেতার টাকা ফেরত প্রক্রিয়া শুরু হবে।')) {
-                        runAction(order.id, () => sellerCancelOrder(order.id, uid))
-                      }
-                    }}
+                    onClick={() => setSellerCancelTarget(order)}
                   />
                 )}
               </div>
@@ -261,6 +259,7 @@ export default function Orders() {
         />
       )}
 
+      <BrandedDialog open={Boolean(sellerCancelTarget)} title="অর্ডার বাতিল করবেন?" tone="warning" onClose={() => setSellerCancelTarget(null)} actions={<><DialogButton onClick={() => setSellerCancelTarget(null)} variant="outline">থাক</DialogButton><DialogButton onClick={() => { if (sellerCancelTarget) runAction(sellerCancelTarget.id, () => sellerCancelOrder(sellerCancelTarget.id, uid)); setSellerCancelTarget(null) }} tone="warning">বাতিল নিশ্চিত করুন</DialogButton></>}><p>এই action-এর পরে ক্রেতার refund প্রক্রিয়া শুরু হবে। Seller হিসেবে সত্যিই বাতিল করতে চান কি না নিশ্চিত করুন।</p></BrandedDialog>
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg">
           {toast}

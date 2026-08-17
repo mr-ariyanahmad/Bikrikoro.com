@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatTaka } from '@/lib/format'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import type { Product } from '@/types/product'
 
 export default function MyListings() {
@@ -12,6 +13,7 @@ export default function MyListings() {
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -53,7 +55,6 @@ export default function MyListings() {
   }
 
   const handleDelete = async (productId: string) => {
-    if (!confirm('এই লিস্টিংটি মুছে ফেলবেন? এটি আর ফিরিয়ে আনা যাবে না।')) return
     setDeletingId(productId)
     await supabase.from('products').delete().eq('id', productId)
     setProducts((prev) => prev.filter((p) => p.id !== productId))
@@ -125,7 +126,7 @@ export default function MyListings() {
                   {duplicatingId === product.id ? '...' : 'কপি'}
                 </button>
                 <button
-                  onClick={() => handleDelete(product.id)}
+                  onClick={() => setDeleteTarget(product)}
                   disabled={deletingId === product.id}
                   className="rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-error hover:border-error disabled:opacity-50"
                 >
@@ -136,6 +137,7 @@ export default function MyListings() {
           ))
         )}
       </div>
+      <BrandedDialog open={Boolean(deleteTarget)} title="লিস্টিং মুছে ফেলবেন?" tone="danger" onClose={() => setDeleteTarget(null)} actions={<><DialogButton onClick={() => setDeleteTarget(null)} variant="outline">বাতিল</DialogButton><DialogButton onClick={async () => { if (deleteTarget) { await handleDelete(deleteTarget.id); setDeleteTarget(null) } }} tone="danger">মুছে ফেলুন</DialogButton></>}><p>এই listing আর ফিরিয়ে আনা যাবে না। ক্রেতাদের সামনে এটি আর দেখা যাবে না।</p></BrandedDialog>
     </Layout>
   )
 }

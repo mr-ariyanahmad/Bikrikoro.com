@@ -35,6 +35,7 @@ import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminOrders from '@/pages/admin/AdminOrders'
 import AdminDeliveries from '@/pages/admin/AdminDeliveries'
 import AdminCustomers from '@/pages/admin/AdminCustomers'
+import AdminCustomerDetail from '@/pages/admin/AdminCustomerDetail'
 import AdminCoupons from '@/pages/admin/AdminCoupons'
 import AdminCatalogue from '@/pages/admin/AdminCatalogue'
 import AdminReviews from '@/pages/admin/AdminReviews'
@@ -262,6 +263,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminCustomers />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/customers/:id"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCustomerDetail />
             </AdminRoute>
           </ProtectedRoute>
         }

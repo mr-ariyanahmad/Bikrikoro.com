@@ -6,12 +6,14 @@ import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { user } = useAuth()
   const [favorited, setFavorited] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [compared, setCompared] = useState(() => isCompared(product.id))
+  const [compareLimitOpen, setCompareLimitOpen] = useState(false)
 
   const discount =
     product.original_price && product.original_price > product.price
@@ -40,7 +42,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
     e.stopPropagation()
     const result = toggleCompared(product.id)
     if (result.limitReached) {
-      window.alert('একসাথে সর্বোচ্চ ৩টি পণ্য তুলনা করা যাবে।')
+      setCompareLimitOpen(true)
       return
     }
     setCompared(result.selected)
@@ -64,6 +66,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
   }
 
   return (
+    <>
     <Link
       to={`/products/${product.id}`}
       className={`group block overflow-hidden rounded-xl border border-outline bg-surface transition hover:border-brand-500/40 hover:shadow-md ${compact ? 'flex items-stretch' : ''}`}
@@ -130,5 +133,9 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         </div>
       </div>
     </Link>
+    <BrandedDialog open={compareLimitOpen} title="তুলনা তালিকা পূর্ণ" onClose={() => setCompareLimitOpen(false)} tone="warning" actions={<DialogButton onClick={() => setCompareLimitOpen(false)}>ঠিক আছে</DialogButton>}>
+      একসাথে সর্বোচ্চ ৩টি পণ্য তুলনা করা যাবে। আগে Compare page থেকে একটি পণ্য সরিয়ে আবার চেষ্টা করুন।
+    </BrandedDialog>
+    </>
   )
 }
