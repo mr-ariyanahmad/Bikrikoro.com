@@ -235,7 +235,7 @@ export default function Sell() {
   }
 
   return (
-    <Layout>
+    <Layout wide>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন পণ্য বিক্রি করুন'}</h1>
         {!isEditing && (

@@ -39,7 +39,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
         <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
           <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
             <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
-              <img src="/icon-192.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" />
+              <img src="/icon-512.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" />
               <span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span>
             </Link>
 
