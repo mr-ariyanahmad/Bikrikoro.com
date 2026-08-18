@@ -38,7 +38,7 @@ FCM payload-এ title, body এবং app link দেওয়া হয়। Backgro
 
 ## ৪. Supabase migration চালানোর ক্রম
 
-Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, এবং 051 event notification-এর push delivery queue ও notification linkage যোগ করে।
+Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql` এবং `052_payout_notification_events.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, 051 event notification-এর push delivery queue ও notification linkage যোগ করে, এবং 052 payout approval, rejection ও paid event-এর notification যোগ করে।
 
 Migration 028 এই জিনিসগুলো যোগ করে:
 
@@ -55,6 +55,7 @@ Migration 028 এই জিনিসগুলো যোগ করে:
 | `admin_record_push_delivery` | Firebase success/failure record করে; invalid token disable করে |
 | `admin_finish_notification_campaign` | Sent, partial বা failed status এবং counters finalize করে |
 | `get_my_unread_notification_count` | Header badge-এর unread count দেয় |
+| `notify_withdrawal_review_event` | Payout approved/rejected হলে সংশ্লিষ্ট seller-কে notification দেয়; paid হলে wallet debit-এর notification ব্যবহৃত হয় |
 
 013 migration-এর existing order trigger order insert বা status change-এর notification চালু রাখে। 028 migration নতুন verification, wallet এবং chat event যুক্ত করে। Admin campaign পাঠানোর সময় `admin_assert_permission(p_admin_id, 'content.notifications')` এবং audit log ব্যবহার করা হয়; তাই permission ছাড়া কোনো admin broadcast পাঠাতে পারবে না।
 
@@ -85,7 +86,8 @@ Admin panel-এর **কনটেন্ট → নোটিফিকেশন** 
 
 ## ৭. Test checklist
 
-প্রথমে সব migration, বিশেষ করে 051, চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং `public.notifications`-এর INSERT Database Webhook তৈরি করুন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
+প্রথমে সব migration, বিশেষ করে 051 এবং 052, চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন।
+ এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং `public.notifications`-এর INSERT Database Webhook তৈরি করুন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
 
 Admin account দিয়ে **কনটেন্ট → নোটিফিকেশন** খুলে একটি ছোট **নির্দিষ্ট user** campaign পাঠান। In-app inbox-এ notification দেখা, header bell-এর unread badge বাড়া, এবং browser background অবস্থায় push আসা—এই তিনটি আলাদাভাবে পরীক্ষা করুন। Push tap করলে campaign-এর app link খুলছে কি না দেখুন।
 
