@@ -62,11 +62,14 @@ export default function SellerProfile() {
     )
   }
 
+  const shopName = seller.shop_name?.trim() || seller.name || 'বিক্রেতা'
+  const shopDescription = seller.shop_description?.trim()
+
   return (
     <Layout wide>
       <Helmet>
-        <title>{`${seller.name || 'বিক্রেতা'} — BikriKoro.Com`}</title>
-        <meta name="description" content={`${seller.name || 'বিক্রেতা'}-র পণ্য ও রিভিউ দেখুন BikriKoro-তে।`} />
+        <title>{`${shopName} — BikriKoro.Com`}</title>
+        <meta name="description" content={shopDescription || `${shopName}-র পণ্য ও রিভিউ দেখুন BikriKoro-তে।`} />
       </Helmet>
 
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-outline bg-surface p-6 sm:flex-row sm:items-start">
@@ -80,13 +83,15 @@ export default function SellerProfile() {
 
         <div className="text-center sm:text-left">
           <div className="flex items-center justify-center gap-2 sm:justify-start">
-            <h1 className="text-xl font-semibold text-ink-900">{seller.name || 'বিক্রেতা'}</h1>
+            <h1 className="text-xl font-semibold text-ink-900">{shopName}</h1>
             {seller.is_verified && (
               <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-semibold text-info">
                 ✓ যাচাইকৃত
               </span>
             )}
           </div>
+          {seller.name && seller.name !== shopName && <p className="mt-1 text-xs text-ink-500">মালিক: {seller.name}</p>}
+          {shopDescription && <p className="mt-2 max-w-xl text-sm leading-6 text-ink-600">{shopDescription}</p>}
           <p className="mt-1 text-sm text-ink-600">
             {seller.review_count > 0 ? `★ ${seller.rating.toFixed(1)} (${seller.review_count} রিভিউ)` : 'এখনো কোনো রিভিউ নেই'}
           </p>

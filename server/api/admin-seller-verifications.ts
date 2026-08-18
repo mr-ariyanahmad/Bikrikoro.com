@@ -14,7 +14,7 @@ type DocumentRow = {
   reviewed_at: string | null
 }
 
-type ProfileRow = { id: string; name: string | null; photo_url: string | null }
+type ProfileRow = { id: string; name: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const registrationIds = registrationRows.map((registration) => registration.id)
     const profileIds = registrationRows.map((registration) => registration.user_id)
     const { data: profiles, error: profileError } = profileIds.length
-      ? await supabase.from('profiles').select('id, name, photo_url').in('id', profileIds)
+      ? await supabase.from('profiles').select('id, name, photo_url, shop_name, shop_description').in('id', profileIds)
       : { data: [], error: null }
     if (profileError) throw profileError
     const profilesById = Object.fromEntries(((profiles ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]))

@@ -39,6 +39,8 @@ export interface Profile {
   phone: string | null
   email: string | null
   photo_url: string | null
+  shop_name?: string | null
+  shop_description?: string | null
   is_verified: boolean
   rating: number
   review_count: number

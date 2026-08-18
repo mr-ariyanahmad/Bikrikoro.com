@@ -8,6 +8,8 @@ import { Layout } from '@/components/Layout'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
+import { ShopProfileEditor } from '@/components/ShopProfileEditor'
+import type { Profile } from '@/types/product'
 
 interface SellerProductMetrics { view_count: number | null; price: number | null; is_hidden?: boolean }
 
@@ -29,6 +31,7 @@ export default function SellerDashboard() {
   const uid = user?.uid ?? ''
   const { isSeller, loading: sellerAccessLoading } = useIsSeller()
   const [stats, setStats] = useState<Stats | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -48,7 +51,7 @@ export default function SellerDashboard() {
           supabase.rpc('seller_list_products', { p_seller_id: uid }),
           supabase.from('orders').select('status, price').eq('seller_id', uid),
           supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
-          supabase.from('profiles').select('is_verified, rating, review_count').eq('id', uid).maybeSingle(),
+          supabase.from('profiles').select('id, name, phone, email, photo_url, shop_name, shop_description, is_verified, rating, review_count, created_at').eq('id', uid).maybeSingle(),
         ])
         if (productsRes.error) throw productsRes.error
         if (ordersRes.error) throw ordersRes.error
@@ -62,6 +65,7 @@ export default function SellerDashboard() {
         const totalViews = products.reduce((sum, p) => sum + (p.view_count ?? 0), 0)
         const completedOrders = orders.filter((o) => o.status === 'COMPLETED')
 
+        setProfile(profileRes.data as Profile | null)
         setStats({
           listingCount: products.filter((product) => product.is_hidden !== true).length,
           totalViews,
@@ -120,6 +124,7 @@ export default function SellerDashboard() {
         )}</div></div>
       {notice && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{notice}</p>}
       {loadError && <p className="mt-3 border border-error/20 bg-error/5 p-3 text-sm text-error">ড্যাশবোর্ড লোড করা যায়নি: {loadError}</p>}
+      {!loading && profile && <ShopProfileEditor profile={profile} onSaved={setProfile} />}
 
       {loading || !stats ? (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

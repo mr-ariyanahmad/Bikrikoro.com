@@ -11,7 +11,7 @@ import type { SellerRegistration, SellerVerificationDocument } from '@/types/cha
 import { adminRpc } from '@/lib/adminRpc'
 
 type RegistrationDocument = SellerVerificationDocument & { document_url?: string | null }
-type SellerProfileSummary = { id: string; name: string | null; photo_url: string | null }
+type SellerProfileSummary = { id: string; name: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
 type RegistrationWithDocuments = SellerRegistration & { documents: RegistrationDocument[]; seller_profile?: SellerProfileSummary | null }
 type SellerReviewHistory = { registration_id: string; applicant_name: string; applicant_user_id: string; admin_uid: string; admin_email: string; admin_name: string; action: string; document_type: string | null; note: string; created_at: string }
 
@@ -178,7 +178,7 @@ function SellerShopImageCard({ profile, onPreview }: { profile?: SellerProfileSu
     <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-100 text-brand-700">
       {photoUrl ? <img src={photoUrl} alt={`${sellerName}-এর shop image`} className="h-full w-full object-cover" /> : <ImageIcon size={22} />}
     </div>
-    <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">Seller / shop image</p><p className="mt-1 text-xs text-slate-500">{photoUrl ? 'প্রোফাইল থেকে পাওয়া image' : 'এই সেলার এখনো কোনো shop image দেননি।'}</p></div>
+    <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">{profile?.shop_name?.trim() || 'Seller / shop profile'}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{profile?.shop_description?.trim() || (photoUrl ? 'প্রোফাইল থেকে পাওয়া image' : 'এই সেলার এখনো কোনো shop image দেননি।')}</p></div>
     {photoUrl ? <button type="button" onClick={() => onPreview(photoUrl, `${sellerName}-এর shop image`)} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-brand-50"><Eye size={13} />ছবি দেখুন</button> : <span className="shrink-0 text-[11px] text-slate-400">ছবি নেই</span>}
   </div>
 }
