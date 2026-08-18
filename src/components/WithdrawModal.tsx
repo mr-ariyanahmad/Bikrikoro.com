@@ -44,7 +44,14 @@ export function WithdrawModal({
         body: JSON.stringify({ amount: parsedAmount, method, accountDetails: accountDetails.trim() }),
       })
       const result = await response.json().catch(() => ({})) as { error?: string }
-      if (!response.ok) throw new Error(result.error || `Withdrawal failed (HTTP ${response.status})`)
+      if (!response.ok) {
+        const rawError = result.error || `Withdrawal failed (HTTP ${response.status})`
+        const normalized = rawError.toLowerCase()
+        if (normalized.includes('after pending payouts') || normalized.includes('reserved')) throw new Error('আপনার wallet balance-এর কিছু অংশ আগের payout request-এ reserved আছে। নতুন payout-এর পরিমাণ কমান বা pending request-এর status দেখুন।')
+        if (normalized.includes('insufficient wallet balance')) throw new Error('এই পরিমাণ উত্তোলনের জন্য wallet balance যথেষ্ট নয়।')
+        if (normalized.includes('wallet balance not found')) throw new Error('আপনার wallet এখনো প্রস্তুত হয়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+        throw new Error(rawError)
+      }
       onSuccess()
     } catch (withdrawError) {
       console.error('Withdrawal request failed:', withdrawError)

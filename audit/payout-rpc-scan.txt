@@ -1,0 +1,134 @@
+=== RPC CALLS NOT FOUND IN MIGRATIONS ===
+
+=== RPC CALLS ===
+admin_access: defined in 024_admin_roles_permissions.sql, 037_super_admin_priority.sql; called by api/admin-seller-verifications.ts, api/verification-document.ts, src/hooks/useIsAdmin.ts
+admin_create_notification_campaign: defined in 028_notifications_push.sql; called by api/notifications.ts
+admin_finish_notification_campaign: defined in 028_notifications_push.sql; called by api/notification-push.ts
+admin_get_campaign_push_targets: defined in 028_notifications_push.sql; called by api/notification-push.ts
+admin_list_notification_campaigns: defined in 028_notifications_push.sql; called by api/notifications.ts
+admin_list_recent_seller_verification_history: defined in 031_admin_manual_approval_workflows.sql; called by api/admin-seller-verifications.ts
+admin_record_push_delivery: defined in 028_notifications_push.sql; called by api/notification-push.ts
+ask_product_question: defined in 016_public_expansion.sql; called by src/lib/publicFeatures.ts
+buyer_cancel_order: defined in 009_tier1_order_actions_disputes_verification.sql; called by api/order-action.ts
+buyer_cancel_pending_order: defined in 010_uddoktapay_payments.sql; called by api/pending-order.ts
+buyer_get_order: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+buyer_get_payment_state: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+buyer_has_order_review: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+buyer_list_orders: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+claim_daily_checkin: defined in 020_rewards_checkin.sql, 022_admin_reward_ai_controls.sql; called by src/pages/Home.tsx, src/pages/RewardsHub.tsx
+confirm_order_delivery: defined in 009_tier1_order_actions_disputes_verification.sql, 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+create_order_atomic: defined in 009_tier1_order_actions_disputes_verification.sql; called by src/lib/orders.ts
+create_order_pending_payment: defined in 010_uddoktapay_payments.sql, 045_order_read_and_checkout_hardening.sql; called by api/pending-order.ts
+create_order_pending_payment_with_coupon: defined in 013_marketplace_features.sql, 045_order_read_and_checkout_hardening.sql; called by api/pending-order.ts
+create_wishlist_folder: defined in 018_wishlist_folders.sql; called by src/pages/Favorites.tsx
+delete_saved_address: defined in 016_public_expansion.sql; called by src/pages/SavedAddresses.tsx
+disable_notification_push_token: defined in 028_notifications_push.sql; called by api/notifications.ts
+find_or_create_chat_thread: defined in 043_secure_chat_operations.sql; called by src/lib/chat.ts
+get_digital_library: defined in 013_marketplace_features.sql; called by src/lib/marketplace.ts
+get_my_chat_thread: defined in 043_secure_chat_operations.sql; called by src/pages/ChatThread.tsx
+get_my_notifications: defined in 013_marketplace_features.sql; called by api/notifications.ts
+get_my_unread_notification_count: defined in 028_notifications_push.sql; called by api/notifications.ts
+get_public_settings: defined in 021_public_content_center.sql; called by src/components/SiteMeta.tsx
+get_published_content: defined in 021_public_content_center.sql, 035_content_seo_blog.sql, 036_faq_content.sql; called by api/sitemap.xml.ts, src/pages/Blog.tsx, src/pages/BlogPost.tsx, src/pages/PublicContentPage.tsx
+get_seller_document_requirements: defined in 023_seller_verification_v2.sql, 027_type_specific_document_requirements.sql; called by src/lib/verification.ts
+list_my_chat_messages: defined in 043_secure_chat_operations.sql; called by src/pages/ChatThread.tsx
+list_my_chat_threads: defined in 043_secure_chat_operations.sql; called by src/pages/ChatList.tsx
+list_product_questions: defined in 016_public_expansion.sql; called by src/lib/publicFeatures.ts
+list_saved_addresses: defined in 016_public_expansion.sql; called by src/components/BuyModal.tsx, src/pages/SavedAddresses.tsx
+mark_all_notifications_read: defined in 019_notification_tools.sql, 028_notifications_push.sql; called by api/notifications.ts
+mark_my_chat_thread_read: defined in 043_secure_chat_operations.sql; called by src/pages/ChatThread.tsx
+mark_notification_read: defined in 013_marketplace_features.sql; called by api/notifications.ts
+register_notification_push_token: defined in 028_notifications_push.sql; called by api/notifications.ts
+report_order_dispute: defined in 009_tier1_order_actions_disputes_verification.sql, 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+report_product: defined in 016_public_expansion.sql; called by src/lib/publicFeatures.ts
+request_wallet_withdrawal: defined in 008_wallet.sql, 047_payout_reconciliation_and_idempotency.sql; called by api/wallet-withdrawal.ts
+seller_archive_product: defined in 042_seller_listing_mutations.sql; called by src/pages/MyListings.tsx
+seller_cancel_order: defined in 009_tier1_order_actions_disputes_verification.sql, 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+seller_create_product: defined in 031_admin_manual_approval_workflows.sql, 034_product_video.sql, 044_seller_eligibility_hardening.sql; called by src/pages/MyListings.tsx, src/pages/Sell.tsx
+seller_get_product: defined in 031_admin_manual_approval_workflows.sql; called by src/pages/MyListings.tsx, src/pages/Sell.tsx
+seller_list_products: defined in 031_admin_manual_approval_workflows.sql, 044_seller_eligibility_hardening.sql; called by src/pages/MyListings.tsx, src/pages/SellerDashboard.tsx
+seller_mark_delivered: defined in 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+seller_mark_preparing: defined in 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+seller_mark_shipped: defined in 009_tier1_order_actions_disputes_verification.sql, 031_admin_manual_approval_workflows.sql, 032_remove_order_manual_approval.sql, 033_order_lifecycle_hardening.sql; called by api/order-action.ts
+seller_update_product: defined in 042_seller_listing_mutations.sql, 044_seller_eligibility_hardening.sql; called by src/pages/Sell.tsx
+seller_upsert_digital_content: defined in 042_seller_listing_mutations.sql; called by src/pages/MyListings.tsx
+send_chat_message: defined in 043_secure_chat_operations.sql; called by src/pages/ChatThread.tsx
+send_dispute_message: defined in 009_tier1_order_actions_disputes_verification.sql; called by api/order-action.ts
+set_favorite_folder: defined in 018_wishlist_folders.sql; called by src/pages/Favorites.tsx
+submit_order_review: defined in 033_order_lifecycle_hardening.sql; called by src/components/ReviewModal.tsx
+submit_seller_registration: defined in 009_tier1_order_actions_disputes_verification.sql; called by src/lib/verification.ts
+submit_seller_registration_v2: defined in 023_seller_verification_v2.sql; called by src/lib/verification.ts
+toggle_product_alert: defined in 016_public_expansion.sql; called by src/lib/publicFeatures.ts
+toggle_seller_follow: defined in 016_public_expansion.sql; called by src/lib/publicFeatures.ts
+upsert_saved_address: defined in 016_public_expansion.sql; called by src/pages/SavedAddresses.tsx
+user_wallet_balance: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+user_wallet_ledger: defined in 045_order_read_and_checkout_hardening.sql; called by api/order-read.ts
+validate_coupon: defined in 013_marketplace_features.sql; called by src/lib/marketplace.ts
+
+=== MIGRATION FUNCTIONS NOT CALLED FROM FRONTEND/API ===
+admin_adjust_customer_wallet: 026_admin_customer_controls.sql
+admin_assert: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_assert_permission: 024_admin_roles_permissions.sql, 037_super_admin_priority.sql
+admin_assign_member: 024_admin_roles_permissions.sql
+admin_count_pending_seller_verifications: 044_seller_eligibility_hardening.sql
+admin_delete_banner: 026_admin_customer_controls.sql
+admin_finalize_seller_verification: 025_verification_review_workflow.sql, 031_admin_manual_approval_workflows.sql
+admin_find_user_profile: 046_admin_read_scope_hardening.sql
+admin_get_customer_overview: 026_admin_customer_controls.sql
+admin_get_dashboard_overview: 046_admin_read_scope_hardening.sql
+admin_get_settings: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_get_system_status: 046_admin_read_scope_hardening.sql
+admin_has_permission: 024_admin_roles_permissions.sql, 037_super_admin_priority.sql
+admin_list_banners: 046_admin_read_scope_hardening.sql
+admin_list_categories: 046_admin_read_scope_hardening.sql
+admin_list_chat_threads: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_content: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_coupons: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_customers: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_digital_deliveries: 014_admin_workspace.sql, 015_admin_control_center.sql, 046_admin_read_scope_hardening.sql
+admin_list_members: 024_admin_roles_permissions.sql
+admin_list_order_approval_history: 031_admin_manual_approval_workflows.sql
+admin_list_orders: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_pending_disputes: 046_admin_read_scope_hardening.sql
+admin_list_product_approval_history: 031_admin_manual_approval_workflows.sql
+admin_list_products: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_reviews: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_roles: 024_admin_roles_permissions.sql
+admin_list_withdrawals: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_list_withdrawals_reconciled: 047_payout_reconciliation_and_idempotency.sql
+admin_log: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_moderate_product: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_moderate_review: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_resolve_dispute: 011_admin.sql, 033_order_lifecycle_hardening.sql
+admin_review_order: 031_admin_manual_approval_workflows.sql
+admin_review_product: 031_admin_manual_approval_workflows.sql
+admin_review_seller_registration: 011_admin.sql
+admin_review_verification_document: 025_verification_review_workflow.sql, 031_admin_manual_approval_workflows.sql
+admin_review_withdrawal: 014_admin_workspace.sql, 015_admin_control_center.sql, 047_payout_reconciliation_and_idempotency.sql
+admin_send_notification: 014_admin_workspace.sql, 015_admin_control_center.sql, 026_admin_customer_controls.sql
+admin_set_content_status: 014_admin_workspace.sql, 015_admin_control_center.sql, 035_content_seo_blog.sql
+admin_set_coupon_active: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_set_customer_blocked: 026_admin_customer_controls.sql
+admin_set_customer_note: 026_admin_customer_controls.sql
+admin_set_member_active: 024_admin_roles_permissions.sql
+admin_update_order_status: 014_admin_workspace.sql, 015_admin_control_center.sql, 033_order_lifecycle_hardening.sql
+admin_update_product: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_upsert_banner: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_upsert_category: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_upsert_content: 014_admin_workspace.sql, 015_admin_control_center.sql, 035_content_seo_blog.sql, 036_faq_content.sql
+admin_upsert_coupon: 014_admin_workspace.sql, 015_admin_control_center.sql
+admin_upsert_role: 024_admin_roles_permissions.sql
+admin_upsert_setting: 014_admin_workspace.sql, 015_admin_control_center.sql
+apply_order_wallet_effects: 008_wallet.sql, 009_tier1_order_actions_disputes_verification.sql, 033_order_lifecycle_hardening.sql
+apply_paid_withdrawal: 008_wallet.sql, 041_wallet_withdrawal_safety.sql
+apply_seller_registration_review: 009_tier1_order_actions_disputes_verification.sql
+apply_wallet_ledger_entry: 008_wallet.sql
+notify_chat_message_event: 028_notifications_push.sql
+notify_order_admin_review: 031_admin_manual_approval_workflows.sql
+notify_order_change: 013_marketplace_features.sql, 033_order_lifecycle_hardening.sql, 038_order_lifecycle_type_cast_repair.sql
+notify_product_admin_review: 031_admin_manual_approval_workflows.sql
+notify_product_question_event: 040_product_question_seller_notifications.sql
+notify_seller_verification_event: 028_notifications_push.sql
+notify_user_event: 028_notifications_push.sql
+notify_wallet_event: 028_notifications_push.sql
+seller_clear_digital_content: 042_seller_listing_mutations.sql

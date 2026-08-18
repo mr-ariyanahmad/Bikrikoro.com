@@ -22,6 +22,7 @@ const ALLOWED_ADMIN_RPCS = new Set([
   'admin_list_customers',
   'admin_list_digital_deliveries',
   'admin_list_members',
+  'admin_list_withdrawals_reconciled',
   'admin_list_orders',
   'admin_list_pending_disputes',
   'admin_list_product_approval_history',

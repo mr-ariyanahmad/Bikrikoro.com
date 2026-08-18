@@ -1,0 +1,548 @@
+=== ADMIN FINANCE ===
+import { useCallback, useEffect, useState } from 'react'
+import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
+import { useAuth } from '@/context/AuthContext'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
+import { formatDateTime, formatTaka } from '@/lib/format'
+import { adminRpc } from '@/lib/adminRpc'
+
+type Withdrawal = { id: string; user_id: string; amount: number; method: string; account_details: string; status: string; admin_note: string | null; requested_at: string; processed_at: string | null }
+const labels: Record<string, string> = { PENDING: 'অপেক্ষায়', APPROVED: 'অনুমোদিত', REJECTED: 'বাতিল', PAID: 'পরিশোধিত' }
+
+export default function AdminFinance() {
+  const { user } = useAuth()
+  const [rows, setRows] = useState<Withdrawal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [note, setNote] = useState<Record<string, string>>({})
+  const load = useCallback(() => {
+    setLoading(true)
+    adminRpc('admin_list_withdrawals', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
+      setRows((data ?? []) as Withdrawal[])
+      if (loadError) setError(formatAdminRpcError(loadError, 'উইথড্রয়াল data', '014 admin workspace migration'))
+      setLoading(false)
+    })
+  }, [user?.uid])
+  useEffect(() => { load() }, [load])
+  const formatPayoutError = (reviewError: { message?: string | null; code?: string | null }) => {
+    const message = reviewError.message?.toLowerCase() ?? ''
+    if (message.includes('insufficient wallet balance') || message.includes('available_balance_check')) {
+      return 'এই payout পরিশোধ করা যাচ্ছে না। Seller wallet-এর available balance payout amount-এর চেয়ে কম। আগে wallet balance যাচাই করুন।'
+    }
+    if (message.includes('wallet balance not found')) {
+      return 'এই seller-এর wallet balance row পাওয়া যায়নি। Seller account-এ wallet তৈরি হয়েছে কি না যাচাই করুন।'
+    }
+    return formatAdminRpcError(reviewError, 'উইথড্রয়াল update', '014 admin workspace migration')
+  }
+  const review = async (row: Withdrawal, status: string) => {
+    const { error: reviewError } = await adminRpc('admin_review_withdrawal', { p_admin_id: user?.uid, p_request_id: row.id, p_status: status, p_admin_note: note[row.id] ?? '' })
+    if (reviewError) setError(formatPayoutError(reviewError))
+    else load()
+  }
+  return <AdminShell><AdminPageHeader title="পেআউট ও উইথড্রয়াল" description="Seller wallet-এর payout request review ও process করুন।" /><AdminTableCard>{loading ? <p className="p-10 text-center text-sm text-slate-500">লোড হচ্ছে...</p> : rows.length === 0 ? <p className="p-10 text-center text-sm text-slate-500">কোনো payout request নেই।</p> : <div className="divide-y divide-slate-100">{rows.map((row) => <div key={row.id} className="space-y-3 px-5 py-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold text-slate-800">{formatTaka(row.amount)} · {row.method}</p><p className="mt-1 text-xs text-slate-400">Seller UID: {row.user_id} · {formatDateTime(row.requested_at)}</p><p className="mt-1 text-sm text-slate-600">Account: {row.account_details}</p></div><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === 'PAID' ? 'bg-brand-50 text-brand-700' : row.status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{labels[row.status] ?? row.status}</span></div><div className="flex flex-col gap-2 sm:flex-row"><input value={note[row.id] ?? row.admin_note ?? ''} onChange={(e) => setNote({ ...note, [row.id]: e.target.value })} placeholder="Admin note (ঐচ্ছিক)" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500" />{row.status === 'PENDING' && <><button type="button" onClick={() => review(row, 'APPROVED')} className="rounded-xl border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-700">Approve</button><button type="button" onClick={() => review(row, 'REJECTED')} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700">Reject</button></>}{row.status === 'APPROVED' && <button type="button" onClick={() => review(row, 'PAID')} className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white">Mark paid</button>}</div></div>)}</div>}</AdminTableCard>{error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}</AdminShell>
+}
+=== WITHDRAWAL MODAL ===
+import { useState } from 'react'
+import { auth } from '@/lib/firebase'
+import type { WithdrawalMethod } from '@/types/wallet'
+import { formatTaka } from '@/lib/format'
+
+const METHODS: { value: WithdrawalMethod; label: string; placeholder: string }[] = [
+  { value: 'BKASH', label: 'বিকাশ', placeholder: 'বিকাশ নম্বর (০১XXXXXXXXX)' },
+  { value: 'NAGAD', label: 'নগদ', placeholder: 'নগদ নম্বর (০১XXXXXXXXX)' },
+  { value: 'BANK', label: 'ব্যাংক', placeholder: 'ব্যাংকের নাম, শাখা, অ্যাকাউন্ট নম্বর' },
+]
+
+export function WithdrawModal({
+  userId,
+  availableBalance,
+  onClose,
+  onSuccess,
+}: {
+  userId: string
+  availableBalance: number
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [method, setMethod] = useState<WithdrawalMethod>('BKASH')
+  const [amount, setAmount] = useState('')
+  const [accountDetails, setAccountDetails] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const parsedAmount = Number(amount)
+  const accountIsValid = method === 'BANK' ? accountDetails.trim().length >= 10 : /^01\d{9}$/.test(accountDetails.replace(/\D/g, ''))
+  const isValid = parsedAmount > 0 && parsedAmount <= availableBalance && accountIsValid
+
+  const handleSubmit = async () => {
+    if (!isValid) return
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      if (auth.currentUser?.uid !== userId) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+      const idToken = await auth.currentUser.getIdToken()
+      const response = await fetch('/api/wallet-withdrawal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ amount: parsedAmount, method, accountDetails: accountDetails.trim() }),
+      })
+      const result = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(result.error || `Withdrawal failed (HTTP ${response.status})`)
+      onSuccess()
+    } catch (withdrawError) {
+      console.error('Withdrawal request failed:', withdrawError)
+      setError(withdrawError instanceof Error ? withdrawError.message : 'উত্তোলনের অনুরোধ পাঠানো যায়নি।')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const selected = METHODS.find((m) => m.value === method)!
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/40 sm:items-center">
+      <div className="w-full max-w-md rounded-t-2xl bg-surface p-6 sm:rounded-2xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink-900">উত্তোলন করুন</h2>
+          <button type="button" onClick={onClose} className="text-ink-300 hover:text-ink-600" aria-label="বন্ধ করুন">
+            ✕
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-ink-600">
+          উপলব্ধ ব্যালেন্স: <span className="tabular-amount font-medium">{formatTaka(availableBalance)}</span>
+        </p>
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">মাধ্যম বেছে নিন</label>
+            <div className="flex gap-2">
+              {METHODS.map((m) => (
+                <button
+                  type="button"
+                  key={m.value}
+                  onClick={() => setMethod(m.value)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    method === m.value
+                      ? 'border-brand-500 bg-brand-50 text-brand-700'
+                      : 'border-outline text-ink-600 hover:border-brand-500/40'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">পরিমাণ (৳)</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="যত টাকা উত্তোলন করতে চান"
+              className="tabular-amount w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+            {parsedAmount > availableBalance && (
+              <p className="mt-1 text-xs text-error">ব্যালেন্সের চেয়ে বেশি পরিমাণ দেওয়া যাবে না।</p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">{selected.label} তথ্য</label>
+            <input
+              type="text"
+              value={accountDetails}
+              onChange={(e) => setAccountDetails(e.target.value)}
+              placeholder={selected.placeholder}
+              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+
+          {error && <p className="text-sm text-error">{error}</p>}
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isValid || submitting}
+            className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? 'পাঠানো হচ্ছে...' : 'অনুরোধ পাঠান'}
+          </button>
+          <p className="text-center text-xs text-ink-300">
+            অনুরোধ পর্যালোচনার পর ১-৩ কার্যদিবসের মধ্যে টাকা পাঠানো হবে।
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+=== PAYOUT RPC REFERENCES ===
+supabase/migrations/008_wallet.sql:12:--   • The Android app NEVER reads wallet_balances, wallet_ledger, or
+supabase/migrations/008_wallet.sql:13:--     wallet_withdrawal_requests, and NEVER shows a balance or a
+supabase/migrations/008_wallet.sql:28:    available_balance numeric(12,2) not null default 0 check (available_balance >= 0),
+supabase/migrations/008_wallet.sql:42:-- wallet_ledger — append-only history behind the balance. Every credit
+supabase/migrations/008_wallet.sql:49:create table if not exists wallet_ledger (
+supabase/migrations/008_wallet.sql:60:create index if not exists idx_wallet_ledger_user on wallet_ledger(user_id, created_at desc);
+supabase/migrations/008_wallet.sql:61:create index if not exists idx_wallet_ledger_order on wallet_ledger(order_id);
+supabase/migrations/008_wallet.sql:63:alter table wallet_ledger enable row level security;
+supabase/migrations/008_wallet.sql:66:    on wallet_ledger for select
+supabase/migrations/008_wallet.sql:73:    on wallet_ledger for insert
+supabase/migrations/008_wallet.sql:79:create or replace function apply_wallet_ledger_entry() returns trigger as $$
+supabase/migrations/008_wallet.sql:81:    insert into wallet_balances (user_id, available_balance, updated_at)
+supabase/migrations/008_wallet.sql:84:        set available_balance = wallet_balances.available_balance + excluded.available_balance,
+supabase/migrations/008_wallet.sql:90:drop trigger if exists trg_apply_wallet_ledger_entry on wallet_ledger;
+supabase/migrations/008_wallet.sql:91:create trigger trg_apply_wallet_ledger_entry
+supabase/migrations/008_wallet.sql:92:    after insert on wallet_ledger
+supabase/migrations/008_wallet.sql:93:    for each row execute function apply_wallet_ledger_entry();
+supabase/migrations/008_wallet.sql:96:-- wallet_withdrawal_requests — website-only "উত্তোলন করুন" flow
+supabase/migrations/008_wallet.sql:98:create table if not exists wallet_withdrawal_requests (
+supabase/migrations/008_wallet.sql:111:alter table wallet_ledger
+supabase/migrations/008_wallet.sql:112:    add constraint wallet_ledger_withdrawal_request_id_fkey
+supabase/migrations/008_wallet.sql:113:    foreign key (withdrawal_request_id) references wallet_withdrawal_requests(id);
+supabase/migrations/008_wallet.sql:115:create index if not exists idx_withdrawal_requests_user on wallet_withdrawal_requests(user_id);
+supabase/migrations/008_wallet.sql:116:create index if not exists idx_withdrawal_requests_status on wallet_withdrawal_requests(status) where status = 'PENDING';
+supabase/migrations/008_wallet.sql:118:alter table wallet_withdrawal_requests enable row level security;
+supabase/migrations/008_wallet.sql:121:    on wallet_withdrawal_requests for select
+supabase/migrations/008_wallet.sql:124:-- The website calls request_wallet_withdrawal() below rather than
+supabase/migrations/008_wallet.sql:127:create policy "Withdrawal requests are inserted via request_wallet_withdrawal()"
+supabase/migrations/008_wallet.sql:128:    on wallet_withdrawal_requests for insert
+supabase/migrations/008_wallet.sql:132:    on wallet_withdrawal_requests for update
+supabase/migrations/008_wallet.sql:138:create or replace function request_wallet_withdrawal(
+supabase/migrations/008_wallet.sql:148:    select available_balance into v_balance from wallet_balances where user_id = p_user_id;
+supabase/migrations/008_wallet.sql:154:    insert into wallet_withdrawal_requests (user_id, amount, method, account_details)
+supabase/migrations/008_wallet.sql:165:create or replace function apply_paid_withdrawal() returns trigger as $$
+supabase/migrations/008_wallet.sql:172:        insert into wallet_ledger (user_id, type, amount, withdrawal_request_id, description)
+supabase/migrations/008_wallet.sql:180:drop trigger if exists trg_apply_paid_withdrawal on wallet_withdrawal_requests;
+supabase/migrations/008_wallet.sql:181:create trigger trg_apply_paid_withdrawal
+supabase/migrations/008_wallet.sql:182:    before update on wallet_withdrawal_requests
+supabase/migrations/008_wallet.sql:183:    for each row execute function apply_paid_withdrawal();
+supabase/migrations/008_wallet.sql:186:alter publication supabase_realtime add table wallet_ledger;
+supabase/migrations/008_wallet.sql:187:alter publication supabase_realtime add table wallet_withdrawal_requests;
+supabase/migrations/008_wallet.sql:201:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/008_wallet.sql:214:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:17:-- wallet_withdrawal_requests in 008_wallet.sql. Both the Android app and
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:131:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:142:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/014_admin_workspace.sql:226:returns setof wallet_withdrawal_requests as $$
+supabase/migrations/014_admin_workspace.sql:229:    return query select * from wallet_withdrawal_requests order by requested_at desc;
+supabase/migrations/014_admin_workspace.sql:233:create or replace function admin_review_withdrawal(p_admin_id text, p_request_id uuid, p_status text, p_admin_note text)
+supabase/migrations/014_admin_workspace.sql:238:    update wallet_withdrawal_requests
+supabase/migrations/015_admin_control_center.sql:226:returns setof wallet_withdrawal_requests as $$
+supabase/migrations/015_admin_control_center.sql:229:    return query select * from wallet_withdrawal_requests order by requested_at desc;
+supabase/migrations/015_admin_control_center.sql:233:create or replace function admin_review_withdrawal(p_admin_id text, p_request_id uuid, p_status text, p_admin_note text)
+supabase/migrations/015_admin_control_center.sql:238:    update wallet_withdrawal_requests
+supabase/migrations/026_admin_customer_controls.sql:34:  select coalesce(jsonb_agg(to_jsonb(l) order by l.created_at desc), '[]'::jsonb) into v_ledger from public.wallet_ledger l where l.user_id = p_customer_id;
+supabase/migrations/026_admin_customer_controls.sql:51:  select coalesce(available_balance, 0) into v_balance from public.wallet_balances where user_id = p_customer_id for update;
+supabase/migrations/026_admin_customer_controls.sql:53:  insert into public.wallet_ledger(user_id, type, amount, description) values (p_customer_id, 'ADJUSTMENT', p_amount, 'Admin adjustment: ' || trim(p_reason));
+supabase/migrations/028_notifications_push.sql:103:drop trigger if exists trg_notify_wallet_event on public.wallet_ledger;
+supabase/migrations/028_notifications_push.sql:104:create trigger trg_notify_wallet_event after insert on public.wallet_ledger for each row execute function public.notify_wallet_event();
+supabase/migrations/033_order_lifecycle_hardening.sql:170:    insert into public.wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/033_order_lifecycle_hardening.sql:181:    insert into public.wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/041_wallet_withdrawal_safety.sql:2:-- Prevents a PAID withdrawal from attempting to make available_balance negative.
+supabase/migrations/041_wallet_withdrawal_safety.sql:5:create or replace function public.apply_paid_withdrawal()
+supabase/migrations/041_wallet_withdrawal_safety.sql:11:    select available_balance
+supabase/migrations/041_wallet_withdrawal_safety.sql:29:    insert into public.wallet_ledger (user_id, type, amount, withdrawal_request_id, description)
+supabase/migrations/041_wallet_withdrawal_safety.sql:37:drop trigger if exists trg_apply_paid_withdrawal on public.wallet_withdrawal_requests;
+supabase/migrations/041_wallet_withdrawal_safety.sql:38:create trigger trg_apply_paid_withdrawal
+supabase/migrations/041_wallet_withdrawal_safety.sql:39:before update on public.wallet_withdrawal_requests
+supabase/migrations/041_wallet_withdrawal_safety.sql:40:for each row execute function public.apply_paid_withdrawal();
+supabase/migrations/045_order_read_and_checkout_hardening.sql:120:    v_balance.available_balance := 0;
+supabase/migrations/045_order_read_and_checkout_hardening.sql:127:create or replace function public.user_wallet_ledger(p_user_id text, p_limit integer default 50)
+supabase/migrations/045_order_read_and_checkout_hardening.sql:128:returns setof public.wallet_ledger as $$
+supabase/migrations/045_order_read_and_checkout_hardening.sql:130:  return query select l.* from public.wallet_ledger l where l.user_id::text = p_user_id::text order by l.created_at desc limit greatest(1, least(coalesce(p_limit, 50), 200));
+supabase/migrations/045_order_read_and_checkout_hardening.sql:144:revoke all on function public.user_wallet_ledger(text, integer) from public;
+supabase/migrations/045_order_read_and_checkout_hardening.sql:145:grant execute on function public.user_wallet_ledger(text, integer) to anon, authenticated;
+supabase/migrations/045_order_read_and_checkout_hardening.sql:146:revoke all on function public.request_wallet_withdrawal(text, numeric, text, text) from public;
+supabase/migrations/045_order_read_and_checkout_hardening.sql:147:grant execute on function public.request_wallet_withdrawal(text, numeric, text, text) to service_role;
+src/types/wallet.ts:11:  available_balance: number
+src/lib/supabase.ts:16: * that touches wallet_balances / wallet_ledger / wallet_withdrawal_requests
+src/pages/admin/AdminFinance.tsx:28:    if (message.includes('insufficient wallet balance') || message.includes('available_balance_check')) {
+src/pages/admin/AdminFinance.tsx:37:    const { error: reviewError } = await adminRpc('admin_review_withdrawal', { p_admin_id: user?.uid, p_request_id: row.id, p_status: status, p_admin_note: note[row.id] ?? '' })
+src/pages/admin/AdminCustomerDetail.tsx:13:  wallet: { available_balance?: number }
+src/pages/admin/AdminCustomerDetail.tsx:92:  const balance = Number(wallet.available_balance ?? 0)
+src/pages/Home.tsx:73:        const walletPayload = await walletResponse.json().catch(() => ({})) as { error?: string; balance?: { available_balance?: number } }
+src/pages/Home.tsx:75:        setBalance(Number(walletPayload.balance?.available_balance ?? 0))
+src/pages/SellerDashboard.tsx:50:          supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
+src/pages/Wallet.tsx:34:      setBalance(payload.balance ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
+src/pages/Wallet.tsx:59:        { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${uid}` },
+src/pages/Wallet.tsx:85:            balance={balance?.available_balance ?? 0}
+src/pages/Wallet.tsx:97:          availableBalance={balance.available_balance}
+api/order-read.ts:68:        supabase.rpc('user_wallet_ledger', { p_user_id: token.uid, p_limit: 50 }),
+api/wallet-withdrawal.ts:23:    const { data, error } = await supabase.rpc('request_wallet_withdrawal', { p_user_id: token.uid, p_amount: amount, p_method: input.method, p_account_details: input.accountDetails.trim() })
+api/admin-rpc.ts:38:  'admin_review_withdrawal',
+=== PAYOUT MIGRATIONS ===
+--- supabase/migrations/008_wallet.sql
+-- =====================================================================
+-- BikriKoro — Wallet (backend + website ONLY, never the Android app)
+-- =====================================================================
+-- ⚠️ PLATFORM RULE — READ BEFORE TOUCHING THIS FILE ⚠️
+-- BikriKoro's Android app is published from a personal Google Play
+-- Console account. A real-money wallet with a visible balance and
+-- withdrawal flow inside the app risks Play policy rejection (financial
+-- features draw extra review scrutiny). So the rule for this schema is:
+--
+--   • These tables are the single source of truth, shared by both the
+--     Android app and bikrikoro.com — same backend, same relationships.
+--   • The Android app NEVER reads wallet_balances, wallet_ledger, or
+--     wallet_withdrawal_requests, and NEVER shows a balance or a
+--     "withdraw" button anywhere. It only causes events (an order gets
+--     cancelled, an order gets completed) — everything below reacts to
+--     those events automatically via triggers, with zero app awareness.
+--   • Only the website reads/writes these tables to show balance history
+--     and let the user request a withdrawal.
+--
+-- Do not add a Kotlin repository/screen for this in the Android app.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- wallet_balances — one row per user, fast-read current balance
+-- ---------------------------------------------------------------------
+create table if not exists wallet_balances (
+    user_id text primary key references profiles(id),
+    available_balance numeric(12,2) not null default 0 check (available_balance >= 0),
+    updated_at timestamptz not null default now()
+);
+
+alter table wallet_balances enable row level security;
+
+-- Balance is only ever read by the website on behalf of the signed-in
+-- user — permissive-until-Supabase-Auth, same as the rest of the schema
+-- (see 001_init.sql). The Android app simply never calls this table.
+create policy "Users can read their own wallet balance"
+    on wallet_balances for select
+    using (true);
+
+-- ---------------------------------------------------------------------
+-- wallet_ledger — append-only history behind the balance. Every credit
+-- (refund from a cancelled order, seller payout from a completed order)
+-- and every debit (a paid-out withdrawal) is one row here. The balance
+-- in wallet_balances is a derived cache, never edited directly — always
+-- through a ledger insert, so the two can never drift and the website
+-- has a full audit trail to show the user ("কেন এই টাকা এলো").
+-- ---------------------------------------------------------------------
+create table if not exists wallet_ledger (
+    id uuid primary key default gen_random_uuid(),
+    user_id text not null references profiles(id),
+    type text not null check (type in ('ORDER_REFUND', 'SELLER_PAYOUT', 'WITHDRAWAL', 'ADJUSTMENT')),
+    amount numeric(12,2) not null,               -- positive = credit, negative = debit
+    order_id uuid references orders(id),
+    withdrawal_request_id uuid,                  -- set for WITHDRAWAL rows, fk added below
+    description text not null default '',
+    created_at timestamptz not null default now()
+);
+
+create index if not exists idx_wallet_ledger_user on wallet_ledger(user_id, created_at desc);
+create index if not exists idx_wallet_ledger_order on wallet_ledger(order_id);
+
+alter table wallet_ledger enable row level security;
+
+create policy "Users can read their own wallet ledger"
+    on wallet_ledger for select
+    using (true);
+
+-- Ledger rows are only ever inserted by triggers (order events) or the
+-- withdrawal-approval trigger below — never directly by the app/website
+-- with an arbitrary amount, so a compromised client can't credit itself.
+create policy "Ledger rows are inserted by backend triggers only"
+    on wallet_ledger for insert
+    with check (true); -- functions below run as security definer regardless
+
+-- ---------------------------------------------------------------------
+-- Keep wallet_balances in sync with every ledger insert
+-- ---------------------------------------------------------------------
+create or replace function apply_wallet_ledger_entry() returns trigger as $$
+begin
+    insert into wallet_balances (user_id, available_balance, updated_at)
+    values (new.user_id, new.amount, now())
+    on conflict (user_id) do update
+        set available_balance = wallet_balances.available_balance + excluded.available_balance,
+            updated_at = now();
+    return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_apply_wallet_ledger_entry on wallet_ledger;
+create trigger trg_apply_wallet_ledger_entry
+    after insert on wallet_ledger
+    for each row execute function apply_wallet_ledger_entry();
+
+-- ---------------------------------------------------------------------
+-- wallet_withdrawal_requests — website-only "উত্তোলন করুন" flow
+-- ---------------------------------------------------------------------
+create table if not exists wallet_withdrawal_requests (
+    id uuid primary key default gen_random_uuid(),
+    user_id text not null references profiles(id),
+    amount numeric(12,2) not null check (amount > 0),
+    method text not null check (method in ('BKASH', 'NAGAD', 'BANK')),
+    account_details text not null,               -- phone number or bank account info
+    status text not null default 'PENDING'
+        check (status in ('PENDING', 'APPROVED', 'REJECTED', 'PAID')),
+    admin_note text,
+    requested_at timestamptz not null default now(),
+    processed_at timestamptz
+);
+
+alter table wallet_ledger
+    add constraint wallet_ledger_withdrawal_request_id_fkey
+    foreign key (withdrawal_request_id) references wallet_withdrawal_requests(id);
+
+create index if not exists idx_withdrawal_requests_user on wallet_withdrawal_requests(user_id);
+create index if not exists idx_withdrawal_requests_status on wallet_withdrawal_requests(status) where status = 'PENDING';
+
+alter table wallet_withdrawal_requests enable row level security;
+
+create policy "Users can read their own withdrawal requests"
+    on wallet_withdrawal_requests for select
+    using (true);
+
+-- The website calls request_wallet_withdrawal() below rather than
+-- inserting directly, so the balance check can't be bypassed by a
+-- client sending an amount larger than what's actually available.
+create policy "Withdrawal requests are inserted via request_wallet_withdrawal()"
+    on wallet_withdrawal_requests for insert
+    with check (false);
+
+create policy "Withdrawal requests are updated by admin/ops only"
+    on wallet_withdrawal_requests for update
+    using (true) with check (true); -- tightened once an admin role exists
+
+-- Website calls this (as the signed-in user) to request a withdrawal.
+-- Rejects up front if the amount exceeds the current balance instead of
+-- letting the balance go negative and sorting it out later.
+create or replace function request_wallet_withdrawal(
+    p_user_id text,
+    p_amount numeric,
+    p_method text,
+    p_account_details text
+) returns uuid as $$
+declare
+    v_balance numeric;
+    v_request_id uuid;
+begin
+    select available_balance into v_balance from wallet_balances where user_id = p_user_id;
+
+    if v_balance is null or v_balance < p_amount then
+        raise exception 'Insufficient wallet balance';
+    end if;
+
+    insert into wallet_withdrawal_requests (user_id, amount, method, account_details)
+    values (p_user_id, p_amount, p_method, p_account_details)
+    returning id into v_request_id;
+
+    return v_request_id;
+end;
+$$ language plpgsql security definer;
+
+-- When admin/ops marks a withdrawal request PAID (from the Supabase
+-- dashboard, or a future admin tool — no in-app or website user action
+-- reaches this directly), debit the ledger automatically.
+create or replace function apply_paid_withdrawal() returns trigger as $$
+begin
+    if new.status = 'PAID' and old.status is distinct from 'PAID' then
+        if new.processed_at is null then
+            new.processed_at := now();
+        end if;
+
+        insert into wallet_ledger (user_id, type, amount, withdrawal_request_id, description)
+        values (new.user_id, 'WITHDRAWAL', -new.amount, new.id, 'উত্তোলন — ' || new.method);
+    end if;
+
+    return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_apply_paid_withdrawal on wallet_withdrawal_requests;
+create trigger trg_apply_paid_withdrawal
+    before update on wallet_withdrawal_requests
+    for each row execute function apply_paid_withdrawal();
+
+alter publication supabase_realtime add table wallet_balances;
+alter publication supabase_realtime add table wallet_ledger;
+alter publication supabase_realtime add table wallet_withdrawal_requests;
+
+-- ---------------------------------------------------------------------
+-- Auto-credit on order events — the only place the Android app's
+-- actions ever touch the wallet, and it never knows it happened.
+-- ---------------------------------------------------------------------
+create or replace function apply_order_wallet_effects() returns trigger as $$
+begin
+    -- Seller cancels (or order is otherwise cancelled) after escrow was
+    -- already collected from the buyer — refund the full amount to the
+    -- buyer's wallet rather than the original payment method.
+    if new.status = 'CANCELLED'
+       and old.status in ('ESCROW_HELD', 'SHIPPED', 'DELIVERED')
+    then
+        insert into wallet_ledger (user_id, type, amount, order_id, description)
+        values (
+            new.buyer_id,
+            'ORDER_REFUND',
+            (new.price * new.quantity) + new.escrow_fee,
+            new.id,
+            'অর্ডার বাতিল — রিফান্ড: ' || new.product_title
+        );
+    end if;
+
+    -- Buyer confirms delivery (or order otherwise completes) — release
+    -- escrow to the seller as a wallet credit instead of a bank transfer.
+    if new.status = 'COMPLETED' and old.status is distinct from 'COMPLETED' then
+        insert into wallet_ledger (user_id, type, amount, order_id, description)
+        values (
+            new.seller_id,
+            'SELLER_PAYOUT',
+            new.price * new.quantity,
+            new.id,
+            'বিক্রয় সম্পন্ন — পেআউট: ' || new.product_title
+        );
+    end if;
+
+    return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trg_apply_order_wallet_effects on orders;
+create trigger trg_apply_order_wallet_effects
+    after update on orders
+    for each row execute function apply_order_wallet_effects();
+--- supabase/migrations/041_wallet_withdrawal_safety.sql
+-- BikriKoro — safe payout settlement
+-- Prevents a PAID withdrawal from attempting to make available_balance negative.
+-- The wallet row is locked so concurrent payouts cannot spend the same balance.
+
+create or replace function public.apply_paid_withdrawal()
+returns trigger as $$
+declare
+  v_available numeric;
+begin
+  if new.status = 'PAID' and old.status is distinct from 'PAID' then
+    select available_balance
+      into v_available
+    from public.wallet_balances
+    where user_id = new.user_id
+    for update;
+
+    if v_available is null then
+      raise exception 'Seller wallet balance not found';
+    end if;
+
+    if v_available < new.amount then
+      raise exception 'Insufficient wallet balance: available %, requested %', v_available, new.amount;
+    end if;
+
+    if new.processed_at is null then
+      new.processed_at := now();
+    end if;
+
+    insert into public.wallet_ledger (user_id, type, amount, withdrawal_request_id, description)
+    values (new.user_id, 'WITHDRAWAL', -new.amount, new.id, 'উত্তোলন — ' || new.method);
+  end if;
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_temp;
+
+drop trigger if exists trg_apply_paid_withdrawal on public.wallet_withdrawal_requests;
+create trigger trg_apply_paid_withdrawal
+before update on public.wallet_withdrawal_requests
+for each row execute function public.apply_paid_withdrawal();
