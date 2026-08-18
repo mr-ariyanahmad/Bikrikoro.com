@@ -65,3 +65,38 @@ export async function sendNewOrderEmail(input: NewOrderEmailInput) {
   if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
   return { skipped: false, id: payload.id ?? null }
 }
+
+
+export type WelcomeEmailInput = {
+  userId: string
+  to: string
+  name: string
+}
+
+export async function sendWelcomeEmail(input: WelcomeEmailInput) {
+  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  if (!apiKey || !from) return { skipped: true, reason: 'RESEND_NOT_CONFIGURED' as const }
+
+  const email = input.to.trim().toLowerCase()
+  if (!email) return { skipped: true, reason: 'NO_EMAIL' as const }
+
+  const recipientName = input.name.trim() || 'প্রিয় ব্যবহারকারী'
+  const safeName = escapeHtml(recipientName)
+  const safeUserId = escapeHtml(input.userId)
+  const html = `<!doctype html><html lang="bn"><body style="margin:0;background:#f5faf7;padding:24px;font-family:Arial,sans-serif;color:#17231f"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #dce8e2;border-radius:20px;padding:32px"><div style="font-size:24px;font-weight:700;color:#087f5b">BikriKoro.Com</div><h1 style="margin:24px 0 12px;color:#087f5b">স্বাগতম, ${safeName}!</h1><p style="font-size:16px;line-height:1.8">BikriKoro-তে আপনার account তৈরি হয়েছে। নিরাপদে পণ্য কিনুন, বিক্রি করুন এবং order-এর update email-এ পান।</p><a href="https://bikrikoro.com/products" style="display:inline-block;margin-top:16px;background:#087f5b;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px">কেনাকাটা শুরু করুন</a><p style="margin-top:32px;color:#66756e;font-size:12px;line-height:1.6">এই emailটি BikriKoro.Com থেকে স্বয়ংক্রিয়ভাবে পাঠানো হয়েছে। User ID: ${safeUserId}</p></div></body></html>`
+  const text = `স্বাগতম, ${recipientName}!\n\nBikriKoro-তে আপনার account তৈরি হয়েছে।\nকেনাকাটা শুরু করুন: https://bikrikoro.com/products`
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': `bikrikoro-welcome-${input.userId}`,
+    },
+    body: JSON.stringify({ from, to: [email], subject: 'BikriKoro-তে স্বাগতম!', html, text }),
+  })
+  const payload = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string }
+  if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
+  return { skipped: false, id: payload.id ?? null }
+}
