@@ -1,0 +1,62 @@
+=== API FUNCTION FILES ===
+[...route].ts
+count=1
+=== FRONTEND BUILD ===
+
+> bikrikoro-web@0.0.0 build
+> tsc -b && vite build
+
+vite v8.2.1 building client environment for production...
+[2Ktransforming...[32m✓[0m 1963 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[0m[32mindex.html                 [0m[1;2m    4.71 kB[0m[2m │ gzip:   1.36 kB[0m
+[2mdist/[0m[2massets/[0m[35mindex-CHVNJgDh.css  [0m[1;2m   65.04 kB[0m[2m │ gzip:  11.67 kB[0m
+[2mdist/[0m[2massets/[0m[36mindex-D2R7ddwh.js   [0m[33;1m1,087.44 kB[0m[2m │ gzip: 278.98 kB[0m
+
+✓ built in 726ms
+[plugin builtin:vite-reporter] [33;1m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[0m
+=== LINT ===
+
+> bikrikoro-web@0.0.0 lint
+> oxlint
+
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/context/AuthContext.tsx:232:17]
+ 231 | 
+ 232 | export function useAuth(): AuthContextValue {
+     :                 ^^^^^^^
+ 233 |   const ctx = useContext(AuthContext)
+     `----
+
+Found 1 warning and 0 errors.
+Finished in 35ms on 130 files with 104 rules using 6 threads.
+=== API NODE-NEXT ===
+=== IMPORT SCAN ===
+=== DIFF CHECK ===
+=== STATUS ===
+[32mR[m  api/_server-auth.ts -> server/api/_server-auth.ts
+[32mR[m  api/admin-rpc.ts -> server/api/admin-rpc.ts
+[32mR[m  api/admin-seller-verifications.ts -> server/api/admin-seller-verifications.ts
+[32mR[m  api/agent-router.ts -> server/api/agent-router.ts
+[32mR[m  api/notification-push.ts -> server/api/notification-push.ts
+[32mR[m  api/notifications.ts -> server/api/notifications.ts
+[32mR[m  api/order-action.ts -> server/api/order-action.ts
+[32mR[m  api/order-read.ts -> server/api/order-read.ts
+[32mR[m  api/pending-order.ts -> server/api/pending-order.ts
+[32mR[m  api/product-preview.ts -> server/api/product-preview.ts
+[32mR[m  api/profile-bootstrap.ts -> server/api/profile-bootstrap.ts
+[32mR[m  api/seller-verification-status.ts -> server/api/seller-verification-status.ts
+[32mR[m  api/sitemap.xml.ts -> server/api/sitemap.xml.ts
+[32mR[m  api/verification-document.ts -> server/api/verification-document.ts
+[32mR[m  api/wallet-withdrawal.ts -> server/api/wallet-withdrawal.ts
+[31m??[m api/
+[31m??[m audit/post-0a3a309-timeline.txt
+[31m??[m audit/vercel-function-inventory.txt
+[31m??[m audit/vercel-gateway-validation.txt
+[31m??[m audit/vercel-second-failure-diagnostics.txt

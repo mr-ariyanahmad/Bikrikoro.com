@@ -1,0 +1,65 @@
+=== API FILES ===
+_server-auth.ts
+admin-rpc.ts
+admin-seller-verifications.ts
+agent-router.ts
+notification-push.ts
+notifications.ts
+order-action.ts
+order-read.ts
+pending-order.ts
+product-preview.ts
+profile-bootstrap.ts
+seller-verification-status.ts
+sitemap.xml.ts
+verification-document.ts
+wallet-withdrawal.ts
+=== API COUNT ===
+15
+=== VERCEL CONFIG ===
+{
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
+=== FETCH API REFERENCES ===
+src/components/WithdrawModal.tsx:41:      const response = await fetch('/api/wallet-withdrawal', {
+src/hooks/useEnsureProfile.ts:22:        const response = await fetch('/api/profile-bootstrap', {
+src/hooks/useIsSeller.ts:30:        const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
+src/lib/adminRpc.ts:11:    const response = await fetch('/api/admin-rpc', {
+src/lib/agentRouter.ts:6:  const response = await fetch('/api/agent-router', {
+src/lib/marketplace.ts:53:  const response = await fetch('/api/notifications', {
+src/lib/orders.ts:25:  const response = await fetch('/api/order-action', {
+src/lib/payments.ts:13:  const response = await fetch('/api/pending-order', {
+src/lib/payments.ts:38:  const response = await fetch('/api/pending-order', {
+src/lib/pushNotifications.ts:35:    const response = await fetch('/api/notifications', {
+src/lib/verification.ts:20:  const response = await fetch(`/api/verification-document?path=${encodeURIComponent(path)}`, {
+src/pages/DisputeThread.tsx:36:      const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'dispute', disputeId }) })
+src/pages/Home.tsx:70:          fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) }),
+src/pages/OrderDetail.tsx:44:        const response = await fetch('/api/order-read', {
+src/pages/OrderDetail.tsx:81:        const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'detail', orderId: id }) })
+src/pages/Orders.tsx:53:      const response = await fetch('/api/order-read', {
+src/pages/PaymentCallback.tsx:27:        const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'payment_state', orderId }) })
+src/pages/ProductDetail.tsx:157:  const getShareUrl = () => `${SITE_URL}/api/product-preview?id=${encodeURIComponent(product.id)}`
+src/pages/Sell.tsx:77:        const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
+src/pages/SellerVerification.tsx:57:        const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
+src/pages/Wallet.tsx:31:      const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
+src/pages/admin/AdminNotifications.tsx:119:        const response = await fetch('/api/notification-push', {
+src/pages/admin/AdminNotifications.tsx:27:  const response = await fetch('/api/notifications', {
+src/pages/admin/AdminSellerVerifications.tsx:33:      const response = await fetch('/api/admin-seller-verifications', { headers: { Authorization: `Bearer ${idToken}` } })
+=== API HANDLERS ===
+api/admin-rpc.ts
+api/admin-seller-verifications.ts
+api/agent-router.ts
+api/notification-push.ts
+api/notifications.ts
+api/order-action.ts
+api/order-read.ts
+api/pending-order.ts
+api/product-preview.ts
+api/profile-bootstrap.ts
+api/seller-verification-status.ts
+api/sitemap.xml.ts
+api/verification-document.ts
+api/wallet-withdrawal.ts

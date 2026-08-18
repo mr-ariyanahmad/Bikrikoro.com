@@ -1,0 +1,38 @@
+=== FUNCTION COUNT ===
+[...route].ts
+count=1
+=== SERVER IMPORTS ===
+=== GATEWAY ROUTES ===
+2:import adminRpc from '../server/api/admin-rpc.js'
+6:import notifications from '../server/api/notifications.js'
+7:import orderAction from '../server/api/order-action.js'
+13:import sitemap from '../server/api/sitemap.xml.js'
+15:import walletWithdrawal from '../server/api/wallet-withdrawal.js'
+20:  'admin-rpc': adminRpc,
+24:  notifications,
+25:  'order-action': orderAction,
+31:  'sitemap.xml': sitemap,
+33:  'wallet-withdrawal': walletWithdrawal,
+=== DIFF CHECK ===
+=== STATUS ===
+[32mR[m  api/_server-auth.ts -> server/api/_server-auth.ts
+[32mR[m  api/admin-rpc.ts -> server/api/admin-rpc.ts
+[32mR[m  api/admin-seller-verifications.ts -> server/api/admin-seller-verifications.ts
+[32mR[m  api/agent-router.ts -> server/api/agent-router.ts
+[32mR[m  api/notification-push.ts -> server/api/notification-push.ts
+[32mR[m  api/notifications.ts -> server/api/notifications.ts
+[32mR[m  api/order-action.ts -> server/api/order-action.ts
+[32mR[m  api/order-read.ts -> server/api/order-read.ts
+[32mR[m  api/pending-order.ts -> server/api/pending-order.ts
+[32mR[m  api/product-preview.ts -> server/api/product-preview.ts
+[32mR[m  api/profile-bootstrap.ts -> server/api/profile-bootstrap.ts
+[32mR[m  api/seller-verification-status.ts -> server/api/seller-verification-status.ts
+[32mR[m  api/sitemap.xml.ts -> server/api/sitemap.xml.ts
+[32mR[m  api/verification-document.ts -> server/api/verification-document.ts
+[32mR[m  api/wallet-withdrawal.ts -> server/api/wallet-withdrawal.ts
+[31m??[m api/
+[31m??[m audit/post-0a3a309-timeline.txt
+[31m??[m audit/vercel-function-inventory.txt
+[31m??[m audit/vercel-gateway-targeted-checks.txt
+[31m??[m audit/vercel-gateway-validation.txt
+[31m??[m audit/vercel-second-failure-diagnostics.txt
