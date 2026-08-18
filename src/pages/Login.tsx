@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, Home, ShoppingBag } from 'lucide-react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { ConfirmationResult } from 'firebase/auth'
@@ -12,7 +12,7 @@ function toE164(bdLocalNumber: string): string {
 }
 
 export default function Login() {
-  const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle } = useAuth()
+  const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, authError } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<'phone' | 'email'>('phone')
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -30,6 +30,10 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (authError) setError(googleAuthErrorMessage(authError))
+  }, [authError])
 
   if (user) return <Navigate to="/" replace />
 
@@ -88,16 +92,23 @@ export default function Login() {
     } catch (err) {
       console.error('Google login failed:', err)
       const code = (err as { code?: string }).code
-      if (code === 'firebase/not-configured') setError('লগইন চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।')
-      else if (code === 'auth/unauthorized-domain') setError('এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।')
-      else if (code === 'auth/account-exists-with-different-credential') setError('এই Google email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।')
-      else if (code === 'auth/popup-closed-by-user') setError('Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।')
-      else if (code === 'auth/network-request-failed') setError('ইন্টারনেট সংযোগ বা Google service-এর সমস্যা হয়েছে।')
-      else setError(`গুগল দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`)
+      setError(googleAuthErrorMessage(code))
     } finally {
       setGoogleLoading(false)
     }
   }
+
+function googleAuthErrorMessage(code?: string | null) {
+  if (code === 'firebase/not-configured') return 'লগইন চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।'
+  if (code === 'auth/unauthorized-domain') return 'এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।'
+  if (code === 'auth/account-exists-with-different-credential') return 'এই Google email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।'
+  if (code === 'auth/popup-closed-by-user') return 'Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
+  if (code === 'auth/network-request-failed') return 'ইন্টারনেট সংযোগ বা Google service-এর সমস্যা হয়েছে।'
+  if (code === 'auth/operation-not-supported-in-this-environment') return 'এই browser-এ Google redirect login সম্পূর্ণ করা যাচ্ছে না। Brave browser-এর Shields বা third-party cookie blocking সাময়িকভাবে বন্ধ করে আবার চেষ্টা করুন।'
+  if (code === 'auth/invalid-continue-uri' || code === 'auth/invalid-redirect-uri') return 'Firebase OAuth redirect configuration সঠিক নয়। Authorized domains ও Firebase web app settings যাচাই করুন।'
+  if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু Firebase session তৈরি হয়নি। Authorized domains, browser cookie/storage settings এবং Vercel Firebase environment variables যাচাই করুন।'
+  return `গুগল দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
+}
 
   const goBack = () => { if (window.history.length > 1) navigate(-1); else navigate('/products') }
 

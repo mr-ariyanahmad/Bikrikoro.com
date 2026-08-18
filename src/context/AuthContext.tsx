@@ -7,6 +7,8 @@ import {
   updatePassword,
   sendEmailVerification,
   getRedirectResult,
+  browserLocalPersistence,
+  setPersistence,
   signInWithRedirect,
   updateProfile,
   signOut as firebaseSignOut,
@@ -30,10 +32,12 @@ interface AuthContextValue {
   changePassword: (password: string) => Promise<void>
   sendVerificationEmail: () => Promise<void>
   loginWithGoogle: () => Promise<void>
+  authError: string | null
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -58,26 +62,34 @@ function getRecaptchaVerifier(): RecaptchaVerifier {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!firebaseConfigured) {
       setLoading(false)
       return
     }
-    return onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
+      if (firebaseUser) setAuthError(null)
       setLoading(false)
     })
-  }, [])
-
-
-  useEffect(() => {
-    if (!firebaseConfigured) return
-    // Redirect is the reliable path on mobile browsers and on browsers that block
-    // third-party popup storage. The result is resolved once when the app returns.
-    getRedirectResult(auth).catch((error) => {
-      console.warn('Google redirect sign-in failed:', error)
-    })
+    void setPersistence(auth, browserLocalPersistence)
+      .then(() => getRedirectResult(auth))
+      .then((result) => {
+        if (result?.user) {
+          window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
+        } else if (window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) && !auth.currentUser) {
+          window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
+          setAuthError('auth/redirect-session-not-found')
+        }
+      })
+      .catch((error) => {
+        const code = (error as { code?: string }).code ?? 'auth/redirect-failed'
+        console.warn('Google redirect sign-in failed:', code, error)
+        setAuthError(code)
+      })
+    return unsubscribe
   }, [])
 
   const sendOtp = (phoneE164: string) => {
@@ -127,8 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   googleProvider.setCustomParameters({ prompt: 'select_account' })
   const loginWithGoogle = async () => {
     ensureFirebaseConfigured()
+    setAuthError(null)
+    await setPersistence(auth, browserLocalPersistence)
     const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     if (isMobileBrowser) {
+      window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
       await signInWithRedirect(auth, googleProvider)
       return
     }
@@ -159,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         changePassword,
         sendVerificationEmail,
         loginWithGoogle,
+        authError,
         logout,
       }}
     >
