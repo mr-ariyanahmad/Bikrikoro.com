@@ -3,8 +3,8 @@ import { CheckCircle2, Clock3, Download, Truck } from 'lucide-react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime } from '@/lib/format'
-import { supabase } from '@/lib/supabase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
+import { adminRpc } from '@/lib/adminRpc'
 
 type PhysicalOrder = { id: string; product_title: string; buyer_id: string; delivery_address: string; status: string; created_at: string }
 type DigitalDelivery = { order_id: string; product_id: string; buyer_id: string; delivery_type: string; status: string; created_at: string }
@@ -20,9 +20,9 @@ export default function AdminDeliveries() {
     setLoading(true)
     setError(null)
     const [preparingResult, shippedResult, digitalResult] = await Promise.all([
-      supabase.rpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'PREPARING' }),
-      supabase.rpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'SHIPPED' }),
-      supabase.rpc('admin_list_digital_deliveries', { p_admin_id: user.uid }),
+      adminRpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'PREPARING' }),
+      adminRpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'SHIPPED' }),
+      adminRpc('admin_list_digital_deliveries', { p_admin_id: user.uid }),
     ])
     setPhysical([
       ...((preparingResult.data ?? []) as PhysicalOrder[]),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { adminRpc } from '@/lib/adminRpc'
 
 type Check = { label: string; value: string; ok: boolean }
 
@@ -9,22 +9,23 @@ export default function AdminSystemStatus() {
   const { user } = useAuth()
   const [checks, setChecks] = useState<Check[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const run = useCallback(async () => {
     setLoading(true)
     const started = Date.now()
-    const [profiles, products, orders, adminSettings] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }),
-      supabase.from('products').select('id', { count: 'exact', head: true }),
-      supabase.from('orders').select('id', { count: 'exact', head: true }),
-      supabase.rpc('admin_get_settings', { p_admin_id: user?.uid, p_prefix: null }),
+    setError(null)
+    const [{ data: status, error: statusError }, adminSettings] = await Promise.all([
+      adminRpc('admin_get_system_status'),
+      adminRpc('admin_get_settings', { p_admin_id: user?.uid, p_prefix: null }),
     ])
-
+    const overview = (status ?? {}) as { profiles?: number; products?: number; orders?: number }
+    if (statusError) setError(statusError.message)
     setChecks([
-      { label: 'Supabase connection', value: `${Date.now() - started}ms`, ok: !profiles.error },
-      { label: 'Profiles table', value: profiles.error ? 'Error' : `${profiles.count ?? 0} rows`, ok: !profiles.error },
-      { label: 'Products table', value: products.error ? 'Error' : `${products.count ?? 0} rows`, ok: !products.error },
-      { label: 'Orders table', value: orders.error ? 'Error' : `${orders.count ?? 0} rows`, ok: !orders.error },
+      { label: 'Supabase connection', value: `${Date.now() - started}ms`, ok: !statusError },
+      { label: 'Profiles table', value: statusError ? 'Error' : `${overview.profiles ?? 0} rows`, ok: !statusError },
+      { label: 'Products table', value: statusError ? 'Error' : `${overview.products ?? 0} rows`, ok: !statusError },
+      { label: 'Orders table', value: statusError ? 'Error' : `${overview.orders ?? 0} rows`, ok: !statusError },
       {
         label: 'Admin workspace migration',
         value: adminSettings.error ? 'Not applied' : `${adminSettings.data?.length ?? 0} settings`,
@@ -46,6 +47,7 @@ export default function AdminSystemStatus() {
         description="BikriKoro-এর backend connectivity ও admin setup health monitor করুন।"
         actions={
           <button
+            type="button"
             onClick={run}
             className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"
           >
@@ -54,6 +56,7 @@ export default function AdminSystemStatus() {
         }
       />
 
+      {error && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">System status লোড করা যায়নি: {error}</p>}
       <AdminTableCard>
         <div className="divide-y divide-slate-100">
           {loading ? (

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
-import { auth } from '@/lib/firebase'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/components/admin/AdminShell'
+import { adminRpc } from '@/lib/adminRpc'
 
 type RecentOrder = { id: string; product_title: string; price: number; status: string; created_at: string }
 
@@ -21,43 +20,33 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ orders: 0, customers: 0, products: 0, pending: 0, disputes: 0, sellers: 0, revenue: 0 })
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      const adminId = auth.currentUser?.uid
-      if (!adminId) throw new Error('Admin Firebase session পাওয়া যায়নি।')
-      const [orders, customers, products, pending, disputes, sellers, revenue, recent] = await Promise.all([
-        supabase.from('orders').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('products').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED']),
-        supabase.from('order_disputes').select('id', { count: 'exact', head: true }).in('status', ['REPORTED', 'UNDER_REVIEW']),
-        supabase.rpc('admin_count_pending_seller_verifications', { p_admin_id: adminId }),
-        supabase.from('orders').select('price').in('status', ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED']),
-        supabase.from('orders').select('id, product_title, price, status, created_at').order('created_at', { ascending: false }).limit(7),
-      ])
-      if (sellers.error) throw sellers.error
-      if (cancelled) return
-      setStats({
-        orders: orders.count ?? 0,
-        customers: customers.count ?? 0,
-        products: products.count ?? 0,
-        pending: pending.count ?? 0,
-        disputes: disputes.count ?? 0,
-        sellers: Number(sellers.data ?? 0),
-        revenue: (revenue.data ?? []).reduce((sum, row) => sum + Number(row.price || 0), 0),
-      })
-      setRecentOrders((recent.data ?? []) as RecentOrder[])
-      setLoading(false)
+    let active = true
+    const load = async () => {
+      try {
+        const { data, error: loadError } = await adminRpc('admin_get_dashboard_overview')
+        if (loadError) throw loadError
+        if (!active) return
+        const overview = (data ?? {}) as { orders?: number; customers?: number; products?: number; pending?: number; disputes?: number; sellers?: number; revenue?: number; recent_orders?: RecentOrder[] }
+        setStats({ orders: Number(overview.orders ?? 0), customers: Number(overview.customers ?? 0), products: Number(overview.products ?? 0), pending: Number(overview.pending ?? 0), disputes: Number(overview.disputes ?? 0), sellers: Number(overview.sellers ?? 0), revenue: Number(overview.revenue ?? 0) })
+        setRecentOrders(overview.recent_orders ?? [])
+      } catch (loadError) {
+        console.error('Admin dashboard load failed:', loadError)
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Dashboard data লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-    load()
-    return () => { cancelled = true }
+    void load()
+    return () => { active = false }
   }, [])
 
   return (
     <AdminShell>
       <AdminPageHeader title="ড্যাশবোর্ড" description="BikriKoro-এর বিক্রি, কাস্টমার এবং অপারেশন এক নজরে দেখুন।" actions={<Link to="/admin/products" className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600">+ প্রোডাক্ট ম্যানেজ করুন</Link>} />
+      {error && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">Dashboard লোড করা যায়নি: {error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard label="মোট অর্ডার" value={loading ? '—' : stats.orders.toLocaleString('bn-BD')} helper={`${stats.pending.toLocaleString('bn-BD')}টি চলমান`} tone="blue" />

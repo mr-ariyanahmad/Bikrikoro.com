@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { BrandSelect } from '@/components/BrandSelect'
+import { adminRpc } from '@/lib/adminRpc'
 
 type AdminOrder = { id: string; product_title: string; product_image: string; price: number; quantity: number; buyer_id: string; seller_id: string; delivery_address: string; payment_method: string | null; status: string; escrow_fee: number; coupon_code: string | null; discount_amount: number; created_at: string; updated_at?: string }
 const statuses = ['', 'PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED']
@@ -23,7 +23,7 @@ export default function AdminOrders({ deliveriesOnly = false }: { deliveriesOnly
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, error: loadError } = await supabase.rpc('admin_list_orders', { p_admin_id: user?.uid, p_status: status || null })
+    const { data, error: loadError } = await adminRpc('admin_list_orders', { p_admin_id: user?.uid, p_status: status || null })
     if (loadError) setError(formatAdminRpcError(loadError, 'অর্ডার data', '014 admin workspace migration'))
     const result = (data ?? []) as AdminOrder[]
     setOrders(result)
@@ -41,7 +41,7 @@ export default function AdminOrders({ deliveriesOnly = false }: { deliveriesOnly
 
   const changeStatus = async (nextStatus: string) => {
     if (!selected) return
-    const { error: updateError } = await supabase.rpc('admin_update_order_status', { p_admin_id: user?.uid, p_order_id: selected.id, p_status: nextStatus })
+    const { error: updateError } = await adminRpc('admin_update_order_status', { p_admin_id: user?.uid, p_order_id: selected.id, p_status: nextStatus })
     if (updateError) {
       setError(formatAdminRpcError(updateError, 'অর্ডার status update', '033 order lifecycle migration'))
       return
@@ -78,10 +78,10 @@ function OrderDetail({ order, onBack, onStatus }: { order: AdminOrder; onBack: (
 
   return (
     <AdminShell>
-      <AdminPageHeader title="অর্ডারের বিস্তারিত" description={`#${order.id}`} actions={<button onClick={onBack} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">← অর্ডারে ফিরুন</button>} />
+      <AdminPageHeader title="অর্ডারের বিস্তারিত" description={`#${order.id}`} actions={<button type="button" onClick={onBack} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">← অর্ডারে ফিরুন</button>} />
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
         <AdminTableCard><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">অর্ডার সারাংশ</h2></div><div className="space-y-4 p-5"><div className="flex gap-4"><div className="h-20 w-20 overflow-hidden rounded-xl bg-slate-100">{order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}</div><div><p className="font-semibold text-slate-900">{order.product_title}</p><p className="mt-1 text-sm text-slate-500">পরিমাণ: {order.quantity} · {formatDateTime(order.created_at)}</p></div></div><div className="grid gap-3 sm:grid-cols-2"><Info label="Buyer ID" value={order.buyer_id} /><Info label="Seller ID" value={order.seller_id} /><Info label="Payment" value={order.payment_method ?? 'Pending'} /><Info label="Delivery" value={order.delivery_address} /></div><div className="rounded-xl bg-slate-50 p-4 text-sm"><div className="flex justify-between text-slate-600"><span>পণ্যের দাম</span><span>{formatTaka(order.price)}</span></div><div className="mt-2 flex justify-between text-slate-600"><span>Escrow fee</span><span>{formatTaka(order.escrow_fee)}</span></div><div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-bold text-slate-900"><span>মোট</span><span>{formatTaka(order.price + order.escrow_fee)}</span></div></div></div></AdminTableCard>
-        <AdminTableCard><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">অপারেশন অ্যাকশন</h2></div><div className="space-y-3 p-5"><p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">বর্তমান স্ট্যাটাস: <strong>{labels[order.status] ?? order.status}</strong></p>{availableStatuses.length === 0 ? <p className="rounded-xl border border-slate-100 p-3 text-sm text-slate-500">এই অর্ডারের আর কোনো manual transition নেই।</p> : availableStatuses.map((status) => <button key={status} onClick={() => onStatus(status)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">{labels[status]}</button>)}</div></AdminTableCard>
+        <AdminTableCard><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">অপারেশন অ্যাকশন</h2></div><div className="space-y-3 p-5"><p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">বর্তমান স্ট্যাটাস: <strong>{labels[order.status] ?? order.status}</strong></p>{availableStatuses.length === 0 ? <p className="rounded-xl border border-slate-100 p-3 text-sm text-slate-500">এই অর্ডারের আর কোনো manual transition নেই।</p> : availableStatuses.map((status) => <button type="button" key={status} onClick={() => onStatus(status)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:border-brand-400 hover:text-brand-700">{labels[status]}</button>)}</div></AdminTableCard>
       </div>
     </AdminShell>
   )

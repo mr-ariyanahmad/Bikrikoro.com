@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate } from '@/lib/format'
+import { adminRpc } from '@/lib/adminRpc'
 
 type Customer = { id: string; name: string; email: string | null; phone: string | null; is_verified: boolean; created_at: string }
 
@@ -16,7 +16,7 @@ export default function AdminCustomers() {
   const [error, setError] = useState<string | null>(null)
   const load = useCallback(() => {
     setLoading(true)
-    supabase.rpc('admin_list_customers', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
+    adminRpc('admin_list_customers', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
       setCustomers((data ?? []) as Customer[])
       if (loadError) setError(formatAdminRpcError(loadError, 'কাস্টমার data', '014 admin workspace migration'))
       setLoading(false)

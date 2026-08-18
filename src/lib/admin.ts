@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { adminRpc } from '@/lib/adminRpc'
 import type { DisputeStatus } from '@/types/order'
 
 export async function resolveDispute(params: {
@@ -7,7 +7,7 @@ export async function resolveDispute(params: {
   status: Extract<DisputeStatus, 'UNDER_REVIEW' | 'RESOLVED_REFUNDED' | 'RESOLVED_DENIED'>
   resolutionNote: string
 }) {
-  const { error } = await supabase.rpc('admin_resolve_dispute', {
+  const { error } = await adminRpc('admin_resolve_dispute', {
     p_admin_id: params.adminId,
     p_dispute_id: params.disputeId,
     p_status: params.status,
@@ -22,7 +22,7 @@ export async function reviewSellerRegistration(params: {
   status: 'APPROVED' | 'REJECTED'
   adminNote: string
 }) {
-  const { error } = await supabase.rpc('admin_review_seller_registration', {
+  const { error } = await adminRpc('admin_review_seller_registration', {
     p_admin_id: params.adminId,
     p_registration_id: params.registrationId,
     p_status: params.status,
