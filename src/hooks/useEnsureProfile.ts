@@ -1,13 +1,11 @@
 import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 
 /**
- * profiles.id is the Firebase UID (see 001_init.sql) — every table that
- * references a user (products.seller_id, orders.buyer_id, wallet_balances,
- * ...) has a foreign key into profiles. Without this, a brand-new user's
- * very first insert (e.g. posting a listing) would fail on the FK
- * constraint since no profiles row exists for their uid yet.
+ * profiles.id is the Firebase UID. Profile creation is performed by the
+ * Firebase-verified server endpoint because the public Supabase client must
+ * not be allowed to insert arbitrary profile rows.
  */
 export function useEnsureProfile() {
   const { user } = useAuth()
@@ -18,25 +16,23 @@ export function useEnsureProfile() {
     let cancelled = false
 
     async function ensure() {
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user!.uid)
-        .maybeSingle()
-
-      if (cancelled || existing) return
-
-      const { error } = await supabase.from('profiles').insert({
-        id: user!.uid,
-        name: user!.displayName ?? '',
-        phone: user!.phoneNumber,
-        email: user!.email,
-        photo_url: user!.photoURL,
-      })
-      if (error) console.error('Profile creation failed:', error.message)
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken || cancelled) return
+        const response = await fetch('/api/profile-bootstrap', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${idToken}` },
+        })
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({})) as { error?: string }
+          throw new Error(result.error || `Profile bootstrap failed (HTTP ${response.status})`)
+        }
+      } catch (error) {
+        console.error('Profile bootstrap failed:', error instanceof Error ? error.message : error)
+      }
     }
 
-    ensure()
+    void ensure()
     return () => {
       cancelled = true
     }

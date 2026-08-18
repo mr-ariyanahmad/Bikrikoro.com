@@ -1,5 +1,6 @@
 import type { VercelRequest } from '@vercel/node'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { DecodedIdToken } from 'firebase-admin/auth'
 type FirebaseApp = import('firebase-admin/app').App
 
 async function getFirebaseApp(): Promise<FirebaseApp> {
@@ -21,12 +22,16 @@ async function getFirebaseApp(): Promise<FirebaseApp> {
   return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
 }
 
-export async function verifyFirebaseRequest(req: VercelRequest): Promise<string> {
+export async function getVerifiedFirebaseToken(req: VercelRequest): Promise<DecodedIdToken> {
   const authorization = req.headers.authorization || ''
   const idToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
   if (!idToken) throw new Error('AUTH_REQUIRED')
   const { getAuth } = await import('firebase-admin/auth')
-  const decoded = await getAuth(await getFirebaseApp()).verifyIdToken(idToken)
+  return getAuth(await getFirebaseApp()).verifyIdToken(idToken)
+}
+
+export async function verifyFirebaseRequest(req: VercelRequest): Promise<string> {
+  const decoded = await getVerifiedFirebaseToken(req)
   return decoded.uid
 }
 
