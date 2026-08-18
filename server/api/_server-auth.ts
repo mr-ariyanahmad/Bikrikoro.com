@@ -35,11 +35,15 @@ export async function verifyFirebaseRequest(req: VercelRequest): Promise<string>
   return decoded.uid
 }
 
+let serviceSupabase: SupabaseClient | null = null
+
 export function getServiceSupabase(): SupabaseClient {
+  if (serviceSupabase) return serviceSupabase
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceRoleKey) throw new Error('Supabase server configuration is missing')
-  return createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  serviceSupabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  return serviceSupabase
 }
 
 export function isAuthError(error: unknown) {
