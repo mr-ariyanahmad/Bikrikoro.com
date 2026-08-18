@@ -38,7 +38,7 @@ FCM payload-এ title, body এবং app link দেওয়া হয়। Backgro
 
 ## ৪. Supabase migration চালানোর ক্রম
 
-Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql` এবং `052_payout_notification_events.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, 051 event notification-এর push delivery queue ও notification linkage যোগ করে, এবং 052 payout approval, rejection ও paid event-এর notification যোগ করে।
+Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql`, `052_payout_notification_events.sql`, এবং `053_notification_pg_net_trigger.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, 051 event notification-এর push delivery queue ও notification linkage যোগ করে, 052 payout approval, rejection ও paid event-এর notification যোগ করে, এবং 053 Dashboard Webhook ছাড়াই SQL trigger দিয়ে callback queue করে।
 
 Migration 028 এই জিনিসগুলো যোগ করে:
 
@@ -63,13 +63,23 @@ Migration 028 এই জিনিসগুলো যোগ করে:
 
 নতুন `051_notification_event_push_delivery.sql` migration `notifications` table-এর প্রতিটি non-campaign event-এর সঙ্গে push delivery record link করে। ফলে order status, chat message, wallet ledger, seller verification, product question এবং admin-এর একক notification—প্রতিটিই সংশ্লিষ্ট `user_id`-এর active browser token-এ পাঠানোর জন্য queue হবে। Campaign notification ইচ্ছাকৃতভাবে এই automatic path থেকে বাদ থাকে, কারণ campaign-এর push dedicated campaign sender দিয়ে যায়; এতে একই campaign দুইবার পাঠানোর ঝুঁকি থাকে।
 
-Supabase Database Webhook asynchronousভাবে table event-এর পরে endpoint-এ POST পাঠাতে পারে। [4] [5] Migration 051 চালানোর পরে Dashboard → **Database → Webhooks** থেকে `public.notifications` table-এর **INSERT** event বেছে নিয়ে এই URL দিন:
+আপনার Supabase Dashboard-এ Webhooks অপশন না থাকলে `053_notification_pg_net_trigger.sql` migration `pg_net` ব্যবহার করে `public.notifications` INSERT-এর পরে callback queue করবে। SQL Editor-এ migration চালানোর আগে বা পরে Database → **Extensions** থেকে `pg_net` enabled আছে কি না নিশ্চিত করুন। যদি migration-এর প্রথম line-এ extension permission error আসে, Extensions page থেকে `pg_net` চালু করে migrationটি আবার Run করুন।
 
-`https://bikrikoro.com/api/notification-events`
+Migration 053 চালানোর পরে SQL Editor-এ নিজের secret বসান:
 
-Webhook method **POST** রাখুন এবং header হিসেবে `x-bikrikoro-webhook-secret: <আপনার-দীর্ঘ-random-secret>` যোগ করুন। একই secret Vercel-এর server-only `NOTIFICATION_WEBHOOK_SECRET` variable-এ রাখতে হবে। `SUPABASE_SERVICE_ROLE_KEY` এবং Firebase service-account-এর মতো এই secret কখনো `VITE_` variable বা browser code-এ রাখা যাবে না।
+```sql
+insert into public.notification_webhook_config (id, endpoint_url, secret, enabled)
+values (true, 'https://bikrikoro.com/api/notification-events', '<আপনার-random-secret>', true)
+on conflict (id) do update set
+  endpoint_url = excluded.endpoint_url,
+  secret = excluded.secret,
+  enabled = true,
+  updated_at = now();
+```
 
-Webhook চালু হলে user browser খোলা না থাকলেও database event থেকে push পাঠানোর চেষ্টা হবে; push permission না দেওয়া, token না থাকা বা invalid token হলে শুধু push delivery ব্যর্থ হবে, in-app notification বন্ধ হবে না। Admin campaign-এর push-ও আগের মতো `/api/notification-push` path দিয়ে চলবে।
+`<আপনার-random-secret>`-এর একই value Vercel-এর server-only `NOTIFICATION_WEBHOOK_SECRET` variable-এ রাখতে হবে। এই secret, `SUPABASE_SERVICE_ROLE_KEY` এবং Firebase service-account কখনো `VITE_` variable, frontend code বা GitHub repository-তে রাখবেন না। pg_net asynchronousভাবে request queue করে, তাই database transaction দীর্ঘ network request-এর জন্য আটকে থাকবে না। [4] [5]
+
+এই SQL trigger চালু হলে user browser খোলা না থাকলেও database event থেকে push পাঠানোর চেষ্টা হবে; push permission না দেওয়া, token না থাকা বা invalid token হলে শুধু push delivery ব্যর্থ হবে, in-app notification বন্ধ হবে না। Admin campaign-এর push-ও আগের মতো `/api/notification-push` path দিয়ে চলবে।
 
 ## ৬. Admin campaign পাঠানোর নিয়ম
 
@@ -86,8 +96,7 @@ Admin panel-এর **কনটেন্ট → নোটিফিকেশন** 
 
 ## ৭. Test checklist
 
-প্রথমে সব migration, বিশেষ করে 051 এবং 052, চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন।
- এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং `public.notifications`-এর INSERT Database Webhook তৈরি করুন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
+প্রথমে সব migration, বিশেষ করে 051, 052 এবং 053, চালিয়ে Supabase-এ tables, functions, trigger এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং SQL Editor-এ `notification_webhook_config`-এ একই secret বসান। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
 
 Admin account দিয়ে **কনটেন্ট → নোটিফিকেশন** খুলে একটি ছোট **নির্দিষ্ট user** campaign পাঠান। In-app inbox-এ notification দেখা, header bell-এর unread badge বাড়া, এবং browser background অবস্থায় push আসা—এই তিনটি আলাদাভাবে পরীক্ষা করুন। Push tap করলে campaign-এর app link খুলছে কি না দেখুন।
 
