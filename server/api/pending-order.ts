@@ -2,6 +2,18 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 type Body = { action?: 'create' | 'create_wallet' | 'cancel'; productId?: string; deliveryAddress?: string; couponCode?: string; orderId?: string }
+type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
+
+function supabaseErrorMessage(error: unknown) {
+  if (error && typeof error === 'object') {
+    const value = error as SupabaseErrorLike
+    const message = typeof value.message === 'string' ? value.message.trim() : ''
+    const details = typeof value.details === 'string' ? value.details.trim() : ''
+    const hint = typeof value.hint === 'string' ? value.hint.trim() : ''
+    return [message, details, hint].filter(Boolean).join(' ')
+  }
+  return error instanceof Error ? error.message : ''
+}
 
 function bodyOf(req: VercelRequest): Body {
   if (typeof req.body === 'string') return JSON.parse(req.body) as Body
@@ -47,6 +59,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     console.error('Pending order action failed:', error)
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Checkout order action failed' })
+    const message = supabaseErrorMessage(error) || 'Checkout order action failed'
+    const code = error && typeof error === 'object' && typeof (error as SupabaseErrorLike).code === 'string' ? (error as SupabaseErrorLike).code : undefined
+    res.status(400).json({ error: message, ...(code ? { code } : {}) })
   }
 }

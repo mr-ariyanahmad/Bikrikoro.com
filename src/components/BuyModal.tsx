@@ -156,7 +156,8 @@ export function BuyModal({
     } catch (err) {
       console.error('Checkout failed:', err)
       if (orderId && paymentMethod === 'ONLINE') await cancelPendingOrder(orderId, buyerId).catch(() => {})
-      setError(paymentMethod === 'WALLET' ? 'ওয়ালেট পেমেন্ট সম্পন্ন করা যায়নি — balance ও order status যাচাই করে আবার চেষ্টা করুন।' : 'পেমেন্ট শুরু করা যায়নি — আবার চেষ্টা করুন।')
+      const failureMessage = err instanceof Error ? err.message : 'অজানা checkout error'
+      setError(paymentMethod === 'WALLET' ? `ওয়ালেট পেমেন্ট ব্যর্থ: ${failureMessage}` : `পেমেন্ট শুরু করা যায়নি: ${failureMessage}`)
       setSubmitting(false)
     }
   }
