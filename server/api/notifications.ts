@@ -16,12 +16,31 @@ type NotificationRequest = {
 }
 
 function parseBody(req: VercelRequest): NotificationRequest {
-  if (typeof req.body === 'string') return JSON.parse(req.body) as NotificationRequest
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body) as NotificationRequest
+    } catch {
+      throw new Error('Invalid JSON request body')
+    }
+  }
   return (req.body ?? {}) as NotificationRequest
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object') {
+    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
+    const message = typeof candidate.message === 'string' ? candidate.message : ''
+    const details = typeof candidate.details === 'string' ? candidate.details : ''
+    const hint = typeof candidate.hint === 'string' ? candidate.hint : ''
+    const code = typeof candidate.code === 'string' ? ` [${candidate.code}]` : ''
+    return [message, details, hint].filter(Boolean).join(' — ') + code
+  }
+  return 'Notification request failed'
+}
+
 function writeError(res: VercelResponse, error: unknown) {
-  const message = error instanceof Error ? error.message : 'Notification request failed'
+  const message = getErrorMessage(error) || 'Notification request failed'
   const normalized = message.toLowerCase()
   if (message === 'AUTH_REQUIRED' || message.includes('Firebase ID token')) {
     res.status(401).json({ error: 'Authentication is required' })
