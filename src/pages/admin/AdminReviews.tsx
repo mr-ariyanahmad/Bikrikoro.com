@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate } from '@/lib/format'
 import { BrandSelect } from '@/components/BrandSelect'
@@ -19,7 +20,7 @@ export default function AdminReviews() {
     setLoading(true)
     supabase.rpc('admin_list_reviews', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
       setReviews((data ?? []) as Review[])
-      if (loadError) setError('রিভিউ লোড করা যায়নি।')
+      if (loadError) setError(formatAdminRpcError(loadError, 'রিভিউ data', '014 admin workspace migration'))
       setLoading(false)
     })
   }, [user?.uid])
@@ -33,7 +34,7 @@ export default function AdminReviews() {
 
   const moderate = async (review: Review, action: 'HIDE' | 'DELETE') => {
     const { error: actionError } = await supabase.rpc('admin_moderate_review', { p_admin_id: user?.uid, p_review_id: review.id, p_action: action })
-    if (actionError) setError('রিভিউ moderation করা যায়নি। নতুন admin migration প্রয়োগ করা হয়েছে কি না দেখুন.')
+    if (actionError) setError(formatAdminRpcError(actionError, 'রিভিউ moderation', '014 admin workspace migration'))
     else load()
   }
 

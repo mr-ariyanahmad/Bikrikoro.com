@@ -6,6 +6,7 @@ import { BrandedDialog, DialogButton, DialogInput } from '@/components/BrandedDi
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 
 type CustomerOverview = {
   profile: { id: string; name: string; email: string | null; phone: string | null; photo_url?: string | null; is_verified: boolean; is_blocked?: boolean; admin_note?: string; created_at: string }
@@ -40,7 +41,7 @@ export default function AdminCustomerDetail() {
     if (!id || !user?.uid) return
     setLoading(true)
     const { data, error: loadError } = await supabase.rpc('admin_get_customer_overview', { p_admin_id: user.uid, p_customer_id: id })
-    if (loadError) setError(loadError.message.includes('permission') ? 'আপনার customer detail permission নেই।' : 'Customer detail লোড করা যায়নি। 026 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    if (loadError) setError(formatAdminRpcError(loadError, 'Customer detail', '026 customer controls migration'))
     else { const next = data as CustomerOverview; setOverview(next); setAdminNote(next.profile.admin_note ?? '') }
     setLoading(false)
   }, [id, user?.uid])
@@ -52,7 +53,7 @@ export default function AdminCustomerDetail() {
     if (!Number.isFinite(amount) || amount === 0 || walletReason.trim().length < 3 || !id) { setMessage('শূন্য ছাড়া টাকার পরিমাণ এবং কারণ লিখুন।'); return }
     setSaving(true); setMessage(null)
     const { error: actionError } = await supabase.rpc('admin_adjust_customer_wallet', { p_admin_id: user?.uid, p_customer_id: id, p_amount: amount, p_reason: walletReason.trim() })
-    if (actionError) setMessage(actionError.message.includes('negative') ? 'এই deduction করলে wallet negative হয়ে যাবে।' : actionError.message)
+    if (actionError) setMessage(actionError.message.includes('negative') ? 'এই deduction করলে wallet negative হয়ে যাবে।' : formatAdminRpcError(actionError, 'Customer wallet adjustment', '026 customer controls migration'))
     else { setWalletOpen(false); setWalletAmount(''); setWalletReason(''); setMessage('Wallet adjustment ledger-এ সংরক্ষিত হয়েছে।'); load() }
     setSaving(false)
   }
@@ -61,7 +62,7 @@ export default function AdminCustomerDetail() {
     if (!id || blockReason.trim().length < 3) { setMessage('Block/unblock করার কারণ লিখুন।'); return }
     setSaving(true)
     const { error: actionError } = await supabase.rpc('admin_set_customer_blocked', { p_admin_id: user?.uid, p_customer_id: id, p_blocked: !overview?.profile.is_blocked, p_reason: blockReason.trim() })
-    if (actionError) setMessage(actionError.message)
+    if (actionError) setMessage(formatAdminRpcError(actionError, 'Customer account status', '026 customer controls migration'))
     else { setBlockOpen(false); setBlockReason(''); setMessage(overview?.profile.is_blocked ? 'Customer account চালু করা হয়েছে।' : 'Customer account block করা হয়েছে।'); load() }
     setSaving(false)
   }
@@ -70,7 +71,7 @@ export default function AdminCustomerDetail() {
     if (!id) return
     setSaving(true)
     const { error: actionError } = await supabase.rpc('admin_set_customer_note', { p_admin_id: user?.uid, p_customer_id: id, p_note: adminNote })
-    setMessage(actionError ? actionError.message : 'Admin note সেভ হয়েছে।')
+    setMessage(actionError ? formatAdminRpcError(actionError, 'Admin note save', '026 customer controls migration') : 'Admin note সেভ হয়েছে।')
     setSaving(false)
     if (!actionError) load()
   }
@@ -79,7 +80,7 @@ export default function AdminCustomerDetail() {
     if (!id || notificationTitle.trim().length < 2 || notificationBody.trim().length < 3) { setMessage('Notification title ও message লিখুন।'); return }
     setSaving(true)
     const { error: actionError } = await supabase.rpc('admin_send_notification', { p_admin_id: user?.uid, p_user_id: id, p_title: notificationTitle.trim(), p_body: notificationBody.trim(), p_link: '/account' })
-    setMessage(actionError ? actionError.message : 'Customer-কে notification পাঠানো হয়েছে।')
+    setMessage(actionError ? formatAdminRpcError(actionError, 'Customer notification', '026 customer controls migration') : 'Customer-কে notification পাঠানো হয়েছে।')
     setSaving(false)
     if (!actionError) { setNotificationOpen(false); setNotificationTitle(''); setNotificationBody(''); load() }
   }

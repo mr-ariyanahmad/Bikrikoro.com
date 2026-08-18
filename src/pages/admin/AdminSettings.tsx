@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 
 type Mode = 'invoice' | 'site'
@@ -13,7 +14,7 @@ export default function AdminSettings({ mode }: { mode: Mode }) {
   const keys = mode === 'invoice' ? ['invoice_prefix', 'invoice_business_name', 'invoice_phone', 'invoice_address'] : ['site_name', 'site_support_email', 'site_support_phone', 'site_announcement', 'public_seo_title', 'public_seo_description', 'public_seo_og_image', 'public_seo_google_verification', 'reward_daily_checkin_coins', 'ai_help_enabled', 'ai_help_disclaimer']
   useEffect(() => {
     supabase.rpc('admin_get_settings', { p_admin_id: user?.uid, p_prefix: mode === 'invoice' ? 'invoice' : null }).then(({ data, error }) => {
-      if (error) setMessage('সেটিংস লোড করা যায়নি। নতুন admin migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+      if (error) setMessage(formatAdminRpcError(error, 'সেটিংস data', '014 admin workspace migration'))
       const next: Record<string, string> = {}
       ;(data ?? []).forEach((row: { setting_key: string; setting_value: { value?: string } | string }) => { next[row.setting_key] = typeof row.setting_value === 'string' ? row.setting_value : row.setting_value?.value ?? '' })
       setValues(next); setLoading(false)
@@ -23,7 +24,7 @@ export default function AdminSettings({ mode }: { mode: Mode }) {
     setSaving(true); setMessage(null)
     for (const key of keys) {
       const { error } = await supabase.rpc('admin_upsert_setting', { p_admin_id: user?.uid, p_key: key, p_value: { value: values[key] ?? '' } })
-      if (error) { setMessage('সেটিংস সেভ করা যায়নি। নতুন admin migration প্রয়োগ করা হয়েছে কি না দেখুন।'); setSaving(false); return }
+      if (error) { setMessage(formatAdminRpcError(error, 'সেটিংস save', '014 admin workspace migration')); setSaving(false); return }
     }
     setSaving(false); setMessage('সেটিংস সেভ হয়েছে।')
   }

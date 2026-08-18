@@ -4,6 +4,7 @@ import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { BrandSelect } from '@/components/BrandSelect'
 
@@ -42,7 +43,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
       if (mode === 'gallery') setBanners((data ?? []) as Banner[])
       else if (mode === 'downloads') setDownloads((data ?? []) as Download[])
       else setPosts((data ?? []) as Post[])
-      if (loadError) setError(`${mode === 'gallery' ? 'গ্যালারি' : mode === 'downloads' ? 'ডাউনলোড' : 'কনটেন্ট'} লোড করা যায়নি। নতুন migration প্রয়োগ করা হয়েছে কি না দেখুন।`)
+      if (loadError) setError(formatAdminRpcError(loadError, mode === 'gallery' ? 'গ্যালারি data' : mode === 'downloads' ? 'ডাউনলোড data' : 'কনটেন্ট data', mode === 'gallery' ? '016 public expansion migration' : mode === 'downloads' ? '014 admin workspace migration' : '035 content/SEO migration'))
       setLoading(false)
     })
   }, [mode, pageType, user?.uid])
@@ -52,7 +53,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
   const saveBanner = async () => {
     if (!bannerForm.image_url.trim()) return
     const { error: saveError } = await supabase.rpc('admin_upsert_banner', { p_admin_id: user?.uid, p_id: `banner_${Date.now().toString(36)}`, p_image_url: bannerForm.image_url.trim(), p_target_product_id: bannerForm.target_product_id.trim() || null, p_sort_order: Number(bannerForm.sort_order || 0) })
-    if (saveError) setError('Banner সেভ করা যায়নি।')
+    if (saveError) setError(formatAdminRpcError(saveError, 'Banner save', '014 admin workspace migration'))
     else { setShowForm(false); setBannerForm({ image_url: '', target_product_id: '', sort_order: '0' }); load() }
   }
 
@@ -76,7 +77,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
       p_seo_description: postForm.seo_description.trim() || null,
       p_sort_order: mode === 'faq' ? Number(postForm.sort_order || 0) : 0,
     })
-    if (saveError) setError(mode === 'pages' ? 'Public page সেভ করা যায়নি।' : mode === 'faq' ? 'FAQ প্রশ্ন সেভ করা যায়নি।' : 'Blog post সেভ করা যায়নি।')
+    if (saveError) setError(formatAdminRpcError(saveError, mode === 'pages' ? 'Public page save' : mode === 'faq' ? 'FAQ save' : 'Blog post save', mode === 'faq' ? '036 FAQ migration' : '035 content/SEO migration'))
     else { resetPostForm(); load() }
   }
 
@@ -96,14 +97,14 @@ export default function AdminContent({ mode }: { mode: Mode }) {
     if (!bannerToDelete) return
     setDeletingBanner(true)
     const { error: deleteError } = await supabase.rpc('admin_delete_banner', { p_admin_id: user?.uid, p_banner_id: bannerToDelete.id })
-    if (deleteError) setError(deleteError.message.includes('permission') ? 'আপনার banner delete permission নেই।' : 'Banner মুছে ফেলা যায়নি।')
+    if (deleteError) setError(formatAdminRpcError(deleteError, 'Banner delete', '016 public expansion migration'))
     else { setBannerToDelete(null); setError(null); load() }
     setDeletingBanner(false)
   }
 
   const updatePostStatus = async (post: Post, status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') => {
     const { error: updateError } = await supabase.rpc('admin_set_content_status', { p_admin_id: user?.uid, p_id: post.id, p_status: status })
-    if (updateError) setError('Content status পরিবর্তন করা যায়নি।')
+    if (updateError) setError(formatAdminRpcError(updateError, 'Content status update', '035 content/SEO migration'))
     else load()
   }
 

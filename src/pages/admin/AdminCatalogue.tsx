@@ -4,6 +4,7 @@ import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/
 import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { BrandedDialog, DialogButton, DialogInput } from '@/components/BrandedDialog'
 import { BrandSelect } from '@/components/BrandSelect'
 import type { Category, Product } from '@/types/product'
@@ -34,9 +35,15 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
     setLoading(true)
     setError(null)
     if (mode === 'products') {
-      const { data, error: loadError } = await supabase.rpc('admin_list_products', { p_admin_id: user?.uid })
+      if (!user?.uid) {
+        setError('আপনার login session এখনো প্রস্তুত নয়। আবার login করে চেষ্টা করুন।')
+        setProducts([])
+        setLoading(false)
+        return
+      }
+      const { data, error: loadError } = await supabase.rpc('admin_list_products', { p_admin_id: user.uid })
       setProducts((data ?? []) as AdminProduct[])
-      if (loadError) setError('প্রোডাক্ট লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+      if (loadError) setError(formatAdminRpcError(loadError, 'প্রোডাক্ট data', '014 admin workspace migration'))
     } else {
       const { data, error: loadError } = await supabase.from('categories').select('*').order('sort_order')
       setCategories((data ?? []) as Category[])
@@ -72,7 +79,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
       p_images: draft.images.split('\n').map((value) => value.trim()).filter(Boolean),
     })
     setSaving(false)
-    if (saveError) { setError('প্রোডাক্ট আপডেট করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন。'); return }
+    if (saveError) { setError(formatAdminRpcError(saveError, 'প্রোডাক্ট update', '014 admin workspace migration')); return }
     setEditing(null); setDraft(null); load()
   }
 
@@ -95,7 +102,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
     setHistoryLoading(true)
     const { data, error: historyError } = await supabase.rpc('admin_list_product_approval_history', { p_admin_id: user?.uid, p_product_id: product.id })
     setApprovalHistory((data ?? []) as ApprovalHistory[])
-    if (historyError) setError('Approval history লোড করা যায়নি। 031 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    if (historyError) setError(formatAdminRpcError(historyError, 'Approval history', '031 admin approval migration'))
     setHistoryLoading(false)
   }
 

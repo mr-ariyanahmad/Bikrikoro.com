@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
@@ -23,7 +24,7 @@ export default function AdminOrders({ deliveriesOnly = false }: { deliveriesOnly
   const load = useCallback(async () => {
     setLoading(true)
     const { data, error: loadError } = await supabase.rpc('admin_list_orders', { p_admin_id: user?.uid, p_status: status || null })
-    if (loadError) setError('অর্ডার লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    if (loadError) setError(formatAdminRpcError(loadError, 'অর্ডার data', '014 admin workspace migration'))
     const result = (data ?? []) as AdminOrder[]
     setOrders(result)
     setSelected(id ? result.find((order) => order.id === id) ?? null : null)
@@ -42,7 +43,7 @@ export default function AdminOrders({ deliveriesOnly = false }: { deliveriesOnly
     if (!selected) return
     const { error: updateError } = await supabase.rpc('admin_update_order_status', { p_admin_id: user?.uid, p_order_id: selected.id, p_status: nextStatus })
     if (updateError) {
-      setError('স্ট্যাটাস পরিবর্তন করা যায়নি। নতুন admin migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+      setError(formatAdminRpcError(updateError, 'অর্ডার status update', '033 order lifecycle migration'))
       return
     }
     await load()

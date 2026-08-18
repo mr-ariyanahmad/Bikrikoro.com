@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/AdminShell'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
 import { formatDate } from '@/lib/format'
 
@@ -17,7 +18,7 @@ export default function AdminCustomers() {
     setLoading(true)
     supabase.rpc('admin_list_customers', { p_admin_id: user?.uid }).then(({ data, error: loadError }) => {
       setCustomers((data ?? []) as Customer[])
-      if (loadError) setError('কাস্টমার লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+      if (loadError) setError(formatAdminRpcError(loadError, 'কাস্টমার data', '014 admin workspace migration'))
       setLoading(false)
     })
   }, [user?.uid])
