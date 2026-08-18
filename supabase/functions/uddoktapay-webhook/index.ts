@@ -97,18 +97,8 @@ serve(async (req) => {
     return new Response("ok", { status: 200 });
   }
 
-  // Idempotent and approval-aware: only an order already approved by an admin
-  // may enter escrow. If it is still pending review, keep the verified payment
-  // record but leave the order at PENDING_PAYMENT for the admin decision.
-  const { data: order, error: orderReadError } = await supabaseAdmin
-    .from("orders")
-    .select("id, admin_review_status, status")
-    .eq("id", orderId)
-    .maybeSingle();
-  if (orderReadError) return new Response(JSON.stringify({ error: orderReadError.message }), { status: 500 });
-  if (!order) return new Response("Order not found", { status: 404 });
-  if (order.admin_review_status !== "APPROVED") return new Response("Payment verified; awaiting admin approval", { status: 200 });
-
+  // Idempotent: only flips orders that are still actually awaiting payment,
+  // so a duplicate COMPLETED webhook delivery is a no-op.
   const { error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
@@ -117,8 +107,8 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId)
-    .eq("status", "PENDING_PAYMENT")
-    .eq("admin_review_status", "APPROVED");
+    .eq("status", "PENDING_PAYMENT");
+
 
   if (updateError) {
     return new Response(JSON.stringify({ error: updateError.message }), { status: 500 });
