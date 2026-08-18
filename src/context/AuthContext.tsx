@@ -15,6 +15,7 @@ import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
   GoogleAuthProvider,
+  FacebookAuthProvider,
   signInWithPopup,
   type ConfirmationResult,
   type User as FirebaseUser,
@@ -32,12 +33,14 @@ interface AuthContextValue {
   changePassword: (password: string) => Promise<void>
   sendVerificationEmail: () => Promise<void>
   loginWithGoogle: () => Promise<void>
+  loginWithFacebook: () => Promise<void>
   authError: string | null
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
+const FACEBOOK_REDIRECT_PENDING_KEY = 'bikrikoro:facebook-redirect-pending'
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -79,8 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((result) => {
         if (result?.user) {
           window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
-        } else if (window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) && !auth.currentUser) {
+          window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
+        } else if ((window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) || window.sessionStorage.getItem(FACEBOOK_REDIRECT_PENDING_KEY)) && !auth.currentUser) {
           window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
+          window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
           setAuthError('auth/redirect-session-not-found')
         }
       })
@@ -156,6 +161,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const facebookProvider = new FacebookAuthProvider()
+  facebookProvider.addScope('email')
+  const loginWithFacebook = async () => {
+    ensureFirebaseConfigured()
+    setAuthError(null)
+    await setPersistence(auth, browserLocalPersistence)
+    try {
+      await signInWithPopup(auth, facebookProvider)
+    } catch (error) {
+      const code = (error as { code?: string }).code
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
+        await signInWithRedirect(auth, facebookProvider)
+        return
+      }
+      throw error
+    }
+  }
+
   const logout = () => firebaseSignOut(auth)
 
   return (
@@ -171,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         changePassword,
         sendVerificationEmail,
         loginWithGoogle,
+        loginWithFacebook,
         authError,
         logout,
       }}

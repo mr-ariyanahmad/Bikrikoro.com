@@ -12,10 +12,11 @@ function toE164(bdLocalNumber: string): string {
 }
 
 export default function Login() {
-  const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, authError } = useAuth()
+  const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithFacebook, authError } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<'phone' | 'email'>('phone')
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [facebookLoading, setFacebookLoading] = useState(false)
 
   // Phone flow
   const [phone, setPhone] = useState('')
@@ -32,7 +33,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (authError) setError(googleAuthErrorMessage(authError))
+    if (authError) setError(socialAuthErrorMessage('সামাজিক', authError))
   }, [authError])
 
   if (user) return <Navigate to="/" replace />
@@ -92,22 +93,36 @@ export default function Login() {
     } catch (err) {
       console.error('Google login failed:', err)
       const code = (err as { code?: string }).code
-      setError(googleAuthErrorMessage(code))
+      setError(socialAuthErrorMessage('Google', code))
     } finally {
       setGoogleLoading(false)
     }
   }
 
-function googleAuthErrorMessage(code?: string | null) {
+  const handleFacebook = async () => {
+    setError(null)
+    setFacebookLoading(true)
+    try {
+      await loginWithFacebook()
+    } catch (err) {
+      console.error('Facebook login failed:', err)
+      const code = (err as { code?: string }).code
+      setError(socialAuthErrorMessage('Facebook', code))
+    } finally {
+      setFacebookLoading(false)
+    }
+  }
+
+function socialAuthErrorMessage(provider: string, code?: string | null) {
   if (code === 'firebase/not-configured') return 'লগইন চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।'
   if (code === 'auth/unauthorized-domain') return 'এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।'
-  if (code === 'auth/account-exists-with-different-credential') return 'এই Google email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।'
-  if (code === 'auth/popup-closed-by-user') return 'Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
-  if (code === 'auth/network-request-failed') return 'ইন্টারনেট সংযোগ বা Google service-এর সমস্যা হয়েছে।'
-  if (code === 'auth/operation-not-supported-in-this-environment') return 'এই browser-এ Google redirect login সম্পূর্ণ করা যাচ্ছে না। Brave browser-এর Shields বা third-party cookie blocking সাময়িকভাবে বন্ধ করে আবার চেষ্টা করুন।'
+  if (code === 'auth/account-exists-with-different-credential') return `এই ${provider} email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।`
+  if (code === 'auth/popup-closed-by-user') return `${provider} login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।`
+  if (code === 'auth/network-request-failed') return `ইন্টারনেট সংযোগ বা ${provider} service-এর সমস্যা হয়েছে।`
+  if (code === 'auth/operation-not-supported-in-this-environment') return `এই browser-এ ${provider} login সম্পূর্ণ করা যাচ্ছে না। Brave browser-এর Shields বা third-party cookie blocking সাময়িকভাবে বন্ধ করে আবার চেষ্টা করুন।`
   if (code === 'auth/invalid-continue-uri' || code === 'auth/invalid-redirect-uri') return 'Firebase OAuth redirect configuration সঠিক নয়। Authorized domains ও Firebase web app settings যাচাই করুন।'
-  if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু Firebase session তৈরি হয়নি। Authorized domains, browser cookie/storage settings এবং Vercel Firebase environment variables যাচাই করুন।'
-  return `গুগল দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
+  if (code === 'auth/redirect-session-not-found') return `${provider} account নির্বাচন হয়েছে, কিন্তু Firebase session তৈরি হয়নি। Authorized domains, browser cookie/storage settings এবং Vercel Firebase environment variables যাচাই করুন।`
+  return `${provider} দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
 }
 
   const goBack = () => { if (window.history.length > 1) navigate(-1); else navigate('/products') }
@@ -127,8 +142,8 @@ function googleAuthErrorMessage(code?: string | null) {
 
         <button
           onClick={handleGoogle}
-          disabled={googleLoading}
-          className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={googleLoading || facebookLoading}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
             <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z" />
@@ -137,6 +152,16 @@ function googleAuthErrorMessage(code?: string | null) {
             <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z" />
           </svg>
           {googleLoading ? 'অপেক্ষা করুন...' : 'Google দিয়ে চালিয়ে যান'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleFacebook}
+          disabled={googleLoading || facebookLoading}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span aria-hidden="true" className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#1877F2] text-sm font-bold leading-none text-white">f</span>
+          {facebookLoading ? 'অপেক্ষা করুন...' : 'Facebook দিয়ে চালিয়ে যান'}
         </button>
 
         <div className="mb-4 flex items-center gap-3 text-xs text-ink-300">
