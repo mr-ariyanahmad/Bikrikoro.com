@@ -39,7 +39,7 @@ export function useIsAdmin(): AdminAccess {
         }
 
         if (user.email) {
-          const legacy = await supabase.from('admin_emails').select('email').eq('email', user.email).maybeSingle()
+          const legacy = await supabase.from('admin_emails').select('email').ilike('email', user.email).maybeSingle()
           if (!active) return
           setIsAdmin(Boolean(legacy.data))
           setRoleKey(legacy.data ? 'SUPER_ADMIN' : null)
