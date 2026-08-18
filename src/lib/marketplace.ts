@@ -55,8 +55,17 @@ async function notificationApi(userId: string, payload: Record<string, unknown>)
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify(payload),
   })
-  const result = await response.json().catch(() => ({})) as { data?: unknown[]; count?: number; error?: string }
-  if (!response.ok) throw new Error(result.error || 'Notification request failed')
+  const raw = await response.text()
+  let result: { data?: unknown[]; count?: number; error?: string } = {}
+  try {
+    result = raw ? JSON.parse(raw) as typeof result : {}
+  } catch {
+    result = {}
+  }
+  if (!response.ok) {
+    const detail = result.error || raw.trim() || `HTTP ${response.status}`
+    throw new Error(`${detail} (HTTP ${response.status})`)
+  }
   return result
 }
 

@@ -89,7 +89,7 @@ export default function Notifications() {
       setError(null)
     } catch (err) {
       console.error('notifications load failed:', err)
-      setError('নোটিফিকেশন লোড করা যায়নি। নতুন migration প্রয়োগ করা হয়েছে কি না যাচাই করুন।')
+      setError(`নোটিফিকেশন লোড করা যায়নি: ${err instanceof Error ? err.message : 'অজানা server সমস্যা'}`)
     } finally {
       setLoading(false)
     }
