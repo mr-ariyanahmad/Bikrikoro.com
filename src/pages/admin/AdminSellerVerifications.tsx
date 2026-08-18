@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, X, XCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { auth } from '@/lib/firebase'
@@ -32,6 +32,7 @@ export default function AdminSellerVerifications() {
   const [notice, setNotice] = useState<string | null>(null)
   const [reviewHistory, setReviewHistory] = useState<SellerReviewHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [expandedHistoryAccount, setExpandedHistoryAccount] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,6 +61,8 @@ export default function AdminSellerVerifications() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const historyGroups = useMemo(() => groupReviewHistory(reviewHistory), [reviewHistory])
 
   const reviewDocument = async (documentId: string, status: ReviewAction) => {
     setProcessingId(documentId)
@@ -159,8 +162,18 @@ export default function AdminSellerVerifications() {
       )}
 
       <AdminTableCard className="mt-5">
-        <div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">Seller approval history</h2><p className="mt-1 text-xs text-slate-500">কে কোন seller বা document approve/reject করেছে, তার Gmail ও UID এখানে থাকবে।</p></div>
-        {historyLoading ? <p className="p-6 text-sm text-slate-500">History লোড হচ্ছে...</p> : reviewHistory.length === 0 ? <p className="p-6 text-sm text-slate-500">এখনো কোনো seller approval history নেই।</p> : <div className="divide-y divide-slate-100">{reviewHistory.map((entry) => <div key={`${entry.registration_id}-${entry.created_at}-${entry.admin_uid}`} className="grid gap-2 px-5 py-4 md:grid-cols-[1fr_1fr_1fr_1.2fr]"><div><p className="font-semibold text-slate-800">{entry.applicant_name}</p><p className="text-xs text-slate-400">{entry.applicant_user_id}</p></div><div><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${entry.action.includes('APPROVED') ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-700'}`}>{entry.action}</span><p className="mt-1 text-xs text-slate-500">{entry.document_type || 'Final application'}</p></div><div><p className="text-xs font-semibold text-slate-700">{entry.admin_email || 'ইমেইল নেই'}</p><p className="break-all text-[10px] text-slate-400">UID: {entry.admin_uid}</p></div><div><p className="text-xs text-slate-500">{formatDateTime(entry.created_at)}</p>{entry.note && <p className="mt-1 text-xs text-slate-600">{entry.note}</p>}</div></div>)}</div>}
+        <div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">Seller approval history</h2><p className="mt-1 text-xs text-slate-500">একই account-এর সব document ও final decision একসঙ্গে দেখতে seller-এর নাম চাপুন।</p></div>
+        {historyLoading ? <p className="p-6 text-sm text-slate-500">History লোড হচ্ছে...</p> : historyGroups.length === 0 ? <p className="p-6 text-sm text-slate-500">এখনো কোনো seller approval history নেই।</p> : <div className="divide-y divide-slate-100">{historyGroups.map((group) => {
+          const expanded = expandedHistoryAccount === group.accountId
+          return <div key={group.accountId}>
+            <button type="button" onClick={() => setExpandedHistoryAccount((current) => current === group.accountId ? null : group.accountId)} aria-expanded={expanded} className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-bg/60">
+              <div className="min-w-0 flex-1"><p className="truncate font-semibold text-slate-800">{group.applicantName}</p><p className="break-all text-xs text-slate-400">{group.accountId}</p></div>
+              <div className="hidden items-center gap-2 sm:flex"><span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{group.entries.length}টি action</span><span className="rounded-full bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700">{group.approvedCount} approved</span>{group.rejectedCount > 0 && <span className="rounded-full bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">{group.rejectedCount} rejected</span>}</div>
+              <ChevronDown size={18} className={`shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+            {expanded && <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4"><div className="mb-3 flex flex-wrap gap-2 text-[11px] font-semibold"><span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">Document actions: {group.documentActionCount}</span><span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">Final decisions: {group.finalActionCount}</span></div><div className="space-y-2">{group.entries.map((entry) => <div key={`${entry.registration_id}-${entry.created_at}-${entry.admin_uid}-${entry.document_type ?? 'final'}`} className="grid gap-2 rounded-xl bg-white p-3 ring-1 ring-slate-200 sm:grid-cols-[1.2fr_1fr_1fr]"><div><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${entry.action.includes('APPROVED') ? 'bg-brand-50 text-brand-700' : entry.action.includes('REJECTED') ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{entry.action}</span><p className="mt-1 text-xs text-slate-500">{entry.document_type || 'Final application'}</p></div><div><p className="text-xs font-semibold text-slate-700">{entry.admin_email || 'ইমেইল নেই'}</p><p className="break-all text-[10px] text-slate-400">UID: {entry.admin_uid}</p></div><div><p className="text-xs text-slate-500">{formatDateTime(entry.created_at)}</p>{entry.note && <p className="mt-1 text-xs leading-5 text-slate-600">{entry.note}</p>}</div></div>)}</div></div>}
+          </div>
+        })}</div>}
       </AdminTableCard>
 
       <Link to="/admin" className="mt-5 inline-flex text-sm font-semibold text-brand-700">← Admin dashboard</Link>
@@ -194,7 +207,8 @@ function DocumentReviewCard({ document, documentUrl, note, processing, onNoteCha
     </div>
     <textarea value={note} onChange={(event) => onNoteChange(event.target.value)} rows={1} placeholder="Document review note" className="mt-3 min-h-9 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-500" />
     <div className="mt-2 flex gap-2">
-      <button type="button" onClick={() => onReview('APPROVED')} disabled={processing} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"><Check size={13} />Approve</button>
+      {document.status !== 'APPROVED' && <button type="button" onClick={() => onReview('APPROVED')} disabled={processing} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"><Check size={13} />Approve</button>}
+      {document.status === 'APPROVED' && <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700"><CheckCircle2 size={13} />Approved</span>}
       <button type="button" onClick={() => onReview('REJECTED')} disabled={processing} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-50"><X size={13} />Reject</button>
     </div>
   </div>
@@ -244,6 +258,28 @@ function ImagePreviewDialog({ image, onClose }: { image: { url: string; name: st
       <div className="overflow-auto bg-ink-900/5 p-3 sm:p-5"><img src={image.url} alt={image.name} className="mx-auto max-h-[78vh] max-w-full rounded-xl object-contain shadow-sm" /></div>
     </div>
   </div>
+}
+
+type HistoryGroup = { accountId: string; applicantName: string; entries: SellerReviewHistory[]; approvedCount: number; rejectedCount: number; documentActionCount: number; finalActionCount: number }
+
+function groupReviewHistory(entries: SellerReviewHistory[]): HistoryGroup[] {
+  const groups = new Map<string, SellerReviewHistory[]>()
+  for (const entry of entries) {
+    const accountId = entry.applicant_user_id || entry.registration_id
+    groups.set(accountId, [...(groups.get(accountId) ?? []), entry])
+  }
+  return [...groups.entries()].map(([accountId, groupEntries]) => {
+    const sortedEntries = [...groupEntries].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    return {
+      accountId,
+      applicantName: sortedEntries[0]?.applicant_name || 'অজানা seller',
+      entries: sortedEntries,
+      approvedCount: sortedEntries.filter((entry) => entry.action.includes('APPROVED')).length,
+      rejectedCount: sortedEntries.filter((entry) => entry.action.includes('REJECTED')).length,
+      documentActionCount: sortedEntries.filter((entry) => Boolean(entry.document_type)).length,
+      finalActionCount: sortedEntries.filter((entry) => !entry.document_type).length,
+    }
+  }).sort((a, b) => new Date(b.entries[0]?.created_at ?? 0).getTime() - new Date(a.entries[0]?.created_at ?? 0).getTime())
 }
 
 function formatDocumentType(value: string) { return value.replace(/_/g, ' ') }
