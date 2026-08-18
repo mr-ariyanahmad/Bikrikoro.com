@@ -22,18 +22,17 @@ export function ReviewModal({
     setSubmitting(true)
     setError(null)
 
-    // reviews.id is a plain text primary key (not uuid default) per
-    // 005_reviews.sql — generate client-side like the rest of the app does.
-    const { error: insertError } = await supabase.from('reviews').insert({
-      id: crypto.randomUUID(),
-      order_id: order.id,
-      product_id: order.product_id,
-      product_title: order.product_title,
-      seller_id: order.seller_id,
-      buyer_id: order.buyer_id,
-      buyer_name: buyerName,
-      rating,
-      comment: comment.trim(),
+    // The database RPC verifies that this user owns the completed order,
+    // that the product/seller match, and that the order has not been reviewed.
+    const { error: insertError } = await supabase.rpc('submit_order_review', {
+      p_review_id: crypto.randomUUID(),
+      p_order_id: order.id,
+      p_product_id: order.product_id,
+      p_seller_id: order.seller_id,
+      p_buyer_id: order.buyer_id,
+      p_buyer_name: buyerName,
+      p_rating: rating,
+      p_comment: comment.trim(),
     })
 
     setSubmitting(false)
@@ -41,7 +40,9 @@ export function ReviewModal({
       setError(
         insertError.code === '23505'
           ? 'এই অর্ডারের জন্য আগেই রিভিউ দেওয়া হয়েছে।'
-          : 'রিভিউ জমা দেওয়া যায়নি — আবার চেষ্টা করুন।'
+          : insertError.message.includes('Only completed orders')
+            ? 'শুধু সম্পন্ন অর্ডারের জন্য রিভিউ দেওয়া যাবে।'
+            : 'রিভিউ জমা দেওয়া যায়নি — আবার চেষ্টা করুন।'
       )
       return
     }

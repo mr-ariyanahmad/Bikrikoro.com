@@ -34,8 +34,24 @@ export async function buyerCancelOrder(orderId: string, buyerId: string) {
   if (error) throw error
 }
 
+export async function sellerMarkPreparing(orderId: string, sellerId: string) {
+  const { error } = await supabase.rpc('seller_mark_preparing', {
+    p_order_id: orderId,
+    p_seller_id: sellerId,
+  })
+  if (error) throw error
+}
+
 export async function sellerMarkShipped(orderId: string, sellerId: string) {
   const { error } = await supabase.rpc('seller_mark_shipped', {
+    p_order_id: orderId,
+    p_seller_id: sellerId,
+  })
+  if (error) throw error
+}
+
+export async function sellerMarkDelivered(orderId: string, sellerId: string) {
+  const { error } = await supabase.rpc('seller_mark_delivered', {
     p_order_id: orderId,
     p_seller_id: sellerId,
   })

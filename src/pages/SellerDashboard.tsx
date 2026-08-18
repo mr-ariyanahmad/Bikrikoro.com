@@ -51,7 +51,7 @@ export default function SellerDashboard() {
       setStats({
         listingCount: products.length,
         totalViews: products.reduce((sum, p) => sum + (p.view_count ?? 0), 0),
-        activeOrders: orders.filter((o) => ['ESCROW_HELD', 'SHIPPED'].includes(o.status)).length,
+        activeOrders: orders.filter((o) => ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED'].includes(o.status)).length,
         completedSales: orders.filter((o) => o.status === 'COMPLETED').length,
         totalEarnings: ledger.reduce((sum, l) => sum + Number(l.amount), 0),
         isVerified: profileRes.data?.is_verified ?? false,

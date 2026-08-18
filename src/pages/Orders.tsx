@@ -8,7 +8,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { ReviewModal } from '@/components/ReviewModal'
-import { confirmOrderDelivery, buyerCancelOrder, sellerMarkShipped, sellerCancelOrder } from '@/lib/orders'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkPreparing, sellerMarkShipped, sellerMarkDelivered, sellerCancelOrder } from '@/lib/orders'
 import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Order, OrderStatus } from '@/types/order'
@@ -18,6 +18,7 @@ type Tab = 'buying' | 'selling'
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'পেমেন্ট বাকি',
   ESCROW_HELD: 'এসক্রোতে',
+  PREPARING: 'প্রস্তুত করা হচ্ছে',
   SHIPPED: 'পাঠানো হয়েছে',
   DELIVERED: 'পৌঁছেছে',
   COMPLETED: 'সম্পন্ন',
@@ -195,24 +196,30 @@ export default function Orders() {
                     onClick={() => runAction(order.id, () => buyerCancelOrder(order.id, uid))}
                   />
                 )}
-                {tab === 'buying' &&
-                  ['SHIPPED', 'DELIVERED'].includes(order.status) &&
-                  !order.dispute_status && (
-                    <>
-                      <ActionButton
-                        label="ডেলিভারি নিশ্চিত করুন"
-                        variant="primary"
-                        loading={processingId === order.id}
-                        onClick={() => runAction(order.id, () => confirmOrderDelivery(order.id, uid))}
-                      />
-                      <ActionButton label="সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setDisputeTarget(order)} />
-                    </>
-                  )}
+                {tab === 'buying' && order.status === 'DELIVERED' && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && (
+                  <ActionButton
+                    label="পণ্য পেয়েছি — নিশ্চিত করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => confirmOrderDelivery(order.id, uid))}
+                  />
+                )}
+                {tab === 'buying' && ['SHIPPED', 'DELIVERED'].includes(order.status) && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && (
+                  <ActionButton label="পাইনি/সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setDisputeTarget(order)} />
+                )}
                 {tab === 'buying' && order.status === 'COMPLETED' && !reviewedOrderIds.has(order.id) && (
                   <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setReviewTarget(order)} />
                 )}
 
                 {tab === 'selling' && order.status === 'ESCROW_HELD' && (
+                  <ActionButton
+                    label="প্রস্তুতি শুরু করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkPreparing(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && order.status === 'PREPARING' && (
                   <ActionButton
                     label="শিপড মার্ক করুন"
                     variant="primary"
@@ -220,7 +227,15 @@ export default function Orders() {
                     onClick={() => runAction(order.id, () => sellerMarkShipped(order.id, uid))}
                   />
                 )}
-                {tab === 'selling' && ['ESCROW_HELD', 'SHIPPED'].includes(order.status) && (
+                {tab === 'selling' && order.status === 'SHIPPED' && (
+                  <ActionButton
+                    label="ডেলিভার্ড মার্ক করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkDelivered(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && ['ESCROW_HELD', 'PREPARING', 'SHIPPED'].includes(order.status) && (
                   <ActionButton
                     label="বাতিল করুন"
                     variant="danger"

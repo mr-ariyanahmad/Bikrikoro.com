@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING_PAYMENT' | 'ESCROW_HELD' | 'SHIPPED' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED'
+export type OrderStatus = 'PENDING_PAYMENT' | 'ESCROW_HELD' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED'
 
 export type PaymentMethod = 'BKASH' | 'NAGAD' | 'CARD' | 'CASH_ON_MEETUP'
 

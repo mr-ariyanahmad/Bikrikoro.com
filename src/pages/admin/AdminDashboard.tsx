@@ -9,6 +9,7 @@ type RecentOrder = { id: string; product_title: string; price: number; status: s
 const statusLabel: Record<string, string> = {
   PENDING_PAYMENT: 'পেমেন্ট বাকি',
   ESCROW_HELD: 'এসক্রোতে',
+  PREPARING: 'প্রস্তুত করা হচ্ছে',
   SHIPPED: 'পাঠানো হয়েছে',
   DELIVERED: 'পৌঁছেছে',
   COMPLETED: 'সম্পন্ন',
@@ -27,10 +28,10 @@ export default function AdminDashboard() {
         supabase.from('orders').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('products').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['PENDING_PAYMENT', 'ESCROW_HELD', 'SHIPPED', 'DELIVERED']),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED']),
         supabase.from('order_disputes').select('id', { count: 'exact', head: true }).in('status', ['REPORTED', 'UNDER_REVIEW']),
         supabase.from('seller_registrations').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
-        supabase.from('orders').select('price').in('status', ['ESCROW_HELD', 'SHIPPED', 'DELIVERED', 'COMPLETED']),
+        supabase.from('orders').select('price').in('status', ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED']),
         supabase.from('orders').select('id, product_title, price, status, created_at').order('created_at', { ascending: false }).limit(7),
       ])
       if (cancelled) return

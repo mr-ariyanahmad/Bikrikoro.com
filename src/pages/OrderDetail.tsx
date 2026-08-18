@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { confirmOrderDelivery, buyerCancelOrder, sellerMarkShipped, sellerCancelOrder } from '@/lib/orders'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkPreparing, sellerMarkShipped, sellerMarkDelivered, sellerCancelOrder } from '@/lib/orders'
 import { formatDate, formatTaka } from '@/lib/format'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { ReviewModal } from '@/components/ReviewModal'
@@ -12,18 +12,20 @@ import type { Order, OrderStatus } from '@/types/order'
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'পেমেন্ট বাকি',
   ESCROW_HELD: 'এসক্রোতে সুরক্ষিত',
+  PREPARING: 'প্রস্তুত করা হচ্ছে',
   SHIPPED: 'পাঠানো হয়েছে',
   DELIVERED: 'পৌঁছে গেছে',
   COMPLETED: 'অর্ডার সম্পন্ন',
   CANCELLED: 'বাতিল',
 }
 
-const TIMELINE: OrderStatus[] = ['PENDING_PAYMENT', 'ESCROW_HELD', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+const TIMELINE: OrderStatus[] = ['PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED']
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const [order, setOrder] = useState<Order | null>(null)
+  const [reviewed, setReviewed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -33,21 +35,25 @@ export default function OrderDetail() {
 
   useEffect(() => {
     if (!id || !user) return
+    const uid = user.uid
     let cancelled = false
-    supabase
-      .from('orders')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-      .then(({ data, error: loadError }) => {
-        if (cancelled) return
-        if (loadError || !data || ![data.buyer_id, data.seller_id].includes(user.uid)) {
-          setError('অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
-        } else {
-          setOrder(data as Order)
-        }
-        setLoading(false)
-      })
+
+    async function loadOrder() {
+      const [orderResult, reviewResult] = await Promise.all([
+        supabase.from('orders').select('*').eq('id', id).maybeSingle(),
+        supabase.from('reviews').select('id').eq('order_id', id).maybeSingle(),
+      ])
+      if (cancelled) return
+      if (orderResult.error || !orderResult.data || ![orderResult.data.buyer_id, orderResult.data.seller_id].includes(uid)) {
+        setError('অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
+      } else {
+        setOrder(orderResult.data as Order)
+        setReviewed(Boolean(reviewResult.data))
+      }
+      setLoading(false)
+    }
+
+    loadOrder()
     return () => {
       cancelled = true
     }
@@ -172,20 +178,18 @@ export default function OrderDetail() {
           {isBuyer && order.status === 'ESCROW_HELD' && (
             <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => buyerCancelOrder(order.id, user.uid), 'অর্ডার বাতিলের অনুরোধ পাঠানো হয়েছে।')} />
           )}
-          {isBuyer && ['SHIPPED', 'DELIVERED'].includes(order.status) && !order.dispute_status && (
-            <>
-              <ActionButton label="ডেলিভারি নিশ্চিত করুন" variant="primary" loading={processing} onClick={() => run(() => confirmOrderDelivery(order.id, user.uid), 'ডেলিভারি নিশ্চিত হয়েছে।')} />
-              <ActionButton label="সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setShowDispute(true)} />
-            </>
-          )}
-          {isBuyer && order.status === 'COMPLETED' && <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setShowReview(true)} />}
-          {isSeller && order.status === 'ESCROW_HELD' && <ActionButton label="শিপড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkShipped(order.id, user.uid), 'অর্ডারটি শিপড হিসেবে চিহ্নিত হয়েছে।')} />}
-          {isSeller && ['ESCROW_HELD', 'SHIPPED'].includes(order.status) && <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => sellerCancelOrder(order.id, user.uid), 'অর্ডার বাতিল হয়েছে।')} />}
+          {isBuyer && order.status === 'DELIVERED' && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && <ActionButton label="পণ্য পেয়েছি — নিশ্চিত করুন" variant="primary" loading={processing} onClick={() => run(() => confirmOrderDelivery(order.id, user.uid), 'ডেলিভারি নিশ্চিত হয়েছে।')} />}
+          {isBuyer && ['SHIPPED', 'DELIVERED'].includes(order.status) && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && <ActionButton label="পাইনি/সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setShowDispute(true)} />}
+          {isBuyer && order.status === 'COMPLETED' && !reviewed && <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setShowReview(true)} />}
+          {isSeller && order.status === 'ESCROW_HELD' && <ActionButton label="প্রস্তুতি শুরু করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkPreparing(order.id, user.uid), 'অর্ডার প্রস্তুত করা শুরু হয়েছে।')} />}
+          {isSeller && order.status === 'PREPARING' && <ActionButton label="শিপড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkShipped(order.id, user.uid), 'অর্ডারটি শিপড হিসেবে চিহ্নিত হয়েছে।')} />}
+          {isSeller && order.status === 'SHIPPED' && <ActionButton label="ডেলিভার্ড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkDelivered(order.id, user.uid), 'অর্ডারটি ডেলিভার্ড হিসেবে চিহ্নিত হয়েছে।')} />}
+          {isSeller && ['ESCROW_HELD', 'PREPARING', 'SHIPPED'].includes(order.status) && <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => sellerCancelOrder(order.id, user.uid), 'অর্ডার বাতিল হয়েছে।')} />}
         </div>
       </div>
 
       {showDispute && <ReportDisputeModal orderId={order.id} buyerId={user.uid} onClose={() => setShowDispute(false)} onSuccess={() => { setShowDispute(false); showToast('রিপোর্ট জমা হয়েছে।') }} />}
-      {showReview && <ReviewModal order={order} buyerName={user.displayName ?? ''} onClose={() => setShowReview(false)} onSuccess={() => { setShowReview(false); showToast('রিভিউ জমা হয়েছে।') }} />}
+      {showReview && <ReviewModal order={order} buyerName={user.displayName ?? ''} onClose={() => setShowReview(false)} onSuccess={() => { setShowReview(false); setReviewed(true); showToast('রিভিউ জমা হয়েছে।') }} />}
       {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg print:hidden">{toast}</div>}
     </Layout>
   )
