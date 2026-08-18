@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 
 export type ProductQuestion = { id: string; product_id: string; asker_id: string; question: string; answer: string | null; created_at: string; answered_at: string | null }
 
@@ -28,4 +29,16 @@ export async function askProductQuestion(askerId: string, productId: string, que
 export async function reportProduct(reporterId: string, productId: string, reason: string, details: string) {
   const { error } = await supabase.rpc('report_product', { p_reporter_id: reporterId, p_product_id: productId, p_reason: reason, p_details: details })
   if (error) throw error
+}
+
+export async function answerProductQuestion(questionId: string, answer: string) {
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('উত্তর দিতে লগইন করা প্রয়োজন।')
+  const response = await fetch('/api/product-question', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questionId, answer }),
+  })
+  const payload = await response.json().catch(() => ({})) as { error?: string }
+  if (!response.ok) throw new Error(payload.error || 'উত্তর সংরক্ষণ করা যায়নি।')
 }

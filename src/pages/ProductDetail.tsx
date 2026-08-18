@@ -11,7 +11,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
-import { askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
+import { answerProductQuestion, askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
@@ -38,6 +38,8 @@ export default function ProductDetail() {
   const [followingSeller, setFollowingSeller] = useState(false)
   const [questions, setQuestions] = useState<ProductQuestion[]>([])
   const [questionText, setQuestionText] = useState('')
+  const [replyTextByQuestion, setReplyTextByQuestion] = useState<Record<string, string>>({})
+  const [replySavingId, setReplySavingId] = useState<string | null>(null)
   const [featureMessage, setFeatureMessage] = useState<string | null>(null)
   const [showReport, setShowReport] = useState(false)
   const [reportReason, setReportReason] = useState('ভুল বা বিভ্রান্তিকর তথ্য')
@@ -224,6 +226,24 @@ export default function ProductDetail() {
       setQuestions(await listProductQuestions(product.id))
     } catch (error) {
       setFeatureMessage(error instanceof Error ? `প্রশ্ন জমা দেওয়া যায়নি: ${error.message}` : 'প্রশ্ন জমা দেওয়া যায়নি।')
+    }
+  }
+
+  const handleReply = async (questionId: string) => {
+    if (!isOwnListing) return
+    const answer = replyTextByQuestion[questionId]?.trim() || ''
+    if (!answer || replySavingId) return
+    setReplySavingId(questionId)
+    setFeatureMessage(null)
+    try {
+      await answerProductQuestion(questionId, answer)
+      setReplyTextByQuestion((current) => ({ ...current, [questionId]: '' }))
+      setQuestions(await listProductQuestions(product.id))
+      setFeatureMessage('আপনার উত্তর প্রকাশ হয়েছে।')
+    } catch (error) {
+      setFeatureMessage(error instanceof Error ? `উত্তর সংরক্ষণ করা যায়নি: ${error.message}` : 'উত্তর সংরক্ষণ করা যায়নি।')
+    } finally {
+      setReplySavingId(null)
     }
   }
 
@@ -466,7 +486,7 @@ export default function ProductDetail() {
 
           <section className="mt-6 rounded-2xl border border-outline bg-surface p-4">
             <div className="flex items-center gap-2"><MessageCircleQuestion size={19} className="text-brand-600" /><h2 className="font-semibold text-ink-900">প্রশ্ন ও উত্তর</h2></div>
-            <div className="mt-3 space-y-3">{questions.length === 0 ? <p className="text-sm text-ink-500">এখনো কোনো প্রশ্ন নেই। প্রথম প্রশ্নটি করুন।</p> : questions.map((question) => <div key={question.id} className="rounded-xl bg-bg p-3"><p className="text-sm font-medium text-ink-800">প্রশ্ন: {question.question}</p>{question.answer && <p className="mt-2 text-sm text-ink-600">উত্তর: {question.answer}</p>}</div>)}</div>
+            <div className="mt-3 space-y-3">{questions.length === 0 ? <p className="text-sm text-ink-500">এখনো কোনো প্রশ্ন নেই। প্রথম প্রশ্নটি করুন।</p> : questions.map((question) => <div key={question.id} className="rounded-xl bg-bg p-3"><p className="text-sm font-medium text-ink-800">প্রশ্ন: {question.question}</p>{question.answer && <div className="mt-2 rounded-lg border-l-2 border-brand-500 bg-surface px-3 py-2"><p className="text-xs font-semibold text-brand-700">সেলার-এর উত্তর</p><p className="mt-1 text-sm text-ink-600">{question.answer}</p></div>}{isOwnListing && <div className="mt-3"><textarea value={replyTextByQuestion[question.id] ?? ''} onChange={(event) => setReplyTextByQuestion((current) => ({ ...current, [question.id]: event.target.value }))} rows={2} maxLength={2000} placeholder={question.answer ? 'উত্তর পরিবর্তন করুন...' : 'এই প্রশ্নের উত্তর লিখুন...'} className="w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-2 flex items-center justify-between gap-2"><span className="text-[11px] text-ink-400">শুধু এই product-এর seller উত্তর দিতে পারবেন।</span><button type="button" onClick={() => handleReply(question.id)} disabled={replySavingId === question.id || !(replyTextByQuestion[question.id] ?? '').trim()} className="rounded-none bg-brand-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{replySavingId === question.id ? 'সংরক্ষণ হচ্ছে...' : question.answer ? 'উত্তর আপডেট করুন' : 'উত্তর দিন'}</button></div></div>}</div>)}</div>
             {user ? <div className="mt-3 flex gap-2"><input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="এই পণ্য সম্পর্কে প্রশ্ন করুন..." className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={handleAsk} className="rounded-none bg-brand-500 px-3 py-2 text-sm font-semibold text-white">জিজ্ঞাসা</button></div> : <Link to="/login" className="mt-3 inline-block text-sm font-semibold text-brand-600">প্রশ্ন করতে লগইন করুন</Link>}
           </section>
           {featureMessage && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{featureMessage}</p>}
