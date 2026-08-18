@@ -51,7 +51,7 @@ export default function SellerDashboard() {
           supabase.rpc('seller_list_products', { p_seller_id: uid }),
           supabase.from('orders').select('status, price').eq('seller_id', uid),
           supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
-          supabase.from('profiles').select('id, name, phone, email, photo_url, shop_name, shop_description, is_verified, rating, review_count, created_at').eq('id', uid).maybeSingle(),
+          loadSellerProfile(uid),
         ])
         if (productsRes.error) throw productsRes.error
         if (ordersRes.error) throw ordersRes.error
@@ -80,7 +80,7 @@ export default function SellerDashboard() {
         })
       } catch (error) {
         console.error('Seller dashboard load failed:', error)
-        if (active) setLoadError(error instanceof Error ? error.message : 'সেলার ড্যাশবোর্ড লোড করা যায়নি।')
+        if (active) setLoadError(getErrorMessage(error))
       } finally {
         if (active) setLoading(false)
       }
@@ -175,6 +175,32 @@ export default function SellerDashboard() {
       )}
     </Layout>
   )
+}
+
+async function loadSellerProfile(uid: string) {
+  const profile = await supabase.from('profiles').select('id, name, phone, email, photo_url, shop_name, shop_description, is_verified, rating, review_count, created_at').eq('id', uid).maybeSingle()
+  if (!profile.error || !isMissingShopProfileColumns(profile.error)) return profile
+
+  // Keep the dashboard usable while the shop-profile migration is pending.
+  // The editor will surface the migration error when the seller tries to save.
+  const legacyProfile = await supabase.from('profiles').select('id, name, phone, email, photo_url, is_verified, rating, review_count, created_at').eq('id', uid).maybeSingle()
+  if (legacyProfile.error) throw legacyProfile.error
+  return { data: legacyProfile.data ? { ...legacyProfile.data, shop_name: null, shop_description: null } : null, error: null }
+}
+
+function isMissingShopProfileColumns(error: unknown) {
+  const text = getErrorMessage(error).toLowerCase()
+  return (text.includes('shop_name') || text.includes('shop_description')) && (text.includes('column') || text.includes('schema cache') || text.includes('does not exist'))
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message
+  if (error && typeof error === 'object') {
+    const value = error as { message?: unknown; details?: unknown; hint?: unknown }
+    const parts = [value.message, value.details, value.hint].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  return 'সেলার ড্যাশবোর্ড লোড করা যায়নি।'
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
