@@ -34,7 +34,14 @@ https://auth.bikrikoro.com/__/auth/handler
 
 ## Test order
 
-প্রথমে Firebase provider save করুন এবং Meta redirect URI ঠিকভাবে যোগ করুন। তারপর Vercel latest deployment খুলে Login page-এ Facebook button চাপুন। Popup-এ Facebook account দিয়ে Continue করলে user home page-এ যাওয়ার কথা। Popup block হলে redirect flow চালু হবে।
+প্রথমে Firebase provider save করুন এবং Meta redirect URI ঠিকভাবে যোগ করুন। Meta-এর **Valid OAuth Redirect URIs**-এ দুইটি exact URL রাখুন:
+
+```text
+https://auth.bikrikoro.com/__/auth/handler
+https://com-bikrikoro.firebaseapp.com/__/auth/handler
+```
+
+তারপর Vercel latest deployment খুলে Login page-এ Facebook button চাপুন। Desktop browser-এ popup flow ব্যবহার হবে। Android/iOS browser—বিশেষ করে Brave—এখন redirect-first flow ব্যবহার করবে, কারণ mobile browser popup, storage বা third-party-cookie protection-এর কারণে popup বন্ধ করে দিতে পারে। Redirect শেষে একই tab-এ Firebase session restore হয়ে home page-এ যাওয়ার কথা।
 
 `auth/account-exists-with-different-credential` এলে একই email আগে Google, phone অথবা email/password দিয়ে account তৈরি করেছে। এই ক্ষেত্রে আগে existing method দিয়ে login করুন এবং পরে account linking flow ব্যবহার করতে হবে; একই email-এর duplicate profile তৈরি করা উচিত নয়।
 

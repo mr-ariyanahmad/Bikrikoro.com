@@ -167,11 +167,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureFirebaseConfigured()
     setAuthError(null)
     await setPersistence(auth, browserLocalPersistence)
+
+    // Mobile browsers—especially Brave—can close or isolate the OAuth popup
+    // because of popup, storage, or third-party-cookie protections. Redirect
+    // first on mobile so the Firebase session returns through the same browser
+    // tab and is restored by getRedirectResult above.
+    const isMobileBrowser = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    if (isMobileBrowser) {
+      window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
+      await signInWithRedirect(auth, facebookProvider)
+      return
+    }
+
     try {
       await signInWithPopup(auth, facebookProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/popup-closed-by-user') {
         window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
         await signInWithRedirect(auth, facebookProvider)
         return
