@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, TrendingUp } from 'lucide-react'
+import { Bell, Download, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
+import { loadUnreadNotificationCount } from '@/lib/marketplace'
 
 interface SellerProductMetrics { view_count: number | null; price: number | null }
 
@@ -30,6 +31,7 @@ export default function SellerDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
 
   useEffect(() => {
     if (!uid || sellerAccessLoading || !isSeller) {
@@ -64,6 +66,11 @@ export default function SellerDashboard() {
     }
     load()
   }, [isSeller, sellerAccessLoading, uid])
+
+  useEffect(() => {
+    if (!uid || !isSeller) return
+    void loadUnreadNotificationCount(uid).then(setUnreadNotifications).catch(() => setUnreadNotifications(0))
+  }, [isSeller, uid])
 
   const exportPerformance = () => {
     if (!stats) return
@@ -129,16 +136,16 @@ export default function SellerDashboard() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link to="/sell" className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-              + নতুন পণ্য পোস্ট করুন
-            </Link>
-            <Link to="/my-listings" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">
-              আমার লিস্টিং
-            </Link>
-            <Link to="/orders" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">
-              অর্ডার ম্যানেজ করুন
-            </Link>
+          <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+              <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600"><Bell size={18} /></span><div><p className="font-semibold text-brand-900">নতুন নোটিফিকেশন</p><p className="mt-1 text-sm text-brand-800/80">Customer question, order ও payment update এখানে পাবেন।</p><p className="mt-2 text-2xl font-bold text-brand-700">{unreadNotifications}</p></div></div>
+              <Link to="/notifications" className="mt-3 inline-flex text-sm font-semibold text-brand-700">সব নোটিফিকেশন দেখুন →</Link>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/sell" className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">+ নতুন পণ্য পোস্ট করুন</Link>
+              <Link to="/my-listings" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">আমার লিস্টিং</Link>
+              <Link to="/orders" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">অর্ডার ম্যানেজ করুন</Link>
+            </div>
           </div>
         </>
       )}
