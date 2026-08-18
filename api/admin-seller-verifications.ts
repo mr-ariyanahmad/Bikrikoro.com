@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth'
+import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 const BUCKET = 'seller-verification-docs'
 

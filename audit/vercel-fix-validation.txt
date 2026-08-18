@@ -1,0 +1,51 @@
+=== FRONTEND BUILD ===
+
+> bikrikoro-web@0.0.0 build
+> tsc -b && vite build
+
+vite v8.2.1 building client environment for production...
+[2Ktransforming...[32m✓[0m 1963 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[0m[32mindex.html                 [0m[1;2m    4.71 kB[0m[2m │ gzip:   1.36 kB[0m
+[2mdist/[0m[2massets/[0m[35mindex-CHVNJgDh.css  [0m[1;2m   65.04 kB[0m[2m │ gzip:  11.67 kB[0m
+[2mdist/[0m[2massets/[0m[36mindex-BZg7aOr6.js   [0m[33;1m1,085.12 kB[0m[2m │ gzip: 278.41 kB[0m
+
+✓ built in 699ms
+[plugin builtin:vite-reporter] [33;1m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[0m
+=== LINT ===
+
+> bikrikoro-web@0.0.0 lint
+> oxlint
+
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/context/AuthContext.tsx:232:17]
+ 231 | 
+ 232 | export function useAuth(): AuthContextValue {
+     :                 ^^^^^^^
+ 233 |   const ctx = useContext(AuthContext)
+     `----
+
+Found 1 warning and 0 errors.
+Finished in 38ms on 129 files with 104 rules using 6 threads.
+=== API NODE-NEXT ===
+=== SERVER-AUTH IMPORT SCAN ===
+All server-auth imports use explicit .js extensions.
+=== DIFF CHECK ===
+=== STATUS ===
+ [31mM[m api/admin-rpc.ts
+ [31mM[m api/admin-seller-verifications.ts
+ [31mM[m api/order-action.ts
+ [31mM[m api/order-read.ts
+ [31mM[m api/pending-order.ts
+ [31mM[m api/seller-verification-status.ts
+ [31mM[m api/sitemap.xml.ts
+ [31mM[m api/verification-document.ts
+ [31mM[m api/wallet-withdrawal.ts
+[31m??[m audit/vercel-deployment-diagnostics.txt
+[31m??[m audit/vercel-fix-validation.txt

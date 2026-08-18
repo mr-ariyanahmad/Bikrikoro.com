@@ -1,0 +1,62 @@
+=== GIT STATUS ===
+## [32mmain[m...[31morigin/main[m
+[31m??[m audit/vercel-deployment-diagnostics.txt
+=== RECENT COMMITS ===
+[33m29fed2b[m Add Bengali final audit report
+[33m5dfeefe[m Finish regression hardening
+[33mb6f1bbe[m Secure admin RPCs and operational reads
+[33m78d579d[m Harden notifications and public content
+[33m0ca32d4[m Harden checkout orders wallet and disputes
+[33m0a3a309[m Harden seller eligibility and verification privacy
+[33m6b3f5a0[m Harden customer browsing and product detail flows
+[33ma196cf6[m Harden auth retries and deep link redirects
+[33m2f0870b[m Audit and harden seller chat uploads and browsing
+[33m99e1768[m Prevent unsafe wallet payout settlement
+[33mb331b06[m Fix Firebase Admin notification runtime compatibility
+[33m59b05b6[m Notify sellers about product questions
+=== PACKAGE ===
+{
+  "name": "bikrikoro-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "firebase": "^12.17.1",
+    "firebase-admin": "13.6.0",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-helmet-async": "^3.0.0",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.10.1",
+    "@vitejs/plugin-react": "^6.0.4",
+    "autoprefixer": "^10.5.4",
+    "oxlint": "^1.75.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}
+=== VERCEL FILES ===
+./audit/vercel-deployment-diagnostics.txt
+./tsconfig.app.json
+./tsconfig.json
+./tsconfig.node.json
+./vercel.json
+./vite.config.ts
+=== GITHUB CHECK RUNS ===
+=== GITHUB WORKFLOWS ===

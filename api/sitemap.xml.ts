@@ -16,6 +16,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
+type BlogSitemapRow = { slug?: string | null; published_at?: string | null; updated_at?: string | null }
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
@@ -43,10 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       loc: `${site}/products/${p.id}`,
       lastmod: new Date(p.created_at).toISOString().split('T')[0],
     }))
-    blogUrls = (blogs ?? []).filter((post) => post.slug).map((post) => ({
-      loc: `${site}/blog/${encodeURIComponent(post.slug)}`,
-      lastmod: new Date(post.published_at || post.updated_at).toISOString().split('T')[0],
-    }))
+    blogUrls = (blogs as BlogSitemapRow[] | null ?? []).flatMap((post: BlogSitemapRow) => {
+      const slug = post.slug?.trim()
+      const date = post.published_at || post.updated_at
+      if (!slug || !date) return []
+      return [{ loc: `${site}/blog/${encodeURIComponent(slug)}`, lastmod: new Date(date).toISOString().split('T')[0] }]
+    })
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

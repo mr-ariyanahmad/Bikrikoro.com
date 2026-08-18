@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth'
+import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 type Body = { action?: 'list' | 'detail' | 'payment_state' | 'dispute' | 'wallet'; orderId?: string; disputeId?: string }
 
