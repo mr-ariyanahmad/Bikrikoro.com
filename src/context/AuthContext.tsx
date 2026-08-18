@@ -141,17 +141,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureFirebaseConfigured()
     setAuthError(null)
     await setPersistence(auth, browserLocalPersistence)
-    const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    if (isMobileBrowser) {
-      window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
-      await signInWithRedirect(auth, googleProvider)
-      return
-    }
     try {
+      // A user-initiated popup avoids the mobile redirect callback/storage path
+      // that can return to /login without restoring the Firebase session.
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
         await signInWithRedirect(auth, googleProvider)
         return
       }
