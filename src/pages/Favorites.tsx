@@ -18,39 +18,60 @@ export default function Favorites() {
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setMessage(null)
     async function load() {
-      let { data: favs, error: favoritesError } = await supabase.from('favorites').select('product_id, folder_id').eq('user_id', uid)
-      if (favoritesError) {
-        const fallback = await supabase.from('favorites').select('product_id').eq('user_id', uid)
-        favs = (fallback.data ?? []).map((item) => ({ ...item, folder_id: null }))
+      try {
+        let { data: favs, error: favoritesError } = await supabase.from('favorites').select('product_id, folder_id').eq('user_id', uid)
+        if (favoritesError) {
+          const fallback = await supabase.from('favorites').select('product_id').eq('user_id', uid)
+          if (fallback.error) throw favoritesError
+          favs = (fallback.data ?? []).map((item) => ({ ...item, folder_id: null }))
+        }
+        const rows = favs ?? []
+        const { data: folderData, error: folderError } = await supabase.from('wishlist_folders').select('id, name, color').eq('user_id', uid).order('created_at')
+        if (folderError) throw folderError
+        if (!active) return
+        setFolderByProduct(Object.fromEntries(rows.map((row) => [row.product_id, row.folder_id ?? ''])))
+        setFolders(folderData ?? [])
+        const ids = rows.map((f) => f.product_id)
+        if (ids.length === 0) {
+          setProducts([])
+          return
+        }
+        const { data, error: productsError } = await supabase.from('products').select('*').in('id', ids)
+        if (productsError) throw productsError
+        if (active) setProducts(data ?? [])
+      } catch (error) {
+        console.error('Favorites load failed:', error)
+        if (active) setMessage(error instanceof Error ? error.message : 'পছন্দের তালিকা লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
       }
-      const rows = favs ?? []
-      setFolderByProduct(Object.fromEntries(rows.map((row) => [row.product_id, row.folder_id ?? ''])))
-      const ids = rows.map((f) => f.product_id)
-      const { data: folderData } = await supabase.from('wishlist_folders').select('id, name, color').eq('user_id', uid).order('created_at')
-      setFolders(folderData ?? [])
-      if (ids.length === 0) {
-        setProducts([])
-        setLoading(false)
-        return
-      }
-      const { data } = await supabase.from('products').select('*').in('id', ids)
-      setProducts(data ?? [])
-      setLoading(false)
     }
-    load()
+    void load()
+    return () => { active = false }
   }, [uid])
 
   const createFolder = async () => {
     if (!newFolderName.trim()) return
     const { data, error } = await supabase.rpc('create_wishlist_folder', { p_user_id: uid, p_name: newFolderName.trim(), p_color: 'brand' })
-    if (!error && data) { setFolders((current) => [...current, { id: data, name: newFolderName.trim(), color: 'brand' }]); setNewFolderName(''); setCreatingFolder(false) }
+    if (error || !data) {
+      setMessage(error?.message ?? 'Folder তৈরি করা যায়নি।')
+      return
+    }
+    setFolders((current) => [...current, { id: data, name: newFolderName.trim(), color: 'brand' }])
+    setNewFolderName('')
+    setCreatingFolder(false)
   }
   const assignFolder = async (productId: string, folderId: string) => {
     setFolderByProduct((current) => ({ ...current, [productId]: folderId }))
-    await supabase.rpc('set_favorite_folder', { p_user_id: uid, p_product_id: productId, p_folder_id: folderId || null })
+    const { error } = await supabase.rpc('set_favorite_folder', { p_user_id: uid, p_product_id: productId, p_folder_id: folderId || null })
+    if (error) setMessage(error.message)
   }
   const visibleProducts = useMemo(() => selectedFolder === 'all' ? products : products.filter((product) => folderByProduct[product.id] === selectedFolder), [folderByProduct, products, selectedFolder])
 
@@ -60,9 +81,10 @@ export default function Favorites() {
         <title>পছন্দের তালিকা | BikriKoro.Com</title>
       </Helmet>
 
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">পছন্দের তালিকা</h1><p className="mt-1 text-sm text-ink-500">পণ্যগুলো folder করে আলাদা করে রাখুন।</p></div><button onClick={() => setCreatingFolder((value) => !value)} className="inline-flex items-center gap-1.5 rounded-xl border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 hover:bg-brand-50"><Plus size={16} />নতুন folder</button></div>
-      {creatingFolder && <div className="mt-4 flex gap-2 rounded-2xl border border-outline bg-surface p-3"><input autoFocus value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createFolder()} placeholder="যেমন: পরে কিনব" className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2 text-sm outline-none focus:border-brand-500" /><button onClick={createFolder} className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white">সেভ</button></div>}
-      <div className="scrollbar-none mt-5 flex gap-2 overflow-x-auto pb-1"><button onClick={() => setSelectedFolder('all')} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${selectedFolder === 'all' ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}><FolderOpen size={15} />সব</button>{folders.map((folder) => <button key={folder.id} onClick={() => setSelectedFolder(folder.id)} className={`shrink-0 rounded-full px-3 py-2 text-sm font-semibold ${selectedFolder === folder.id ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{folder.name}</button>)}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">পছন্দের তালিকা</h1><p className="mt-1 text-sm text-ink-500">পণ্যগুলো folder করে আলাদা করে রাখুন।</p></div><button type="button" onClick={() => setCreatingFolder((value) => !value)} className="inline-flex items-center gap-1.5 rounded-none border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 hover:bg-brand-50"><Plus size={16} />নতুন folder</button></div>
+      {message && <p className="mt-4 border border-error/20 bg-error/5 p-3 text-sm text-error">{message}</p>}
+      {creatingFolder && <div className="mt-4 flex gap-2 rounded-2xl border border-outline bg-surface p-3"><input autoFocus value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createFolder()} placeholder="যেমন: পরে কিনব" className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={createFolder} className="rounded-none bg-brand-500 px-3 py-2 text-sm font-semibold text-white">সেভ</button></div>}
+      <div className="scrollbar-none mt-5 flex gap-2 overflow-x-auto pb-1"><button type="button" onClick={() => setSelectedFolder('all')} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold ${selectedFolder === 'all' ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}><FolderOpen size={15} />সব</button>{folders.map((folder) => <button type="button" key={folder.id} onClick={() => setSelectedFolder(folder.id)} className={`shrink-0 rounded-full px-3 py-2 text-sm font-semibold ${selectedFolder === folder.id ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{folder.name}</button>)}</div>
 
       <div className="mt-6">
         {loading ? (

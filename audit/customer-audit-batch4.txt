@@ -1,0 +1,533 @@
+=== ProductDetail ===
+import { useEffect, useRef, useState } from 'react'
+import { BadgeCheck, Bell, Flag, MessageCircleQuestion, Play, UserPlus } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { BuyModal } from '@/components/BuyModal'
+import { RecommendedProducts } from '@/components/RecommendedProducts'
+import { BrandSelect } from '@/components/BrandSelect'
+import { findOrCreateThread } from '@/lib/chat'
+import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
+import { trackProductView } from '@/lib/recentlyViewed'
+import { askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
+import { formatTaka, formatDate } from '@/lib/format'
+import type { Product, Profile } from '@/types/product'
+import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
+import { SITE_URL } from '@/lib/site'
+
+export default function ProductDetail() {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const [product, setProduct] = useState<Product | null>(null)
+  const [seller, setSeller] = useState<Profile | null>(null)
+  const [sellerBadges, setSellerBadges] = useState<Array<{ badge_key: string; badge_label: string }>>([])
+  const [activeMedia, setActiveMedia] = useState(0)
+  const [videoPlaying, setVideoPlaying] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [showBuy, setShowBuy] = useState(false)
+  const [startingChat, setStartingChat] = useState(false)
+  const [favorited, setFavorited] = useState(false)
+  const [togglingFavorite, setTogglingFavorite] = useState(false)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
+  const [alertEnabled, setAlertEnabled] = useState(false)
+  const [followingSeller, setFollowingSeller] = useState(false)
+  const [questions, setQuestions] = useState<ProductQuestion[]>([])
+  const [questionText, setQuestionText] = useState('')
+  const [featureMessage, setFeatureMessage] = useState<string | null>(null)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('ভুল বা বিভ্রান্তিকর তথ্য')
+  const [reportDetails, setReportDetails] = useState('')
+  const touchStartX = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    setActiveMedia(0)
+    setVideoPlaying(false)
+
+    async function load() {
+      const { data: productData } = await supabase.from('products').select('*').eq('id', id).single()
+      setProduct(productData)
+
+      if (productData) {
+        const { data: sellerData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', productData.seller_id)
+          .maybeSingle()
+        setSeller(sellerData)
+        supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>))
+
+        trackProductView(productData.id)
+
+        // best-effort view count bump — not critical if it fails silently
+        supabase
+          .from('products')
+          .update({ view_count: productData.view_count + 1 })
+          .eq('id', id)
+          .then(() => {})
+      }
+      setLoading(false)
+    }
+    load()
+  }, [id])
+
+  useEffect(() => {
+    if (!user || !id) return
+    isFavorited(user.uid, id).then(setFavorited)
+  }, [user, id])
+
+  useEffect(() => {
+    if (!id) return
+    listProductQuestions(id).then(setQuestions).catch(() => setQuestions([]))
+  }, [id])
+
+  if (loading) {
+    return (
+      <Layout wide>
+        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      </Layout>
+    )
+  }
+
+  if (!product) {
+    return (
+      <Layout wide>
+        <p className="py-16 text-center text-ink-600">পণ্যটি পাওয়া যায়নি — হয়তো সরিয়ে ফেলা হয়েছে।</p>
+      </Layout>
+    )
+  }
+
+  const isOwnListing = user?.uid === product.seller_id
+  const videoEmbedUrl = getYouTubeEmbedUrl(product.video_url)
+  const videoId = getYouTubeVideoId(product.video_url)
+  const mediaCount = product.images.length + (videoEmbedUrl ? 1 : 0)
+  const activeImageIndex = activeMedia - (videoEmbedUrl ? 1 : 0)
+
+  const handleChat = async () => {
+    if (!user) { navigate('/login'); return }
+    setStartingChat(true)
+    setFeatureMessage(null)
+    try {
+      const threadId = await findOrCreateThread(user.uid, product.seller_id, product.id)
+      navigate(`/chat/${threadId}`)
+    } catch (error) {
+      console.error('seller chat start failed:', error)
+      setFeatureMessage('চ্যাট খোলা যায়নি। Supabase-এর chat migration প্রয়োগ করা আছে কি না এবং আপনার account profile তৈরি হয়েছে কি না দেখুন।')
+    } finally {
+      setStartingChat(false)
+    }
+  }
+
+  const getShareUrl = () => `${window.location.origin}/api/product-preview?id=${encodeURIComponent(product.id)}`
+
+  const handleShare = async () => {
+    const url = getShareUrl()
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.title, text: `${product.title} — ${formatTaka(product.price)}`, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setShareMessage('লিংক কপি হয়েছে।')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setShareMessage('লিংক কপি করা যায়নি।')
+    }
+    window.setTimeout(() => setShareMessage(null), 2500)
+  }
+
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`${product.title} — ${formatTaka(product.price)}\n${getShareUrl()}`)
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleToggleFavorite = async () => {
+    if (!user || togglingFavorite) return
+    setTogglingFavorite(true)
+    const next = !favorited
+    setFavorited(next)
+    try {
+      if (next) await addFavorite(user.uid, product.id)
+      else await removeFavorite(user.uid, product.id)
+    } catch {
+      setFavorited(!next)
+    } finally {
+      setTogglingFavorite(false)
+    }
+  }
+
+  const handleAlert = async (type: 'PRICE_DROP' | 'BACK_IN_STOCK') => {
+    if (!user) { navigate('/login'); return }
+    try { setAlertEnabled(await toggleProductAlert(user.uid, product.id, type)); setFeatureMessage(type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার available হলে আপনাকে জানানো হবে।') } catch { setFeatureMessage('Alert চালু করা যায়নি — 016 migration run করা হয়েছে কি না দেখুন।') }
+  }
+
+  const handleFollow = async () => {
+    if (!user) { navigate('/login'); return }
+    try { setFollowingSeller(await toggleSellerFollow(user.uid, product.seller_id)); setFeatureMessage(followingSeller ? 'Seller follow বন্ধ হয়েছে।' : 'Seller follow করা হয়েছে।') } catch { setFeatureMessage('Seller follow চালু করা যায়নি।') }
+  }
+
+  const handleAsk = async () => {
+    if (!user) { navigate('/login'); return }
+    if (!questionText.trim()) return
+    try { await askProductQuestion(user.uid, product.id, questionText.trim()); setQuestionText(''); setFeatureMessage('আপনার প্রশ্ন জমা হয়েছে। Seller উত্তর দিলে এখানে দেখা যাবে।'); setQuestions(await listProductQuestions(product.id)) } catch { setFeatureMessage('প্রশ্ন জমা দেওয়া যায়নি।') }
+  }
+
+  const handleReport = async () => {
+    if (!user) { navigate('/login'); return }
+    try { await reportProduct(user.uid, product.id, reportReason, reportDetails); setShowReport(false); setReportDetails(''); setFeatureMessage('Report জমা হয়েছে। আমাদের team review করবে।') } catch { setFeatureMessage('Report জমা দেওয়া যায়নি।') }
+  }
+
+  return (
+    <Layout wide>
+      <div className="mb-4 flex justify-end"><Link to="/products" className="text-sm font-semibold text-brand-600 hover:text-brand-700">সব প্রোডাক্ট দেখুন</Link></div>
+      <Helmet>
+        <title>{`${product.title} — ৳${product.price} | BikriKoro.Com`}</title>
+        <meta
+          name="description"
+          content={`${product.title} — ${formatTaka(product.price)} টাকায় ${product.location}-এ। ${(product.description || '').slice(0, 120)}`}
+        />
+        <link rel="canonical" href={`${SITE_URL}/products/${product.id}`} />
+        <meta property="og:type" content="product" />
+        <meta property="og:title" content={product.title} />
+        <meta property="og:description" content={(product.description || '').slice(0, 200)} />
+        {product.images[0] && <meta property="og:image" content={product.images[0]} />}
+        {videoEmbedUrl && <meta property="og:video" content={videoEmbedUrl} />}
+        <meta property="og:url" content={`${SITE_URL}/products/${product.id}`} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.title,
+            description: product.description || product.title,
+            image: product.images,
+            offers: {
+              '@type': 'Offer',
+              price: product.price,
+              priceCurrency: 'BDT',
+              availability: 'https://schema.org/InStock',
+              url: `${SITE_URL}/products/${product.id}`,
+            },
+            itemCondition:
+              product.condition === 'NEW' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+            video: videoEmbedUrl ? {
+              '@type': 'VideoObject',
+              embedUrl: videoEmbedUrl,
+              name: `${product.title} product video`,
+              description: product.description || product.title,
+            } : undefined,
+          })}
+        </script>
+      </Helmet>
+
+      <div className="grid gap-8 md:grid-cols-2">
+        <div>
+          <div
+            className="relative aspect-square touch-pan-y overflow-hidden rounded-2xl bg-outline/30"
+            onTouchStart={(e) => {
+              touchStartX.current = e.touches[0].clientX
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return
+              const deltaX = e.changedTouches[0].clientX - touchStartX.current
+              touchStartX.current = null
+              const SWIPE_THRESHOLD = 40
+              if (Math.abs(deltaX) < SWIPE_THRESHOLD || mediaCount < 2) return
+              setActiveMedia((i) => {
+                if (deltaX < 0) return (i + 1) % mediaCount // swipe left -> next
+                return (i - 1 + mediaCount) % mediaCount // swipe right -> prev
+              })
+            }}
+          >
+            {videoEmbedUrl && activeMedia === 0 ? (
+              videoPlaying ? <iframe
+                src={videoEmbedUrl}
+                title={`${product.title} product video`}
+                className="h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              /> : <button type="button" onClick={() => setVideoPlaying(true)} className="relative h-full w-full overflow-hidden bg-ink-900 text-left">
+                {videoId && <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${product.title} video preview`} className="h-full w-full object-cover opacity-80" />}
+                <span className="absolute inset-0 flex items-center justify-center"><span className="inline-flex items-center gap-2 bg-brand-500 px-4 py-3 text-base font-semibold text-white"><Play size={19} fill="currentColor" />ভিডিও চালু করুন</span></span>
+              </button>
+            ) : product.images[activeImageIndex] ? (
+              <img
+                src={product.images[activeImageIndex]}
+                alt={product.title}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
+            )}
+            {mediaCount > 1 && (
+              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+                {Array.from({ length: mediaCount }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-1.5 rounded-full ${i === activeMedia ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          {mediaCount > 1 && (
+            <div className="mt-3 flex gap-2 overflow-x-auto">
+              {videoEmbedUrl && <button type="button" onClick={() => { setActiveMedia(0); setVideoPlaying(false) }} className={`flex h-16 w-24 shrink-0 items-center justify-center gap-1 border-2 bg-ink-900 text-xs font-semibold text-white ${activeMedia === 0 ? 'border-brand-500' : 'border-transparent'}`}><Play size={15} fill="currentColor" />ভিডিও</button>}
+              {product.images.map((img, i) => {
+                const mediaIndex = videoEmbedUrl ? i + 1 : i
+                return <button type="button" key={img} onClick={() => { setActiveMedia(mediaIndex); setVideoPlaying(false) }} className={`h-16 w-16 shrink-0 overflow-hidden border-2 ${mediaIndex === activeMedia ? 'border-brand-500' : 'border-transparent'}`}><img src={img} alt="" className="h-full w-full object-cover" /></button>
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            {product.is_escrow_protected ? (
+              <span className="inline-block rounded-md bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-700">
+                এসক্রো সুরক্ষিত
+              </span>
+            ) : (
+              <span />
+            )}
+            {user && (
+              <button
+                onClick={handleToggleFavorite}
+                disabled={togglingFavorite}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-outline text-lg hover:border-error"
+                aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'}
+              >
+                <span className={favorited ? 'text-error' : 'text-ink-300'}>{favorited ? '♥' : '♡'}</span>
+              </button>
+            )}
+          </div>
+          <h1 className="mt-2 text-xl font-semibold text-ink-900 sm:text-2xl">{product.title}</h1>
+
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="tabular-amount text-2xl font-bold text-brand-600">
+              {formatTaka(product.price)}
+            </span>
+            {product.original_price && product.original_price > product.price && (
+              <span className="tabular-amount text-base text-ink-300 line-through">
+                {formatTaka(product.original_price)}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <button
+              onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-medium ${alertEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}
+            >
+              <Bell size={14} />{alertEnabled ? 'Alert চালু আছে' : product.is_digital ? 'দাম কমলে জানাবেন' : 'স্টক এলে জানাবেন'}
+            </button>
+            <button onClick={() => setShowReport(true)} className="inline-flex items-center gap-1.5 rounded-full border border-outline px-3 py-1.5 font-medium text-ink-600 hover:border-error hover:text-error"><Flag size={14} />Report</button>
+            <button
+              onClick={handleShare}
+              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+            >
+              শেয়ার / লিংক কপি
+            </button>
+            <button
+              onClick={handleWhatsAppShare}
+              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+            >
+              WhatsApp-এ পাঠান
+            </button>
+            {shareMessage && <span className="rounded-full bg-brand-50 px-3 py-1.5 text-brand-700">{shareMessage}</span>}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
+              {product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}
+            </span>
+            {product.is_digital ? (
+              <span className="rounded-full bg-bg px-3 py-1 text-ink-600">ডিজিটাল পণ্য</span>
+            ) : (
+              product.location && (
+                <span className="rounded-full bg-bg px-3 py-1 text-ink-600">{product.location}</span>
+              )
+            )}
+            <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
+              পোস্ট করা হয়েছে {formatDate(product.created_at)}
+            </span>
+          </div>
+
+=== publicFeatures ===
+import { supabase } from '@/lib/supabase'
+
+export type ProductQuestion = { id: string; product_id: string; asker_id: string; question: string; answer: string | null; created_at: string; answered_at: string | null }
+
+export async function toggleProductAlert(userId: string, productId: string, alertType: 'PRICE_DROP' | 'BACK_IN_STOCK') {
+  const { data, error } = await supabase.rpc('toggle_product_alert', { p_user_id: userId, p_product_id: productId, p_alert_type: alertType })
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function toggleSellerFollow(userId: string, sellerId: string) {
+  const { data, error } = await supabase.rpc('toggle_seller_follow', { p_user_id: userId, p_seller_id: sellerId })
+  if (error) throw error
+  return Boolean(data)
+}
+
+export async function listProductQuestions(productId: string) {
+  const { data, error } = await supabase.rpc('list_product_questions', { p_product_id: productId })
+  if (error) throw error
+  return (data ?? []) as ProductQuestion[]
+}
+
+export async function askProductQuestion(askerId: string, productId: string, question: string) {
+  const { error } = await supabase.rpc('ask_product_question', { p_asker_id: askerId, p_product_id: productId, p_question: question })
+  if (error) throw error
+}
+
+export async function reportProduct(reporterId: string, productId: string, reason: string, details: string) {
+  const { error } = await supabase.rpc('report_product', { p_reporter_id: reporterId, p_product_id: productId, p_reason: reason, p_details: details })
+  if (error) throw error
+}
+=== favorites ===
+import { supabase } from '@/lib/supabase'
+
+export async function isFavorited(userId: string, productId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('favorites')
+    .select('product_id')
+    .eq('user_id', userId)
+    .eq('product_id', productId)
+    .maybeSingle()
+  return Boolean(data)
+}
+
+export async function addFavorite(userId: string, productId: string) {
+  const { error } = await supabase.from('favorites').insert({ user_id: userId, product_id: productId })
+  if (error) throw error
+}
+
+export async function removeFavorite(userId: string, productId: string) {
+  const { error } = await supabase
+    .from('favorites')
+    .delete()
+    .eq('user_id', userId)
+    .eq('product_id', productId)
+  if (error) throw error
+}
+=== compare ===
+const STORAGE_KEY = 'bikrikoro:compare'
+const MAX_COMPARE = 3
+
+function readIds(): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function writeIds(ids: string[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(ids.slice(0, MAX_COMPARE)))
+  window.dispatchEvent(new Event('bikrikoro:compare-changed'))
+}
+
+export function getComparedProductIds(): string[] {
+  return readIds()
+}
+
+export function isCompared(productId: string): boolean {
+  return readIds().includes(productId)
+}
+
+export function toggleCompared(productId: string): { selected: boolean; limitReached: boolean } {
+  const current = readIds()
+  if (current.includes(productId)) {
+    writeIds(current.filter((id) => id !== productId))
+    return { selected: false, limitReached: false }
+  }
+  if (current.length >= MAX_COMPARE) return { selected: false, limitReached: true }
+  writeIds([...current, productId])
+  return { selected: true, limitReached: false }
+}
+
+export function removeCompared(productId: string) {
+  writeIds(readIds().filter((id) => id !== productId))
+}
+
+export const MAX_COMPARE_PRODUCTS = MAX_COMPARE
+=== preview API ===
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient } from '@supabase/supabase-js'
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const id = typeof req.query.id === 'string' ? req.query.id : ''
+  const site = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com'
+  const canonical = `${site}/products/${encodeURIComponent(id)}`
+  const fallbackImage = `${site}/icon-512.png`
+  const supabaseUrl = process.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
+
+  if (!id || !supabaseUrl || !supabaseAnonKey) {
+    res.redirect(307, canonical)
+    return
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  const { data: product } = await supabase
+    .from('products')
+    .select('title, description, price, location, images, video_url, condition')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!product) {
+    res.redirect(307, `${site}/products`)
+    return
+  }
+
+  const title = `${product.title} — ৳${product.price} | BikriKoro.Com`
+  const description = `${product.title} — ৳${product.price}${product.location ? `, ${product.location}` : ''}। ${(product.description ?? '').slice(0, 180)}`
+  const image = Array.isArray(product.images) && product.images[0] ? product.images[0] : fallbackImage
+  const video = typeof product.video_url === 'string' && /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(product.video_url) ? product.video_url : ''
+  const html = `<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${escapeHtml(canonical)}">
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="BikriKoro.Com">
+  <meta property="og:title" content="${escapeHtml(product.title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:image" content="${escapeHtml(image)}">
+  ${video ? `<meta property="og:video" content="${escapeHtml(video)}">` : ''}
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="${escapeHtml(canonical)}">
+  <meta property="og:locale" content="bn_BD">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(product.title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:image" content="${escapeHtml(image)}">
+  <meta http-equiv="refresh" content="0;url=${escapeHtml(canonical)}">
+</head>
+<body><p>পণ্যটি খুলছে… <a href="${escapeHtml(canonical)}">BikriKoro-তে দেখুন</a></p><script>location.replace(${JSON.stringify(canonical)})</script></body>
+</html>`
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=3600')
+  res.status(200).send(html)
+}

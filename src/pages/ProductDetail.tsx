@@ -28,6 +28,7 @@ export default function ProductDetail() {
   const [activeMedia, setActiveMedia] = useState(0)
   const [videoPlaying, setVideoPlaying] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showBuy, setShowBuy] = useState(false)
   const [startingChat, setStartingChat] = useState(false)
   const [favorited, setFavorited] = useState(false)
@@ -45,45 +46,75 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (!id) return
+    let active = true
     setLoading(true)
+    setLoadError(null)
+    setProduct(null)
+    setSeller(null)
+    setSellerBadges([])
     setActiveMedia(0)
     setVideoPlaying(false)
 
     async function load() {
-      const { data: productData } = await supabase.from('products').select('*').eq('id', id).single()
-      setProduct(productData)
+      try {
+        const { data: productData, error: productError } = await supabase.from('products').select('*').eq('id', id).maybeSingle()
+        if (productError) throw productError
+        if (!active) return
+        setProduct(productData as Product | null)
 
-      if (productData) {
-        const { data: sellerData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', productData.seller_id)
-          .maybeSingle()
-        setSeller(sellerData)
-        supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>))
-
-        trackProductView(productData.id)
-
-        // best-effort view count bump — not critical if it fails silently
-        supabase
-          .from('products')
-          .update({ view_count: productData.view_count + 1 })
-          .eq('id', id)
-          .then(() => {})
+        if (productData) {
+          const { data: sellerData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', productData.seller_id)
+            .maybeSingle()
+          if (!active) return
+          setSeller(sellerData)
+          supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => {
+            if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
+          })
+          void trackProductView(productData.id)
+          supabase.from('products').update({ view_count: productData.view_count + 1 }).eq('id', id).then(() => undefined)
+        }
+      } catch (error) {
+        console.error('Product detail load failed:', error)
+        if (active) setLoadError(error instanceof Error ? error.message : 'পণ্যটি লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
       }
-      setLoading(false)
     }
-    load()
+    void load()
+    return () => { active = false }
   }, [id])
 
   useEffect(() => {
-    if (!user || !id) return
-    isFavorited(user.uid, id).then(setFavorited)
-  }, [user, id])
+    if (!user || !id || !product) {
+      setFavorited(false)
+      setAlertEnabled(false)
+      setFollowingSeller(false)
+      return
+    }
+    let active = true
+    Promise.all([
+      isFavorited(user.uid, id),
+      supabase.from('product_alerts').select('alert_type').eq('user_id', user.uid).eq('product_id', id).eq('alert_type', product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK').maybeSingle(),
+      supabase.from('seller_follows').select('seller_id').eq('user_id', user.uid).eq('seller_id', product.seller_id).maybeSingle(),
+    ]).then(([favorite, alertResult, followResult]) => {
+      if (!active) return
+      setFavorited(favorite)
+      setAlertEnabled(Boolean(alertResult.data))
+      setFollowingSeller(Boolean(followResult.data))
+    }).catch((error) => console.error('Product preference load failed:', error))
+    return () => { active = false }
+  }, [user, id, product])
 
   useEffect(() => {
     if (!id) return
-    listProductQuestions(id).then(setQuestions).catch(() => setQuestions([]))
+    listProductQuestions(id).then(setQuestions).catch((error) => {
+      console.error('Product questions load failed:', error)
+      setQuestions([])
+      setFeatureMessage(error instanceof Error ? error.message : 'প্রশ্নগুলো লোড করা যায়নি।')
+    })
   }, [id])
 
   if (loading) {
@@ -97,7 +128,7 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <Layout wide>
-        <p className="py-16 text-center text-ink-600">পণ্যটি পাওয়া যায়নি — হয়তো সরিয়ে ফেলা হয়েছে।</p>
+        <div className="py-16 text-center"><p className="text-ink-600">{loadError ? `পণ্যটি লোড করা যায়নি: ${loadError}` : 'পণ্যটি পাওয়া যায়নি — হয়তো সরিয়ে ফেলা হয়েছে।'}</p><Link to="/products" className="mt-4 inline-flex border border-brand-500 px-4 py-2.5 text-sm font-semibold text-brand-700">সব পণ্য দেখুন</Link></div>
       </Layout>
     )
   }
@@ -117,13 +148,13 @@ export default function ProductDetail() {
       navigate(`/chat/${threadId}`)
     } catch (error) {
       console.error('seller chat start failed:', error)
-      setFeatureMessage('চ্যাট খোলা যায়নি। Supabase-এর chat migration প্রয়োগ করা আছে কি না এবং আপনার account profile তৈরি হয়েছে কি না দেখুন।')
+      setFeatureMessage(error instanceof Error ? `চ্যাট খোলা যায়নি: ${error.message}` : 'চ্যাট খোলা যায়নি।')
     } finally {
       setStartingChat(false)
     }
   }
 
-  const getShareUrl = () => `${window.location.origin}/api/product-preview?id=${encodeURIComponent(product.id)}`
+  const getShareUrl = () => `${SITE_URL}/api/product-preview?id=${encodeURIComponent(product.id)}`
 
   const handleShare = async () => {
     const url = getShareUrl()
@@ -163,23 +194,49 @@ export default function ProductDetail() {
 
   const handleAlert = async (type: 'PRICE_DROP' | 'BACK_IN_STOCK') => {
     if (!user) { navigate('/login'); return }
-    try { setAlertEnabled(await toggleProductAlert(user.uid, product.id, type)); setFeatureMessage(type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার available হলে আপনাকে জানানো হবে।') } catch { setFeatureMessage('Alert চালু করা যায়নি — 016 migration run করা হয়েছে কি না দেখুন।') }
+    try {
+      const enabled = await toggleProductAlert(user.uid, product.id, type)
+      setAlertEnabled(enabled)
+      setFeatureMessage(enabled ? (type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার available হলে আপনাকে জানানো হবে।') : 'এই product alert বন্ধ হয়েছে।')
+    } catch (error) {
+      setFeatureMessage(error instanceof Error ? `Alert চালু করা যায়নি: ${error.message}` : 'Alert চালু করা যায়নি।')
+    }
   }
 
   const handleFollow = async () => {
     if (!user) { navigate('/login'); return }
-    try { setFollowingSeller(await toggleSellerFollow(user.uid, product.seller_id)); setFeatureMessage(followingSeller ? 'Seller follow বন্ধ হয়েছে।' : 'Seller follow করা হয়েছে।') } catch { setFeatureMessage('Seller follow চালু করা যায়নি।') }
+    try {
+      const nextFollowing = await toggleSellerFollow(user.uid, product.seller_id)
+      setFollowingSeller(nextFollowing)
+      setFeatureMessage(nextFollowing ? 'Seller follow করা হয়েছে।' : 'Seller follow বন্ধ হয়েছে।')
+    } catch (error) {
+      setFeatureMessage(error instanceof Error ? `Seller follow চালু করা যায়নি: ${error.message}` : 'Seller follow চালু করা যায়নি।')
+    }
   }
 
   const handleAsk = async () => {
     if (!user) { navigate('/login'); return }
     if (!questionText.trim()) return
-    try { await askProductQuestion(user.uid, product.id, questionText.trim()); setQuestionText(''); setFeatureMessage('আপনার প্রশ্ন জমা হয়েছে। Seller উত্তর দিলে এখানে দেখা যাবে।'); setQuestions(await listProductQuestions(product.id)) } catch { setFeatureMessage('প্রশ্ন জমা দেওয়া যায়নি।') }
+    try {
+      await askProductQuestion(user.uid, product.id, questionText.trim())
+      setQuestionText('')
+      setFeatureMessage('আপনার প্রশ্ন জমা হয়েছে। Seller উত্তর দিলে এখানে দেখা যাবে।')
+      setQuestions(await listProductQuestions(product.id))
+    } catch (error) {
+      setFeatureMessage(error instanceof Error ? `প্রশ্ন জমা দেওয়া যায়নি: ${error.message}` : 'প্রশ্ন জমা দেওয়া যায়নি।')
+    }
   }
 
   const handleReport = async () => {
     if (!user) { navigate('/login'); return }
-    try { await reportProduct(user.uid, product.id, reportReason, reportDetails); setShowReport(false); setReportDetails(''); setFeatureMessage('Report জমা হয়েছে। আমাদের team review করবে।') } catch { setFeatureMessage('Report জমা দেওয়া যায়নি।') }
+    try {
+      await reportProduct(user.uid, product.id, reportReason, reportDetails)
+      setShowReport(false)
+      setReportDetails('')
+      setFeatureMessage('Report জমা হয়েছে। আমাদের team review করবে।')
+    } catch (error) {
+      setFeatureMessage(error instanceof Error ? `Report জমা দেওয়া যায়নি: ${error.message}` : 'Report জমা দেওয়া যায়নি।')
+    }
   }
 
   return (
@@ -297,9 +354,10 @@ export default function ProductDetail() {
             )}
             {user && (
               <button
+                type="button"
                 onClick={handleToggleFavorite}
                 disabled={togglingFavorite}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-outline text-lg hover:border-error"
+                className="flex h-9 w-9 items-center justify-center rounded-none border border-outline text-lg hover:border-error"
                 aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'}
               >
                 <span className={favorited ? 'text-error' : 'text-ink-300'}>{favorited ? '♥' : '♡'}</span>
@@ -320,22 +378,23 @@ export default function ProductDetail() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <button
-              onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-medium ${alertEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}
+            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')}
+              className={`inline-flex items-center gap-1.5 rounded-none border px-3 py-1.5 font-medium ${alertEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}
             >
               <Bell size={14} />{alertEnabled ? 'Alert চালু আছে' : product.is_digital ? 'দাম কমলে জানাবেন' : 'স্টক এলে জানাবেন'}
             </button>
-            <button onClick={() => setShowReport(true)} className="inline-flex items-center gap-1.5 rounded-full border border-outline px-3 py-1.5 font-medium text-ink-600 hover:border-error hover:text-error"><Flag size={14} />Report</button>
+            <button type="button" onClick={() => setShowReport(true)} className="inline-flex items-center gap-1.5 rounded-none border border-outline px-3 py-1.5 font-medium text-ink-600 hover:border-error hover:text-error"><Flag size={14} />Report</button>
             <button
+              type="button"
               onClick={handleShare}
-              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+              className="rounded-none border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
             >
               শেয়ার / লিংক কপি
             </button>
             <button
+              type="button"
               onClick={handleWhatsAppShare}
-              className="rounded-full border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+              className="rounded-none border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
             >
               WhatsApp-এ পাঠান
             </button>
@@ -403,12 +462,12 @@ export default function ProductDetail() {
               <span className="shrink-0 text-xs font-medium text-brand-600">প্রোফাইল দেখুন →</span>
             </Link>
           )}
-          {seller && <button onClick={handleFollow} className={`mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold ${followingSeller ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}><UserPlus size={16} />{followingSeller ? 'Seller follow করা আছে' : 'Seller follow করুন'}</button>}
+          {seller && <button type="button" onClick={handleFollow} className={`mt-2 inline-flex items-center gap-2 rounded-none border px-3 py-2 text-sm font-semibold ${followingSeller ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}><UserPlus size={16} />{followingSeller ? 'Seller follow করা আছে' : 'Seller follow করুন'}</button>}
 
           <section className="mt-6 rounded-2xl border border-outline bg-surface p-4">
             <div className="flex items-center gap-2"><MessageCircleQuestion size={19} className="text-brand-600" /><h2 className="font-semibold text-ink-900">প্রশ্ন ও উত্তর</h2></div>
             <div className="mt-3 space-y-3">{questions.length === 0 ? <p className="text-sm text-ink-500">এখনো কোনো প্রশ্ন নেই। প্রথম প্রশ্নটি করুন।</p> : questions.map((question) => <div key={question.id} className="rounded-xl bg-bg p-3"><p className="text-sm font-medium text-ink-800">প্রশ্ন: {question.question}</p>{question.answer && <p className="mt-2 text-sm text-ink-600">উত্তর: {question.answer}</p>}</div>)}</div>
-            {user ? <div className="mt-3 flex gap-2"><input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="এই পণ্য সম্পর্কে প্রশ্ন করুন..." className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button onClick={handleAsk} className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white">জিজ্ঞাসা</button></div> : <Link to="/login" className="mt-3 inline-block text-sm font-semibold text-brand-600">প্রশ্ন করতে লগইন করুন</Link>}
+            {user ? <div className="mt-3 flex gap-2"><input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="এই পণ্য সম্পর্কে প্রশ্ন করুন..." className="min-w-0 flex-1 rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={handleAsk} className="rounded-none bg-brand-500 px-3 py-2 text-sm font-semibold text-white">জিজ্ঞাসা</button></div> : <Link to="/login" className="mt-3 inline-block text-sm font-semibold text-brand-600">প্রশ্ন করতে লগইন করুন</Link>}
           </section>
           {featureMessage && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{featureMessage}</p>}
 
@@ -423,15 +482,17 @@ export default function ProductDetail() {
             ) : user ? (
               <>
                 <button
+                  type="button"
                   onClick={() => setShowBuy(true)}
-                  className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+                  className="w-full rounded-none bg-brand-500 py-3 text-sm font-semibold text-white hover:bg-brand-600"
                 >
                   অর্ডার করুন
                 </button>
                 <button
+                  type="button"
                   onClick={handleChat}
                   disabled={startingChat}
-                  className="w-full rounded-xl border border-outline py-3 text-sm font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-50"
+                  className="w-full rounded-none border border-outline py-3 text-sm font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-50"
                 >
                   {startingChat ? 'অপেক্ষা করুন...' : 'বিক্রেতার সাথে চ্যাট করুন'}
                 </button>
@@ -467,7 +528,7 @@ export default function ProductDetail() {
       />
 
       {showBuy && user && <BuyModal product={product} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
-      {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">Listing report করুন</h2><p className="mt-1 text-sm text-ink-500">কেন listing-টি সমস্যা মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="Report-এর কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক listing', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button onClick={() => setShowReport(false)} className="flex-1 rounded-xl border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button onClick={handleReport} className="flex-1 rounded-xl bg-error py-2.5 text-sm font-semibold text-white">Report পাঠান</button></div></div></div>}
+      {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">Listing report করুন</h2><p className="mt-1 text-sm text-ink-500">কেন listing-টি সমস্যা মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="Report-এর কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক listing', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button type="button" onClick={() => setShowReport(false)} className="flex-1 rounded-none border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button type="button" onClick={handleReport} className="flex-1 rounded-none bg-error py-2.5 text-sm font-semibold text-white">Report পাঠান</button></div></div></div>}
     </Layout>
   )
 }

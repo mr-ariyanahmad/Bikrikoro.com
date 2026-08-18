@@ -14,21 +14,36 @@ export default function SellerProfile() {
   const [products, setProducts] = useState<Product[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
+    let active = true
+    setLoading(true)
+    setLoadError(null)
     async function load() {
-      const [sellerRes, productsRes, reviewsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
-        supabase.from('products').select('*').eq('seller_id', id).order('created_at', { ascending: false }),
-        supabase.from('reviews').select('*').eq('seller_id', id).order('created_at', { ascending: false }).limit(20),
-      ])
-      setSeller(sellerRes.data)
-      setProducts(productsRes.data ?? [])
-      setReviews(reviewsRes.data ?? [])
-      setLoading(false)
+      try {
+        const [sellerRes, productsRes, reviewsRes] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
+          supabase.from('products').select('*').eq('seller_id', id).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }),
+          supabase.from('reviews').select('*').eq('seller_id', id).order('created_at', { ascending: false }).limit(20),
+        ])
+        if (sellerRes.error) throw sellerRes.error
+        if (productsRes.error) throw productsRes.error
+        if (reviewsRes.error) throw reviewsRes.error
+        if (!active) return
+        setSeller(sellerRes.data)
+        setProducts(productsRes.data ?? [])
+        setReviews(reviewsRes.data ?? [])
+      } catch (error) {
+        console.error('Seller profile load failed:', error)
+        if (active) setLoadError(error instanceof Error ? error.message : 'সেলার প্রোফাইল লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-    load()
+    void load()
+    return () => { active = false }
   }, [id])
 
   if (loading) {
@@ -42,7 +57,7 @@ export default function SellerProfile() {
   if (!seller) {
     return (
       <Layout wide>
-        <p className="py-16 text-center text-ink-600">এই বিক্রেতাকে পাওয়া যায়নি।</p>
+        <div className="py-16 text-center"><p className="text-ink-600">{loadError ? `সেলার প্রোফাইল লোড করা যায়নি: ${loadError}` : 'এই বিক্রেতাকে পাওয়া যায়নি।'}</p><a href="/products" className="mt-4 inline-flex border border-brand-500 px-4 py-2.5 text-sm font-semibold text-brand-700">সব পণ্য দেখুন</a></div>
       </Layout>
     )
   }
