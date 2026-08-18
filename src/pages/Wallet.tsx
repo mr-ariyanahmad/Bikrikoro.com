@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Download, Filter } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -24,13 +24,28 @@ export default function Wallet() {
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState<'all' | 'credit' | 'debit'>('all')
+  const [refreshing, setRefreshing] = useState(false)
+  const userRef = useRef(user)
+  const requestInFlightRef = useRef(false)
+  const queuedRefreshRef = useRef(false)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  userRef.current = user
 
-  const loadWallet = useCallback(async () => {
-    if (!user?.uid) return
-    setLoading(true)
+  const loadWallet = useCallback(async (background = false) => {
+    if (!uid) return
+    if (requestInFlightRef.current) {
+      if (background) queuedRefreshRef.current = true
+      return
+    }
+
+    requestInFlightRef.current = true
+    if (background) setRefreshing(true)
+    else setLoading(true)
     setLoadError(null)
     try {
-      const idToken = await user.getIdToken()
+      const currentUser = userRef.current
+      if (!currentUser) return
+      const idToken = await currentUser.getIdToken()
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
       const payload = await response.json().catch(() => ({})) as { error?: string; warning?: string | null; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null; withdrawals?: WithdrawalRequest[] }
       if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
@@ -45,40 +60,43 @@ export default function Wallet() {
       console.error('Wallet load failed:', error)
       setLoadError(error instanceof Error ? error.message : 'ওয়ালেট লোড করা যায়নি।')
     } finally {
-      setLoading(false)
+      requestInFlightRef.current = false
+      if (background) setRefreshing(false)
+      else setLoading(false)
+      if (queuedRefreshRef.current) {
+        queuedRefreshRef.current = false
+        void loadWallet(true)
+      }
     }
-  }, [user])
+  }, [uid])
 
   useEffect(() => {
-    if (authLoading || !user?.uid) return
+    if (authLoading || !uid) return
     void loadWallet()
 
-    // Balance, ledger, and withdrawal requests update the moment a seller-
-    // cancelled order refunds the buyer, a sale completes, or a payout is
-    // requested/rejected/paid — all server-side, this just reflects it live.
+    const scheduleBackgroundRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = null
+        void loadWallet(true)
+      }, 250)
+    }
+
+    // Several wallet tables change during one payment. Coalesce those events
+    // into one background refresh so the page does not flicker or jump.
     const channel = supabase
-      .channel(`wallet-${user.uid}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_balances', filter: `user_id=eq.${user.uid}` },
-        () => { void loadWallet() }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${user.uid}` },
-        () => { void loadWallet() }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_withdrawal_requests', filter: `user_id=eq.${user.uid}` },
-        () => { void loadWallet() }
-      )
+      .channel(`wallet-${uid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_balances', filter: `user_id=eq.${uid}` }, scheduleBackgroundRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${uid}` }, scheduleBackgroundRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_withdrawal_requests', filter: `user_id=eq.${uid}` }, scheduleBackgroundRefresh)
       .subscribe()
 
     return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+      refreshTimerRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [authLoading, user, loadWallet])
+  }, [authLoading, uid, loadWallet])
 
   const visibleEntries = entries.filter((entry) => entryFilter === 'all' || (entryFilter === 'credit' ? entry.amount >= 0 : entry.amount < 0))
   const exportCsv = () => {
@@ -96,7 +114,7 @@ export default function Wallet() {
         <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
       ) : (
         <>
-          {loading && <p className="mb-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">Wallet data আপডেট হচ্ছে...</p>}
+          {refreshing && <span className="sr-only" role="status">Wallet data আপডেট হচ্ছে...</span>}
           {loadError && <p className="mb-4 border border-error/20 bg-error/5 p-3 text-sm text-error">{hasLoaded && balance ? `Wallet-এর কিছু data লোড হয়নি: ${loadError}` : `ওয়ালেট লোড করা যায়নি: ${loadError}`}</p>}
           <BalanceCard
             balance={balance?.available_balance ?? null}
@@ -125,7 +143,7 @@ export default function Wallet() {
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             setShowWithdraw(false)
-            void loadWallet()
+            void loadWallet(true)
             setToast('উত্তোলনের অনুরোধ জমা হয়েছে — এই amount এখন reserved আছে।')
             setTimeout(() => setToast(null), 4000)
           }}
