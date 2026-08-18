@@ -1,0 +1,19 @@
+
+> bikrikoro-web@0.0.0 lint
+> oxlint
+
+
+  ! react(only-export-components): Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components.
+     ,-[src/context/AuthContext.tsx:232:17]
+ 231 | 
+ 232 | export function useAuth(): AuthContextValue {
+     :                 ^^^^^^^
+ 233 |   const ctx = useContext(AuthContext)
+     `----
+
+Found 1 warning and 0 errors.
+Finished in 24ms on 130 files with 104 rules using 6 threads.
+ [31mM[m api/[...route].ts
+ [31mM[m src/pages/SellerVerification.tsx
+[31m??[m audit/verification-audit-current.txt
+[31m??[m audit/verification-fix-validation.txt

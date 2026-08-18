@@ -36,7 +36,10 @@ const HANDLERS: Record<string, ApiHandler> = {
 function routeName(req: VercelRequest) {
   const route = req.query.route
   const parts = Array.isArray(route) ? route : typeof route === 'string' ? [route] : []
-  return parts.join('/').replace(/^\/+|\/+$/g, '')
+  const fromQuery = parts.join('/').replace(/^\/+|\/+$/g, '')
+  if (fromQuery) return fromQuery
+  const pathname = (req.url ?? '').split('?')[0]
+  return pathname.replace(/^\/api\//, '').replace(/^\/+|\/+$/g, '')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
