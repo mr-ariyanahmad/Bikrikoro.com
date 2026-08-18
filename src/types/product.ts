@@ -12,6 +12,7 @@ export interface Product {
   price: number
   original_price: number | null
   images: string[]
+  video_url?: string | null
   category_id: string
   condition: 'NEW' | 'USED'
   location: string

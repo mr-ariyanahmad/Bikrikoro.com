@@ -23,7 +23,9 @@
 
   --color-warning: #F5A524;
   --color-error: #E0433D;
-  --color-info: #2F80ED;
+  --color-info: #017C50;
+  --color-success: #017C50;
+  --color-danger: #C83832;
 }
 
 body {
@@ -49,6 +51,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+:where(button, [role="button"]) {
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
 :where(button):active {
   transform: scale(0.985);
 }
@@ -69,6 +76,63 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Minimal storefront language: the splash screen is the visual source of truth. */
+.site-minimal :where(button, [role="button"]) {
+  border-radius: 4px !important;
+  font-size: 1rem;
+}
+
+.site-minimal a[class*="bg-brand-"],
+.site-minimal a[class*="border-brand-"],
+.site-minimal a[class*="border-outline"],
+.site-minimal a[class*="bg-error"] {
+  border-radius: 4px !important;
+  font-size: 1rem;
+}
+
+.site-minimal :where(input, textarea, select) {
+  border-radius: 4px !important;
+}
+
+.site-minimal [class*="rounded-3xl"] { border-radius: 12px !important; }
+.site-minimal [class*="rounded-2xl"] { border-radius: 10px !important; }
+.site-minimal [class*="rounded-xl"] { border-radius: 8px !important; }
+.site-minimal [class*="rounded-lg"] { border-radius: 6px !important; }
+.site-minimal :where(button, [role="button"])[class*="rounded-full"] { border-radius: 4px !important; }
+
+/* Non-semantic decorative accents use one brand family instead of rainbow utility colors. */
+.site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) {
+  background-color: var(--color-brand-50) !important;
+}
+.site-minimal :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-orange-"], [class*="text-emerald-"]) {
+  color: var(--color-brand-700) !important;
+}
+.site-minimal :where([class*="border-violet-"], [class*="border-purple-"], [class*="border-sky-"], [class*="border-orange-"], [class*="border-emerald-"]) {
+  border-color: var(--color-brand-100) !important;
+}
+
+/* Admin controls follow the same 16px square-corner interaction language. */
+.admin-theme :where(button, [role="button"]) {
+  border-radius: 4px !important;
+  font-size: 1rem;
+}
+.admin-theme a[class*="bg-brand-"],
+.admin-theme a[class*="border-brand-"],
+.admin-theme a[class*="border-slate-"] {
+  border-radius: 4px !important;
+  font-size: 1rem;
+}
+.admin-theme :where(input, textarea, select) { border-radius: 4px !important; }
+.admin-theme [class*="rounded-3xl"] { border-radius: 12px !important; }
+.admin-theme [class*="rounded-2xl"] { border-radius: 10px !important; }
+.admin-theme [class*="rounded-xl"] { border-radius: 8px !important; }
+.admin-theme [class*="rounded-lg"] { border-radius: 6px !important; }
+.admin-theme :where(button, [role="button"])[class*="rounded-full"] { border-radius: 4px !important; }
+
+/* Admin non-semantic accents remain readable but are mapped to the brand family. */
+.admin-theme :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) { background-color: var(--color-brand-50) !important; }
+.admin-theme :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-orange-"], [class*="text-emerald-"]) { color: var(--color-brand-700) !important; }
 
 /* Admin workspace theme: keep existing page markup consistent with BikriKoro brand tokens. */
 .admin-theme .bg-white,

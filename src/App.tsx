@@ -32,6 +32,8 @@ import SellerDashboard from '@/pages/SellerDashboard'
 import Favorites from '@/pages/Favorites'
 import SettingsHub from '@/pages/SettingsHub'
 import PublicContentPage from '@/pages/PublicContentPage'
+import Blog from '@/pages/Blog'
+import BlogPost from '@/pages/BlogPost'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
 import AdminOrders from '@/pages/admin/AdminOrders'
 import AdminDeliveries from '@/pages/admin/AdminDeliveries'
@@ -52,6 +54,7 @@ import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
 import AdminFeatureControls from '@/pages/admin/AdminFeatureControls'
 import AdminTeam from '@/pages/admin/AdminTeam'
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
+import { SiteMeta } from '@/components/SiteMeta'
 
 function AppRoutes() {
   useEnsureProfile()
@@ -188,6 +191,8 @@ function AppRoutes() {
       <Route path="/privacy" element={<PublicContentPage type="PRIVACY" />} />
       <Route path="/about" element={<PublicContentPage type="ABOUT" />} />
       <Route path="/contact" element={<PublicContentPage type="CONTACT" />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
       <Route
         path="/saved-searches"
         element={
@@ -488,6 +493,7 @@ export default function App() {
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
+          <SiteMeta />
           <FirstVisitSplash>
             <AppRoutes />
           </FirstVisitSplash>

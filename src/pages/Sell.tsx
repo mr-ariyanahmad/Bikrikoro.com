@@ -9,6 +9,7 @@ import { ImageUploader } from '@/components/ImageUploader'
 import { uploadProductImages } from '@/lib/storage'
 import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
 import type { Category } from '@/types/product'
+import { isYouTubeUrl } from '@/lib/youtube'
 
 interface LocalImage {
   url: string
@@ -42,6 +43,7 @@ export default function Sell() {
   const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
   const [location, setLocation] = useState('')
   const [images, setImages] = useState<LocalImage[]>([])
+  const [videoUrl, setVideoUrl] = useState('')
   const [loadingExisting, setLoadingExisting] = useState(isEditing)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -94,6 +96,7 @@ export default function Sell() {
     setDigitalDeliveryText(draft.digitalDeliveryText)
     setLocation(draft.location)
     setImages(draft.images.map((url) => ({ url })))
+    setVideoUrl(draft.videoUrl)
     setModeSelected(true)
     setDraftMessage('আগের অসম্পূর্ণ ড্রাফট লোড হয়েছে।')
   }, [isEditing, modeLocked])
@@ -122,6 +125,7 @@ export default function Sell() {
         setFreeReturn(Boolean(data.free_return))
         setLocation(data.location || '')
         setImages(data.images.map((url: string) => ({ url })))
+        setVideoUrl(data.video_url || '')
         const { data: delivery } = await supabase
           .from('digital_product_contents')
           .select('delivery_type, delivery_text')
@@ -152,6 +156,7 @@ export default function Sell() {
       digitalDeliveryText,
       location,
       images: images.filter((image) => !image.uploading).map((image) => image.url),
+      videoUrl,
     })
     setDraftMessage('ড্রাফট সেভ হয়েছে। পরে আবার এলে এখান থেকেই শুরু করতে পারবেন।')
   }
@@ -201,7 +206,8 @@ export default function Sell() {
     (!isDigital || digitalVerified) &&
     (!isDigital || digitalDeliveryText.trim().length >= 3) &&
     images.length > 0 &&
-    !images.some((img) => img.uploading)
+    !images.some((img) => img.uploading) &&
+    (!videoUrl.trim() || isYouTubeUrl(videoUrl))
   const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
   const qualityScore = Math.round((qualityChecks.filter(Boolean).length / qualityChecks.length) * 100)
 
@@ -223,6 +229,12 @@ export default function Sell() {
       return
     }
 
+    if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) {
+      setError('শুধু valid YouTube video link দেওয়া যাবে।')
+      setSubmitting(false)
+      return
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim(),
@@ -237,6 +249,7 @@ export default function Sell() {
       free_return: !isDigital && freeReturn,
       location: isDigital ? '' : location.trim(),
       images: images.map((img) => img.url),
+      video_url: videoUrl.trim() || null,
       seller_id: user.uid,
     }
 
@@ -257,6 +270,7 @@ export default function Sell() {
           p_free_delivery: payload.free_delivery,
           p_fast_delivery: payload.fast_delivery,
           p_free_return: payload.free_return,
+          p_video_url: payload.video_url,
         })
 
     const savedProductId = id ?? result.data
@@ -329,6 +343,18 @@ export default function Sell() {
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-900">ছবি</label>
           <ImageUploader images={images} onAdd={handleAddImages} onRemove={handleRemoveImage} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-900">YouTube product video (ঐচ্ছিক)</label>
+          <input
+            type="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-brand-500 ${videoUrl && !isYouTubeUrl(videoUrl) ? 'border-error' : 'border-outline'}`}
+          />
+          <p className="mt-1.5 text-xs text-ink-500">YouTube link দিলে product page-এ video প্রথমে দেখাবে; swipe করলে product-এর ছবি দেখা যাবে।</p>
         </div>
 
         <div>

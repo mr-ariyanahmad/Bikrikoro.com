@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BadgeCheck, Bell, Flag, MessageCircleQuestion, UserPlus } from 'lucide-react'
+import { BadgeCheck, Bell, Flag, MessageCircleQuestion, Play, UserPlus } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -14,6 +14,8 @@ import { trackProductView } from '@/lib/recentlyViewed'
 import { askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, Profile } from '@/types/product'
+import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
+import { SITE_URL } from '@/lib/site'
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -23,7 +25,8 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null)
   const [seller, setSeller] = useState<Profile | null>(null)
   const [sellerBadges, setSellerBadges] = useState<Array<{ badge_key: string; badge_label: string }>>([])
-  const [activeImage, setActiveImage] = useState(0)
+  const [activeMedia, setActiveMedia] = useState(0)
+  const [videoPlaying, setVideoPlaying] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showBuy, setShowBuy] = useState(false)
   const [startingChat, setStartingChat] = useState(false)
@@ -43,6 +46,8 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
+    setActiveMedia(0)
+    setVideoPlaying(false)
 
     async function load() {
       const { data: productData } = await supabase.from('products').select('*').eq('id', id).single()
@@ -98,6 +103,10 @@ export default function ProductDetail() {
   }
 
   const isOwnListing = user?.uid === product.seller_id
+  const videoEmbedUrl = getYouTubeEmbedUrl(product.video_url)
+  const videoId = getYouTubeVideoId(product.video_url)
+  const mediaCount = product.images.length + (videoEmbedUrl ? 1 : 0)
+  const activeImageIndex = activeMedia - (videoEmbedUrl ? 1 : 0)
 
   const handleChat = async () => {
     if (!user) { navigate('/login'); return }
@@ -182,12 +191,13 @@ export default function ProductDetail() {
           name="description"
           content={`${product.title} — ${formatTaka(product.price)} টাকায় ${product.location}-এ। ${(product.description || '').slice(0, 120)}`}
         />
-        <link rel="canonical" href={`https://bikrikoro.com/products/${product.id}`} />
+        <link rel="canonical" href={`${SITE_URL}/products/${product.id}`} />
         <meta property="og:type" content="product" />
         <meta property="og:title" content={product.title} />
         <meta property="og:description" content={(product.description || '').slice(0, 200)} />
         {product.images[0] && <meta property="og:image" content={product.images[0]} />}
-        <meta property="og:url" content={`https://bikrikoro.com/products/${product.id}`} />
+        {videoEmbedUrl && <meta property="og:video" content={videoEmbedUrl} />}
+        <meta property="og:url" content={`${SITE_URL}/products/${product.id}`} />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -200,10 +210,16 @@ export default function ProductDetail() {
               price: product.price,
               priceCurrency: 'BDT',
               availability: 'https://schema.org/InStock',
-              url: `https://bikrikoro.com/products/${product.id}`,
+              url: `${SITE_URL}/products/${product.id}`,
             },
             itemCondition:
               product.condition === 'NEW' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+            video: videoEmbedUrl ? {
+              '@type': 'VideoObject',
+              embedUrl: videoEmbedUrl,
+              name: `${product.title} product video`,
+              description: product.description || product.title,
+            } : undefined,
           })}
         </script>
       </Helmet>
@@ -220,16 +236,27 @@ export default function ProductDetail() {
               const deltaX = e.changedTouches[0].clientX - touchStartX.current
               touchStartX.current = null
               const SWIPE_THRESHOLD = 40
-              if (Math.abs(deltaX) < SWIPE_THRESHOLD || product.images.length < 2) return
-              setActiveImage((i) => {
-                if (deltaX < 0) return (i + 1) % product.images.length // swipe left -> next
-                return (i - 1 + product.images.length) % product.images.length // swipe right -> prev
+              if (Math.abs(deltaX) < SWIPE_THRESHOLD || mediaCount < 2) return
+              setActiveMedia((i) => {
+                if (deltaX < 0) return (i + 1) % mediaCount // swipe left -> next
+                return (i - 1 + mediaCount) % mediaCount // swipe right -> prev
               })
             }}
           >
-            {product.images[activeImage] ? (
+            {videoEmbedUrl && activeMedia === 0 ? (
+              videoPlaying ? <iframe
+                src={videoEmbedUrl}
+                title={`${product.title} product video`}
+                className="h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              /> : <button type="button" onClick={() => setVideoPlaying(true)} className="relative h-full w-full overflow-hidden bg-ink-900 text-left">
+                {videoId && <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${product.title} video preview`} className="h-full w-full object-cover opacity-80" />}
+                <span className="absolute inset-0 flex items-center justify-center"><span className="inline-flex items-center gap-2 bg-brand-500 px-4 py-3 text-base font-semibold text-white"><Play size={19} fill="currentColor" />ভিডিও চালু করুন</span></span>
+              </button>
+            ) : product.images[activeImageIndex] ? (
               <img
-                src={product.images[activeImage]}
+                src={product.images[activeImageIndex]}
                 alt={product.title}
                 className="h-full w-full object-cover"
                 draggable={false}
@@ -237,30 +264,24 @@ export default function ProductDetail() {
             ) : (
               <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
             )}
-            {product.images.length > 1 && (
+            {mediaCount > 1 && (
               <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
-                {product.images.map((_, i) => (
+                {Array.from({ length: mediaCount }, (_, i) => (
                   <span
                     key={i}
-                    className={`h-1.5 w-1.5 rounded-full ${i === activeImage ? 'bg-white' : 'bg-white/50'}`}
+                    className={`h-1.5 w-1.5 rounded-full ${i === activeMedia ? 'bg-white' : 'bg-white/50'}`}
                   />
                 ))}
               </div>
             )}
           </div>
-          {product.images.length > 1 && (
+          {mediaCount > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto">
-              {product.images.map((img, i) => (
-                <button
-                  key={img}
-                  onClick={() => setActiveImage(i)}
-                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 ${
-                    i === activeImage ? 'border-brand-500' : 'border-transparent'
-                  }`}
-                >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
+              {videoEmbedUrl && <button type="button" onClick={() => { setActiveMedia(0); setVideoPlaying(false) }} className={`flex h-16 w-24 shrink-0 items-center justify-center gap-1 border-2 bg-ink-900 text-xs font-semibold text-white ${activeMedia === 0 ? 'border-brand-500' : 'border-transparent'}`}><Play size={15} fill="currentColor" />ভিডিও</button>}
+              {product.images.map((img, i) => {
+                const mediaIndex = videoEmbedUrl ? i + 1 : i
+                return <button type="button" key={img} onClick={() => { setActiveMedia(mediaIndex); setVideoPlaying(false) }} className={`h-16 w-16 shrink-0 overflow-hidden border-2 ${mediaIndex === activeMedia ? 'border-brand-500' : 'border-transparent'}`}><img src={img} alt="" className="h-full w-full object-cover" /></button>
+              })}
             </div>
           )}
         </div>

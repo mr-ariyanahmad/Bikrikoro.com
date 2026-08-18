@@ -14,6 +14,7 @@ export interface ListingDraft {
   digitalDeliveryText: string
   location: string
   images: string[]
+  videoUrl: string
   savedAt: string
 }
 
@@ -45,6 +46,7 @@ export function loadListingDraft(): ListingDraft | null {
       digitalDeliveryText: typeof value.digitalDeliveryText === 'string' ? value.digitalDeliveryText : '',
       location: typeof value.location === 'string' ? value.location : '',
       images: Array.isArray(value.images) ? value.images.filter((image): image is string => typeof image === 'string') : [],
+      videoUrl: typeof value.videoUrl === 'string' ? value.videoUrl : '',
       savedAt: typeof value.savedAt === 'string' ? value.savedAt : new Date().toISOString(),
     }
   } catch {

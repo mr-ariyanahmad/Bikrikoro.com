@@ -12,7 +12,7 @@ function escapeHtml(value: unknown) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const id = typeof req.query.id === 'string' ? req.query.id : ''
-  const site = 'https://bikrikoro.com'
+  const site = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com'
   const canonical = `${site}/products/${encodeURIComponent(id)}`
   const fallbackImage = `${site}/icon-512.png`
   const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
   const { data: product } = await supabase
     .from('products')
-    .select('title, description, price, location, images, condition')
+    .select('title, description, price, location, images, video_url, condition')
     .eq('id', id)
     .maybeSingle()
 
@@ -38,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const title = `${product.title} — ৳${product.price} | BikriKoro.Com`
   const description = `${product.title} — ৳${product.price}${product.location ? `, ${product.location}` : ''}। ${(product.description ?? '').slice(0, 180)}`
   const image = Array.isArray(product.images) && product.images[0] ? product.images[0] : fallbackImage
+  const video = typeof product.video_url === 'string' && /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(product.video_url) ? product.video_url : ''
   const html = `<!doctype html>
 <html lang="bn">
 <head>
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <meta property="og:title" content="${escapeHtml(product.title)}">
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta property="og:image" content="${escapeHtml(image)}">
+  ${video ? `<meta property="og:video" content="${escapeHtml(video)}">` : ''}
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${escapeHtml(canonical)}">

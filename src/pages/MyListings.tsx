@@ -55,6 +55,7 @@ export default function MyListings() {
       p_free_delivery: Boolean(product.free_delivery),
       p_fast_delivery: Boolean(product.fast_delivery),
       p_free_return: Boolean(product.free_return),
+      p_video_url: product.video_url ?? null,
     })
     if (error || !newProductId) {
       setMessage(`লিস্টিং copy করা যায়নি: ${error?.message || 'অজানা সমস্যা'}`)

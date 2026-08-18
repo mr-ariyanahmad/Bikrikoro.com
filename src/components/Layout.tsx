@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
-import { Bell, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
@@ -18,6 +18,7 @@ const NAV_LINKS: NavItem[] = [
   { to: '/compare', label: 'তুলনা', icon: Package },
   { to: '/become-seller', label: 'বিক্রি করুন', icon: WalletCards },
   { to: '/orders', label: 'অর্ডার', icon: Package },
+  { to: '/blog', label: 'গাইড', icon: BookOpen },
 ]
 const ACCOUNT_LINKS: NavItem[] = [
   { to: '/library', label: 'ডিজিটাল লাইব্রেরি', icon: Package },
@@ -65,7 +66,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
   }, [user])
 
   return (
-    <div className="min-h-screen bg-bg text-ink-900">
+    <div className="site-minimal min-h-screen bg-bg text-ink-900">
       <header className="sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur">
         <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
           <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
