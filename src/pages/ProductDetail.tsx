@@ -460,8 +460,8 @@ export default function ProductDetail() {
               to={`/sellers/${seller.id}`}
               className="mt-6 flex items-center gap-3 rounded-xl border border-outline p-4 hover:border-brand-500/40"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700">
-                {seller.name.charAt(0) || '?'}
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-100 font-semibold text-brand-700">
+                {seller.photo_url ? <img src={seller.photo_url} alt={`${seller.shop_name || seller.name || 'Seller'} shop`} className="h-full w-full object-cover" loading="lazy" /> : (seller.name.charAt(0) || '?')}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
