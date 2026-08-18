@@ -32,7 +32,7 @@ const ACCOUNT_LINKS: NavItem[] = [
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
-export function Layout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান' }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string }) {
   const { user, logout } = useAuth()
   const { isAdmin } = useIsAdmin()
   const { isSeller } = useIsSeller()
@@ -100,7 +100,7 @@ export function Layout({ children, wide = false }: { children: ReactNode; wide?:
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button type="button" onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}
         </div>
       </header>
-      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}><BackButton />{children}</main>
+      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}><BackButton fallbackTo={backFallback} label={backLabel} />{children}</main>
       <footer className="border-t border-outline bg-surface"><div className={`mx-auto ${maxWidth} flex flex-col items-center gap-3 px-5 py-7 text-xs text-ink-300 sm:flex-row sm:justify-between`}><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-600">Settings ও Help</Link><Link to="/help" className="hover:text-ink-600">সাহায্য</Link></div></div></footer>
     </div>
   )

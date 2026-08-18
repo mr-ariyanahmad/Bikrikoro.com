@@ -94,7 +94,7 @@ export default function OrderDetail() {
 
   if (loading) {
     return (
-      <Layout>
+      <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
         <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
       </Layout>
     )
@@ -102,12 +102,9 @@ export default function OrderDetail() {
 
   if (error || !order || !user) {
     return (
-      <Layout>
+      <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
         <div className="rounded-2xl border border-outline bg-surface p-8 text-center">
           <p className="text-ink-600">{error ?? 'অর্ডারটি পাওয়া যায়নি।'}</p>
-          <Link to="/orders" className="mt-4 inline-flex rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">
-            অর্ডারে ফিরে যান
-          </Link>
         </div>
       </Layout>
     )
@@ -118,13 +115,10 @@ export default function OrderDetail() {
   const currentIndex = TIMELINE.indexOf(order.status)
 
   return (
-    <Layout>
+    <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
       <div className="flex items-center justify-between gap-3 print:hidden">
         <div>
-          <Link to="/orders" className="text-sm font-medium text-brand-600 hover:underline">
-            ← অর্ডারে ফিরে যান
-          </Link>
-          <h1 className="mt-2 text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1>
+          <h1 className="text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1>
         </div>
         <button type="button" onClick={() => window.print()} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
           রসিদ প্রিন্ট করুন

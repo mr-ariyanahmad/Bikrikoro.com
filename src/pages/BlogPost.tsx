@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, BookOpen } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { supabase } from '@/lib/supabase'
 import { SITE_URL } from '@/lib/site'
@@ -37,14 +37,14 @@ export default function BlogPost() {
     return () => { active = false }
   }, [slug])
 
-  if (loading) return <Layout wide><div className="mx-auto h-96 max-w-3xl animate-pulse bg-outline/40" /></Layout>
-  if (!post) return <Layout wide><div className="mx-auto max-w-3xl border border-outline bg-surface p-8 text-center"><BookOpen className="mx-auto text-brand-600" size={28} /><h1 className="mt-3 text-xl font-bold text-ink-900">{error ? 'ব্লগ লোড করা যায়নি' : 'লেখাটি পাওয়া যায়নি'}</h1><p className="mt-2 text-sm text-ink-600">{error ?? 'এই লেখা এখন প্রকাশিত নয় বা লিংকটি সঠিক নয়।'}</p><Link to="/blog" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><ArrowLeft size={15} />ব্লগে ফিরুন</Link></div></Layout>
+  if (loading) return <Layout wide backFallback="/blog" backLabel="ব্লগে ফিরুন"><div className="mx-auto h-96 max-w-3xl animate-pulse bg-outline/40" /></Layout>
+  if (!post) return <Layout wide backFallback="/blog" backLabel="ব্লগে ফিরুন"><div className="mx-auto max-w-3xl border border-outline bg-surface p-8 text-center"><BookOpen className="mx-auto text-brand-600" size={28} /><h1 className="mt-3 text-xl font-bold text-ink-900">{error ? 'ব্লগ লোড করা যায়নি' : 'লেখাটি পাওয়া যায়নি'}</h1><p className="mt-2 text-sm text-ink-600">{error ?? 'এই লেখা এখন প্রকাশিত নয় বা লিংকটি সঠিক নয়।'}</p></div></Layout>
 
   const title = post.seo_title || `${post.title} | BikriKoro.Com`
   const description = post.seo_description || post.excerpt
   const publishedDate = post.published_at || post.updated_at
 
-  return <Layout wide>
+  return <Layout wide backFallback="/blog" backLabel="ব্লগে ফিরুন">
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
@@ -68,7 +68,6 @@ export default function BlogPost() {
       })}</script>
     </Helmet>
     <article className="mx-auto max-w-3xl">
-      <Link to="/blog" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><ArrowLeft size={15} />ব্লগে ফিরুন</Link>
       {post.cover_image_url && <img src={post.cover_image_url} alt="" className="mt-5 aspect-[16/9] w-full object-cover" />}
       <p className="mt-6 text-sm font-semibold text-brand-700">BikriKoro গাইড</p>
       <h1 className="mt-2 text-2xl font-bold leading-9 text-ink-900 sm:text-3xl">{post.title}</h1>

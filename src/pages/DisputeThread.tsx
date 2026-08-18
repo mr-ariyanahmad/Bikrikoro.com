@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
@@ -98,7 +98,7 @@ export default function DisputeThread() {
 
   if (loading) {
     return (
-      <Layout>
+      <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
         <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
       </Layout>
     )
@@ -106,7 +106,7 @@ export default function DisputeThread() {
 
   if (error || !dispute) {
     return (
-      <Layout>
+      <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
         <p className="py-16 text-center text-ink-600">{error ?? 'রিপোর্টটি পাওয়া যায়নি।'}</p>
       </Layout>
     )
@@ -115,13 +115,8 @@ export default function DisputeThread() {
   const isResolved = dispute.status === 'RESOLVED_REFUNDED' || dispute.status === 'RESOLVED_DENIED'
 
   return (
-    <Layout>
-      <div className="flex items-center gap-2">
-        <Link to="/orders" className="text-ink-600 hover:text-ink-900">
-          ←
-        </Link>
+      <Layout backFallback="/orders" backLabel="অর্ডারে ফিরুন">
         <h1 className="text-lg font-semibold text-ink-900">রিপোর্ট বিস্তারিত</h1>
-      </div>
 
       <div className="mt-4 rounded-xl border border-outline bg-surface p-4">
         <span

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { ArrowLeft, Package, Send } from 'lucide-react'
+import { Package, Send } from 'lucide-react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -98,8 +98,8 @@ export default function ChatThreadPage() {
   }
 
   return (
-    <Layout wide>
-      <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Link to="/chat" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-700" aria-label="চ্যাট তালিকায় ফিরুন"><ArrowLeft size={17} /></Link><div><h1 className="text-lg font-semibold text-ink-900">{otherName || 'চ্যাট'}</h1>{productTitle && <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Package size={12} />{productTitle}</p>}</div></div><Link to="/settings" className="text-xs font-semibold text-brand-600">সাহায্য</Link></div>
+    <Layout wide backFallback="/chat" backLabel="চ্যাট তালিকায় ফিরুন">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h1 className="text-lg font-semibold text-ink-900">{otherName || 'চ্যাট'}</h1>{productTitle && <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Package size={12} />{productTitle}</p>}</div><Link to="/settings" className="text-xs font-semibold text-brand-600">সাহায্য</Link></div>
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {loading ? <div className="mt-4 h-[60vh] animate-pulse rounded-2xl bg-outline/40" /> : <div className="mt-4 flex h-[60vh] flex-col rounded-2xl border border-outline bg-surface">
         <div className="flex-1 space-y-2 overflow-y-auto p-4">
