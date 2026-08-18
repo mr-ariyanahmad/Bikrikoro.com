@@ -15,7 +15,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body,
     icon: notification.icon || '/icon-192.png',
-    badge: notification.badge || '/notification-badge.png',
+    badge: notification.badge || '/notification-badge-v2.png',
     data: { link },
     tag: payload.data?.notificationId || payload.data?.campaignId || 'bikrikoro-notification',
   }

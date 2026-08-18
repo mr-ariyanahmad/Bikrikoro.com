@@ -37,7 +37,7 @@ export function getPublicPushAssets() {
   const siteUrl = (process.env.SITE_URL || 'https://bikrikoro.com').replace(/\/$/, '')
   return {
     icon: `${siteUrl}/icon-192.png`,
-    badge: `${siteUrl}/notification-badge.png`,
+    badge: `${siteUrl}/notification-badge-v2.png`,
     siteUrl,
   }
 }
