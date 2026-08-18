@@ -1,8 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { cert, getApps, initializeApp, type App } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { getMessaging } from 'firebase-admin/messaging'
+type FirebaseApp = import('firebase-admin/app').App
 
 type PushTarget = { user_id: string; token: string }
 
@@ -15,7 +13,8 @@ type PushRequest = {
   tokens?: Array<string | { user_id?: string; userId?: string; token?: string }>
 }
 
-function getFirebaseApp(): App {
+async function getFirebaseApp(): Promise<FirebaseApp> {
+  const { cert, getApps, initializeApp } = await import('firebase-admin/app')
   const existing = getApps()[0]
   if (existing) return existing
 
@@ -68,7 +67,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const app = getFirebaseApp()
+    const app = await getFirebaseApp()
+    const { getAuth } = await import('firebase-admin/auth')
     const decoded = await getAuth(app).verifyIdToken(idToken)
     const input = jsonBody(req)
     const adminId = decoded.uid
@@ -110,6 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let sent = 0
     let failed = 0
+    const { getMessaging } = await import('firebase-admin/messaging')
     const messaging = getMessaging(app)
     for (let offset = 0; offset < uniqueTargets.length; offset += 500) {
       const batch = uniqueTargets.slice(offset, offset + 500)

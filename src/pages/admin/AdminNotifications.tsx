@@ -29,8 +29,17 @@ async function callNotificationApi(payload: Record<string, unknown>) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify(payload),
   })
-  const result = await response.json().catch(() => ({})) as { data?: Campaign[]; campaign?: Campaign & { campaign_id?: string; recipient_count?: number }; error?: string }
-  if (!response.ok) throw new Error(result.error || 'Notification API failed')
+  const raw = await response.text()
+  let result: { data?: Campaign[]; campaign?: Campaign & { campaign_id?: string; recipient_count?: number }; error?: string } = {}
+  try {
+    result = raw ? JSON.parse(raw) as typeof result : {}
+  } catch {
+    result = {}
+  }
+  if (!response.ok) {
+    const detail = result.error || raw.trim() || `HTTP ${response.status}`
+    throw new Error(`${detail} (HTTP ${response.status})`)
+  }
   return result
 }
 
@@ -57,7 +66,7 @@ export default function AdminNotifications() {
       setCampaigns(result.data ?? [])
     } catch (error) {
       console.error('Campaign history load failed:', error)
-      setMessage('Campaign history লোড করা যায়নি। Migration 028 এবং server environment যাচাই করুন।')
+      setMessage(`Campaign history লোড করা যায়নি: ${error instanceof Error ? error.message : 'অজানা server সমস্যা'}`)
     } finally {
       setLoading(false)
     }
