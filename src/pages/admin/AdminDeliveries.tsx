@@ -4,6 +4,7 @@ import { AdminPageHeader, AdminShell, AdminTableCard } from '@/components/admin/
 import { useAuth } from '@/context/AuthContext'
 import { formatDateTime } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import { formatAdminRpcError } from '@/lib/adminRpcError'
 
 type PhysicalOrder = { id: string; product_title: string; buyer_id: string; delivery_address: string; status: string; created_at: string }
 type DigitalDelivery = { order_id: string; product_id: string; buyer_id: string; delivery_type: string; status: string; created_at: string }
@@ -15,18 +16,21 @@ export default function AdminDeliveries() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const load = useCallback(async () => {
+    if (!user?.uid) return
     setLoading(true)
+    setError(null)
     const [preparingResult, shippedResult, digitalResult] = await Promise.all([
-      supabase.rpc('admin_list_orders', { p_admin_id: user?.uid, p_status: 'PREPARING' }),
-      supabase.rpc('admin_list_orders', { p_admin_id: user?.uid, p_status: 'SHIPPED' }),
-      supabase.rpc('admin_list_digital_deliveries', { p_admin_id: user?.uid }),
+      supabase.rpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'PREPARING' }),
+      supabase.rpc('admin_list_orders', { p_admin_id: user.uid, p_status: 'SHIPPED' }),
+      supabase.rpc('admin_list_digital_deliveries', { p_admin_id: user.uid }),
     ])
     setPhysical([
       ...((preparingResult.data ?? []) as PhysicalOrder[]),
       ...((shippedResult.data ?? []) as PhysicalOrder[]),
     ])
     setDigital((digitalResult.data ?? []) as DigitalDelivery[])
-    if (preparingResult.error || shippedResult.error || digitalResult.error) setError('Delivery data লোড করা যায়নি। 014 migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    const firstError = preparingResult.error ?? shippedResult.error ?? digitalResult.error
+    if (firstError) setError(formatAdminRpcError(firstError, 'Delivery data', '014/015 admin workspace migration'))
     setLoading(false)
   }, [user?.uid])
   useEffect(() => { load() }, [load])
