@@ -33,20 +33,38 @@ const HANDLERS: Record<string, ApiHandler> = {
   'wallet-withdrawal': walletWithdrawal,
 }
 
+function asPath(value: unknown) {
+  const raw = Array.isArray(value) ? value.join('/') : typeof value === 'string' ? value : ''
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw).split('?')[0].replace(/^\/+|\/+$/g, '').replace(/^api\//, '')
+  } catch {
+    return raw.split('?')[0].replace(/^\/+|\/+$/g, '').replace(/^api\//, '')
+  }
+}
+
+function routeCandidates(req: VercelRequest) {
+  const query = req.query ?? {}
+  const candidates: unknown[] = [query.route, query['...route'], query['[...route]'], query.path, query.slug]
+  for (const [key, value] of Object.entries(query)) {
+    if (key.toLowerCase().includes('route')) candidates.push(value)
+  }
+  candidates.push(req.url)
+  const forwarded = req.headers['x-vercel-original-url'] ?? req.headers['x-forwarded-uri']
+  candidates.push(forwarded)
+  return candidates.map(asPath).filter(Boolean)
+}
+
 function routeName(req: VercelRequest) {
-  const route = req.query.route
-  const parts = Array.isArray(route) ? route : typeof route === 'string' ? [route] : []
-  const fromQuery = parts.join('/').replace(/^\/+|\/+$/g, '')
-  if (fromQuery) return fromQuery
-  const pathname = (req.url ?? '').split('?')[0]
-  return pathname.replace(/^\/api\//, '').replace(/^\/+|\/+$/g, '')
+  const candidates = routeCandidates(req)
+  return candidates.find((candidate) => Boolean(HANDLERS[candidate])) ?? candidates[0] ?? ''
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const name = routeName(req)
   const target = HANDLERS[name]
   if (!target) {
-    res.status(404).json({ error: 'API route not found' })
+    res.status(404).json({ error: 'API route not found', route: name || null })
     return
   }
   return target(req, res)
