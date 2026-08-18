@@ -404,6 +404,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/faq"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminContent mode="faq" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/pages"
         element={
           <ProtectedRoute>

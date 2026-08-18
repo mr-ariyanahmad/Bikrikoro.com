@@ -6,9 +6,10 @@ import { supabase } from '@/lib/supabase'
 import { SITE_URL } from '@/lib/site'
 import { Layout } from '@/components/Layout'
 import { AIAssistant } from '@/components/AIAssistant'
+import { FaqAccordion } from '@/components/FaqAccordion'
 
 type ContentType = 'ABOUT' | 'PRIVACY' | 'CONTACT' | 'HELP' | 'FAQ' | 'USER_EDU' | 'SELLER_EDU' | 'RETURN_POLICY' | 'TERMS'
-type ContentRow = { id: string; title: string; slug: string; excerpt: string; body: string; cover_image_url: string | null; seo_title: string | null; seo_description: string | null; updated_at: string }
+type ContentRow = { id: string; title: string; slug: string; excerpt: string; body: string; cover_image_url: string | null; seo_title: string | null; seo_description: string | null; sort_order?: number; updated_at: string }
 type PageMeta = { title: string; subtitle: string; icon: typeof BookOpen }
 
 const COPY: Record<ContentType, PageMeta> = {
@@ -59,7 +60,7 @@ export default function PublicContentPage({ type }: { type: ContentType }) {
         <Link to="/settings" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">Settings-এ যান <ChevronRight size={16} /></Link>
       </div>
       <div className="mt-6 space-y-5">
-        {loading ? <div className="h-48 animate-pulse bg-outline/40" /> : rows.length > 0 ? rows.map((row) => <article key={row.id} className="border border-outline bg-surface p-5 sm:p-7">
+        {loading ? <div className="h-48 animate-pulse bg-outline/40" /> : rows.length > 0 ? type === 'FAQ' ? <FaqAccordion items={rows} /> : rows.map((row) => <article key={row.id} className="border border-outline bg-surface p-5 sm:p-7">
           {row.cover_image_url && <img src={row.cover_image_url} alt="" className="mb-5 aspect-[16/7] w-full object-cover" />}
           <h2 className="text-lg font-bold text-ink-900">{row.title}</h2>
           {row.excerpt && <p className="mt-1 text-sm text-ink-500">{row.excerpt}</p>}
