@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Bell, BellRing, CheckCheck, CheckCircle2, Filter, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { useAuth } from '@/context/AuthContext'
 import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
 import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
@@ -44,6 +45,7 @@ export default function Notifications() {
   const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [pushState, setPushState] = useState<'idle' | 'loading' | 'registered' | 'denied' | 'unsupported' | 'missing-config' | 'unavailable'>('idle')
   const [pushMessage, setPushMessage] = useState<string | null>(null)
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -168,7 +170,7 @@ export default function Notifications() {
         <section className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15"><BellRing size={22} /></span>
-            <div className="min-w-0 flex-1"><h2 className="font-bold">সকল তথ্য পেতে নোটিফিকেশন চালু করুন</h2><p className="mt-1 text-sm leading-6 text-brand-50/90">অর্ডার, payment, verification, chat ও wallet update সময়মতো পেতে browser notification চালু করুন।</p><button type="button" onClick={() => void enablePushNotifications()} disabled={pushState === 'loading'} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70"><Bell size={16} />{pushState === 'loading' ? 'অনুমতি নেওয়া হচ্ছে…' : 'নোটিফিকেশন চালু করুন'}</button></div>
+            <div className="min-w-0 flex-1"><h2 className="font-bold">সকল তথ্য পেতে নোটিফিকেশন চালু করুন</h2><p className="mt-1 text-sm leading-6 text-brand-50/90">অর্ডার, payment, verification, chat ও wallet update সময়মতো পেতে browser notification চালু করুন।</p><button type="button" onClick={() => setPermissionDialogOpen(true)} disabled={pushState === 'loading'} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70"><Bell size={16} />{pushState === 'loading' ? 'অনুমতি নেওয়া হচ্ছে…' : 'নোটিফিকেশন চালু করুন'}</button></div>
           </div>
         </section>
       )}
@@ -176,6 +178,7 @@ export default function Notifications() {
       {pushState === 'denied' && pushMessage && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">{pushMessage}</p>}
       {pushState === 'missing-config' && pushMessage && <p className="mt-4 rounded-xl border border-outline bg-bg p-3 text-sm leading-6 text-ink-600">{pushMessage}</p>}
       {pushMessage && pushState === 'registered' && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm leading-6 text-brand-700">{pushMessage}</p>}
+      <BrandedDialog open={permissionDialogOpen} title="নোটিফিকেশন চালু করবেন?" onClose={() => setPermissionDialogOpen(false)} actions={<><DialogButton variant="outline" onClick={() => setPermissionDialogOpen(false)}>এখন নয়</DialogButton><DialogButton onClick={() => { setPermissionDialogOpen(false); void enablePushNotifications() }}>চালু করুন</DialogButton></>}><p>অর্ডার, payment, seller verification, chat এবং wallet-এর গুরুত্বপূর্ণ update সময়মতো পেতে notification চালু করুন। পরের ধাপে আপনার browser-এর permission window আসবে; সেখানে <strong>Allow</strong> নির্বাচন করলেই setup সম্পূর্ণ হবে।</p></BrandedDialog>
 
       <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
 
