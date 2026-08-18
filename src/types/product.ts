@@ -26,6 +26,9 @@ export interface Product {
   latitude: number | null
   longitude: number | null
   created_at: string
+  approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approval_note?: string
+  approval_reviewed_email?: string | null
 }
 
 export interface Profile {

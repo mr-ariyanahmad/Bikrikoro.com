@@ -8,6 +8,8 @@ import { Layout } from '@/components/Layout'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
 
+interface SellerProductMetrics { view_count: number | null; price: number | null }
+
 interface Stats {
   listingCount: number
   totalViews: number
@@ -36,13 +38,13 @@ export default function SellerDashboard() {
     }
     async function load() {
       const [productsRes, ordersRes, ledgerRes, profileRes] = await Promise.all([
-        supabase.from('products').select('view_count, price').eq('seller_id', uid),
+        supabase.rpc('seller_list_products', { p_seller_id: uid }),
         supabase.from('orders').select('status, price').eq('seller_id', uid),
         supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
         supabase.from('profiles').select('is_verified, rating, review_count').eq('id', uid).maybeSingle(),
       ])
 
-      const products = productsRes.data ?? []
+      const products = (productsRes.data ?? []) as SellerProductMetrics[]
       const orders = ordersRes.data ?? []
       const ledger = ledgerRes.data ?? []
 

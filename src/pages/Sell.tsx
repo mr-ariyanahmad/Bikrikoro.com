@@ -85,10 +85,7 @@ export default function Sell() {
     if (!id || !user) return
 
     supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single()
+      .rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: id })
       .then(async ({ data, error: fetchError }) => {
         if (fetchError || !data || data.seller_id !== user.uid) {
           setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')
@@ -219,9 +216,24 @@ export default function Sell() {
 
     const result = isEditing
       ? await supabase.from('products').update(payload).eq('id', id)
-      : await supabase.from('products').insert(payload).select('id').single()
+      : await supabase.rpc('seller_create_product', {
+          p_seller_id: user.uid,
+          p_title: payload.title,
+          p_description: payload.description,
+          p_price: payload.price,
+          p_original_price: payload.original_price,
+          p_category_id: payload.category_id,
+          p_condition: payload.condition,
+          p_location: payload.location,
+          p_images: payload.images,
+          p_is_digital: payload.is_digital,
+          p_supports_cod: payload.supports_cod,
+          p_free_delivery: payload.free_delivery,
+          p_fast_delivery: payload.fast_delivery,
+          p_free_return: payload.free_return,
+        })
 
-    const savedProductId = id ?? result.data?.id
+    const savedProductId = id ?? result.data
     if (!result.error && savedProductId) {
       const deliveryResult = isDigital
         ? await supabase.from('digital_product_contents').upsert({
@@ -247,7 +259,7 @@ export default function Sell() {
     }
 
     clearListingDraft()
-    navigate(isEditing ? `/products/${id}` : '/my-listings')
+    navigate('/my-listings')
   }
 
   if (loadingExisting) {

@@ -18,12 +18,9 @@ export default function MyListings() {
 
   const load = useCallback(async () => {
     if (!user) return
-    const { data } = await supabase
-      .from('products')
-      .select('*')
-      .eq('seller_id', user.uid)
-      .order('created_at', { ascending: false })
-    setProducts(data ?? [])
+    const { data, error } = await supabase.rpc('seller_list_products', { p_seller_id: user.uid })
+    if (error) setMessage('আপনার লিস্টিং লোড করা যায়নি। Seller approval migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    setProducts((data ?? []) as Product[])
     setLoading(false)
   }, [user])
 
@@ -43,41 +40,38 @@ export default function MyListings() {
       setDuplicatingId(null)
       return
     }
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        title: `${product.title} (কপি)`,
-        description: product.description,
-        price: product.price,
-        original_price: product.original_price,
-        images: product.images,
-        category_id: product.category_id,
-        condition: product.condition,
-        location: product.location,
-        is_digital: product.is_digital,
-        supports_cod: Boolean(product.supports_cod),
-        free_delivery: Boolean(product.free_delivery),
-        fast_delivery: Boolean(product.fast_delivery),
-        free_return: Boolean(product.free_return),
-        seller_id: user.uid,
-      })
-      .select('*')
-      .single()
-    if (error || !data) {
+    const { data: newProductId, error } = await supabase.rpc('seller_create_product', {
+      p_seller_id: user.uid,
+      p_title: `${product.title} (কপি)`,
+      p_description: product.description,
+      p_price: product.price,
+      p_original_price: product.original_price,
+      p_category_id: product.category_id,
+      p_condition: product.condition,
+      p_location: product.location,
+      p_images: product.images,
+      p_is_digital: product.is_digital,
+      p_supports_cod: Boolean(product.supports_cod),
+      p_free_delivery: Boolean(product.free_delivery),
+      p_fast_delivery: Boolean(product.fast_delivery),
+      p_free_return: Boolean(product.free_return),
+    })
+    if (error || !newProductId) {
       setMessage(`লিস্টিং copy করা যায়নি: ${error?.message || 'অজানা সমস্যা'}`)
       setDuplicatingId(null)
       return
     }
     if (product.is_digital && digitalContent) {
-      const { error: contentError } = await supabase.from('digital_product_contents').insert({ product_id: data.id, seller_id: user.uid, delivery_type: digitalContent.delivery_type, delivery_text: digitalContent.delivery_text })
+      const { error: contentError } = await supabase.from('digital_product_contents').insert({ product_id: newProductId, seller_id: user.uid, delivery_type: digitalContent.delivery_type, delivery_text: digitalContent.delivery_text })
       if (contentError) {
-        await supabase.from('products').delete().eq('id', data.id).eq('seller_id', user.uid)
+        await supabase.from('products').delete().eq('id', newProductId).eq('seller_id', user.uid)
         setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য copy বাতিল করা হয়েছে।')
         setDuplicatingId(null)
         return
       }
     }
-    setProducts((prev) => [data as Product, ...prev])
+    const { data: createdProduct } = await supabase.rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: newProductId })
+    setProducts((prev) => [createdProduct as Product, ...prev])
     setMessage('লিস্টিং copy হয়েছে। Edit করে publish করার আগে তথ্য যাচাই করুন।')
     setDuplicatingId(null)
   }
@@ -139,6 +133,8 @@ export default function MyListings() {
                 </Link>
                 <p className="tabular-amount mt-0.5 text-sm text-brand-600">{formatTaka(product.price)}</p>
                 <p className="mt-0.5 text-xs text-ink-300">{product.view_count} বার দেখা হয়েছে</p>
+                <span className={`mt-1 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${product.approval_status === 'APPROVED' ? 'bg-brand-50 text-brand-700' : product.approval_status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{product.approval_status === 'APPROVED' ? 'এডমিন অনুমোদিত' : product.approval_status === 'REJECTED' ? 'এডমিন বাতিল করেছে' : 'এডমিনের অনুমোদন বাকি'}</span>
+                {product.approval_status === 'REJECTED' && product.approval_note && <p className="mt-1 line-clamp-2 text-xs text-red-600">কারণ: {product.approval_note}</p>}
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">
                 <Link
