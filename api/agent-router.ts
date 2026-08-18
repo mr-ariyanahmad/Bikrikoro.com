@@ -11,15 +11,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const rawBaseUrl = process.env.AGENT_ROUTER_BASE_URL?.replace(/\/+$/, '')
   const apiKey = process.env.AGENT_ROUTER_API_KEY
-  const chatPath = process.env.AGENT_ROUTER_CHAT_PATH || '/v1/chat/completions'
+  const configuredChatPath = process.env.AGENT_ROUTER_CHAT_PATH || '/v1/chat/completions'
+  const chatPath = configuredChatPath.startsWith('http') ? new URL(configuredChatPath).pathname : configuredChatPath
   const model = process.env.AGENT_ROUTER_MODEL
   if (!rawBaseUrl || !apiKey || !model) {
     res.status(503).json({ error: 'Agent Router-এর Base URL, API key বা model server-এ সেট করা নেই।' })
     return
   }
-  const normalizedBaseUrl = rawBaseUrl.endsWith('/v1') && (chatPath === '/v1' || chatPath.startsWith('/v1/'))
-    ? rawBaseUrl.slice(0, -3)
-    : rawBaseUrl
+  const baseWithoutFullPath = rawBaseUrl.replace(/\/v1\/chat\/completions$/, '').replace(/\/chat\/completions$/, '')
+  const normalizedBaseUrl = baseWithoutFullPath.endsWith('/v1') && (chatPath === '/v1' || chatPath.startsWith('/v1/'))
+    ? baseWithoutFullPath.slice(0, -3)
+    : baseWithoutFullPath
   const normalizedChatPath = chatPath.startsWith('/') ? chatPath : `/${chatPath}`
 
   const body = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {}
