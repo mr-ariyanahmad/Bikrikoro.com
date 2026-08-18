@@ -11,6 +11,7 @@ const ALLOWED_ADMIN_RPCS = new Set([
   'admin_get_dashboard_overview',
   'admin_get_system_status',
   'admin_delete_banner',
+  'admin_delete_product',
   'admin_finalize_seller_verification',
   'admin_get_customer_overview',
   'admin_get_settings',

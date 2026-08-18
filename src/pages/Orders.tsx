@@ -142,14 +142,22 @@ export default function Orders() {
           list.map((order) => (
             <div key={order.id} className="rounded-xl border border-outline bg-surface p-4">
               <div className="flex items-center gap-3">
-                <Link
-                  to={`/products/${order.product_id}`}
-                  className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-outline/30"
-                >
-                  {order.product_image && (
-                    <img src={order.product_image} alt="" className="h-full w-full object-cover" />
-                  )}
-                </Link>
+                {order.product_id ? (
+                  <Link
+                    to={`/products/${order.product_id}`}
+                    className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-outline/30"
+                  >
+                    {order.product_image && (
+                      <img src={order.product_image} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </Link>
+                ) : (
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-outline/30">
+                    {order.product_image && (
+                      <img src={order.product_image} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-1 text-sm font-medium text-ink-900">{order.product_title}</p>
                   <p className="tabular-amount mt-0.5 text-sm text-brand-600">{formatTaka(order.price)}</p>

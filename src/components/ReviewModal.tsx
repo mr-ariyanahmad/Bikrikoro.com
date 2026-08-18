@@ -19,6 +19,10 @@ export function ReviewModal({
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
+    if (!order.product_id) {
+      setError('এই পণ্যটি আর সক্রিয় নেই, তাই এই অর্ডারের জন্য নতুন রিভিউ দেওয়া যাবে না।')
+      return
+    }
     setSubmitting(true)
     setError(null)
 
@@ -85,7 +89,7 @@ export function ReviewModal({
 
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || !order.product_id}
           className="mt-4 w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? 'জমা হচ্ছে...' : 'রিভিউ জমা দিন'}

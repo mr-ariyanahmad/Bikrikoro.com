@@ -11,7 +11,7 @@ export interface CouponPreview {
 
 export interface DigitalLibraryItem {
   order_id: string
-  product_id: string
+  product_id: string | null
   product_title: string
   product_image: string
   price: number

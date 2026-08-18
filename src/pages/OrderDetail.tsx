@@ -162,13 +162,23 @@ export default function OrderDetail() {
 
       <div className="mt-4 rounded-2xl border border-outline bg-surface p-5">
         <div className="flex gap-3">
-          <Link to={`/products/${order.product_id}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-outline/30">
-            {order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}
-          </Link>
-          <div className="min-w-0 flex-1">
-            <Link to={`/products/${order.product_id}`} className="font-semibold text-ink-900 hover:text-brand-600">
-              {order.product_title}
+          {order.product_id ? (
+            <Link to={`/products/${order.product_id}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-outline/30">
+              {order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}
             </Link>
+          ) : (
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-outline/30">
+              {order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            {order.product_id ? (
+              <Link to={`/products/${order.product_id}`} className="font-semibold text-ink-900 hover:text-brand-600">
+                {order.product_title}
+              </Link>
+            ) : (
+              <p className="font-semibold text-ink-900">{order.product_title}</p>
+            )}
             <p className="mt-1 text-sm text-ink-600">অর্ডার করা হয়েছে {formatDate(order.created_at)}</p>
             <p className="mt-1 text-xs text-ink-300">পরিমাণ: {order.quantity}</p>
           </div>
