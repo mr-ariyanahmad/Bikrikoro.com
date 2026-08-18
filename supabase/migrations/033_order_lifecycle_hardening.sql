@@ -28,7 +28,7 @@ begin
   update public.orders
   set status = 'PREPARING', updated_at = now()
   where id = p_order_id
-    and seller_id = p_seller_id
+    and seller_id::text = p_seller_id::text
     and status = 'ESCROW_HELD';
 
   if not found then
@@ -47,7 +47,7 @@ begin
   update public.orders
   set status = 'SHIPPED', updated_at = now()
   where id = p_order_id
-    and seller_id = p_seller_id
+    and seller_id::text = p_seller_id::text
     and status in ('ESCROW_HELD', 'PREPARING')
     and (dispute_status is null or dispute_status = 'RESOLVED_DENIED');
 
@@ -67,7 +67,7 @@ begin
   update public.orders
   set status = 'DELIVERED', updated_at = now()
   where id = p_order_id
-    and seller_id = p_seller_id
+    and seller_id::text = p_seller_id::text
     and status = 'SHIPPED'
     and (dispute_status is null or dispute_status = 'RESOLVED_DENIED');
 
@@ -85,7 +85,7 @@ begin
   update public.orders
   set status = 'CANCELLED', updated_at = now()
   where id = p_order_id
-    and seller_id = p_seller_id
+    and seller_id::text = p_seller_id::text
     and status in ('ESCROW_HELD', 'PREPARING', 'SHIPPED')
     and (dispute_status is null or dispute_status = 'RESOLVED_DENIED');
 
@@ -109,7 +109,7 @@ begin
   update public.orders
   set status = 'COMPLETED', updated_at = now()
   where id = p_order_id
-    and buyer_id = p_buyer_id
+    and buyer_id::text = p_buyer_id::text
     and status in ('ESCROW_HELD', 'SHIPPED', 'DELIVERED')
     and (dispute_status is null or dispute_status = 'RESOLVED_DENIED');
 
@@ -135,7 +135,7 @@ begin
   if not found then
     raise exception 'Order not found';
   end if;
-  if v_order.buyer_id <> p_buyer_id then
+  if v_order.buyer_id::text <> p_buyer_id::text then
     raise exception 'Not authorized';
   end if;
   if v_order.status not in ('SHIPPED', 'DELIVERED') then
@@ -302,11 +302,11 @@ create policy "Reviews require a completed matching order"
     exists (
       select 1
       from public.orders o
-      where o.id::text = order_id
+      where o.id::text = order_id::text
         and o.status = 'COMPLETED'
-        and o.buyer_id = buyer_id
-        and o.product_id::text = product_id
-        and o.seller_id = seller_id
+        and o.buyer_id::text = buyer_id::text
+        and o.product_id::text = product_id::text
+        and o.seller_id::text = seller_id::text
     )
   );
 
@@ -328,13 +328,13 @@ declare
 begin
   select * into v_order from public.orders where id = p_order_id;
 
-  if not found or v_order.buyer_id <> p_buyer_id then
+  if not found or v_order.buyer_id::text <> p_buyer_id::text then
     raise exception 'Not authorized to review this order';
   end if;
   if v_order.status <> 'COMPLETED' then
     raise exception 'Only completed orders can be reviewed';
   end if;
-  if v_order.product_id::text <> p_product_id or v_order.seller_id <> p_seller_id then
+  if v_order.product_id::text <> p_product_id::text or v_order.seller_id::text <> p_seller_id::text then
     raise exception 'Review details do not match the order';
   end if;
   if p_rating < 1 or p_rating > 5 then

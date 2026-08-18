@@ -6,13 +6,13 @@ Supabase SQL Editor-এ migration 033 চালানোর সময় `operat
 
 ## কী ঠিক করা হয়েছে
 
-Notification trigger-গুলোর comparison এখন explicit text cast ব্যবহার করে:
+Migration 033-এর notification trigger, dispute check, review policy এবং review RPC—সব order/review ID comparison এখন explicit text cast ব্যবহার করে। উদাহরণ:
 
 ```sql
 if new.seller_id::text <> new.buyer_id::text then
 ```
 
-এই correction 013, 031 এবং 033 migration file-এ রাখা হয়েছে, যাতে পুরনো ও নতুন schema উভয়েই notification trigger compile হয়।
+এবং review policy-তে `o.id::text = order_id::text`, `o.buyer_id::text = buyer_id::text`-এর মতো দুই পাশেই cast রাখা হয়েছে। এই correction 013, 031 এবং 033 migration file-এ রাখা হয়েছে, যাতে legacy text Firebase UID এবং existing UUID-backed columns—দুই ধরনের schema-তেই function compile হয়।
 
 ## Supabase SQL Editor-এ কী করবেন
 
