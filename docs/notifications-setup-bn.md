@@ -38,7 +38,7 @@ FCM payload-এ title, body এবং app link দেওয়া হয়। Backgro
 
 ## ৪. Supabase migration চালানোর ক্রম
 
-Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql`, `052_payout_notification_events.sql`, এবং `053_notification_pg_net_trigger.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, 051 event notification-এর push delivery queue ও notification linkage যোগ করে, 052 payout approval, rejection ও paid event-এর notification যোগ করে, এবং 053 Dashboard Webhook ছাড়াই SQL trigger দিয়ে callback queue করে।
+Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql`, `052_payout_notification_events.sql`, `053_notification_pg_net_trigger.sql`, এবং `054_order_email_notification_marker.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, 051 event notification-এর push delivery queue ও notification linkage যোগ করে, 052 payout approval, rejection ও paid event-এর notification যোগ করে, 053 Dashboard Webhook ছাড়াই SQL trigger দিয়ে callback queue করে, এবং 054 কেবল নতুন order-এর notification-এ email recipient metadata যোগ করে।
 
 Migration 028 এই জিনিসগুলো যোগ করে:
 
@@ -56,6 +56,7 @@ Migration 028 এই জিনিসগুলো যোগ করে:
 | `admin_finish_notification_campaign` | Sent, partial বা failed status এবং counters finalize করে |
 | `get_my_unread_notification_count` | Header badge-এর unread count দেয় |
 | `notify_withdrawal_review_event` | Payout approved/rejected হলে সংশ্লিষ্ট seller-কে notification দেয়; paid হলে wallet debit-এর notification ব্যবহৃত হয় |
+| `notify_order_change` | নতুন order ও পরের status update-এর in-app/push notification তৈরি করে; শুধু INSERT event-এ `ORDER_CREATED` metadata যোগ করে |
 
 013 migration-এর existing order trigger order insert বা status change-এর notification চালু রাখে। 028 migration নতুন verification, wallet এবং chat event যুক্ত করে। Admin campaign পাঠানোর সময় `admin_assert_permission(p_admin_id, 'content.notifications')` এবং audit log ব্যবহার করা হয়; তাই permission ছাড়া কোনো admin broadcast পাঠাতে পারবে না।
 
@@ -81,6 +82,19 @@ on conflict (id) do update set
 
 এই SQL trigger চালু হলে user browser খোলা না থাকলেও database event থেকে push পাঠানোর চেষ্টা হবে; push permission না দেওয়া, token না থাকা বা invalid token হলে শুধু push delivery ব্যর্থ হবে, in-app notification বন্ধ হবে না। Admin campaign-এর push-ও আগের মতো `/api/notification-push` path দিয়ে চলবে।
 
+নতুন order-এর ক্ষেত্রে `054_order_email_notification_marker.sql` শুধু order INSERT-এর দুইটি in-app notification-এ `ORDER_CREATED` metadata যোগ করে। `/api/notification-events` তখন order record পড়ে Resend দিয়ে customer এবং seller-কে আলাদা email পাঠায়। পরের order status update, chat, payout, verification বা admin campaign-এ Resend email পাঠানো হবে না; আগের push/in-app behavior অপরিবর্তিত থাকবে। Duplicate callback হলেও Resend-এর `Idempotency-Key` ব্যবহার করা হয়।
+
+## ৫.২ নতুন order-এর customer ও seller email
+
+Vercel-এর Production Environment Variables-এ server-only ভাবে এই দুইটি variable যোগ করুন:
+
+```text
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=BikriKoro.Com <orders@your-verified-domain.com>
+```
+
+Resend-এ sending domain verify করতে হবে। `RESEND_FROM_EMAIL`-এর domain অবশ্যই Resend-এ verified domain-এর সঙ্গে মেলাতে হবে। API key কখনো `VITE_` variable, browser code বা GitHub repository-তে রাখা যাবে না। Resend-এর official API `POST /emails` ব্যবহার করে এবং retry duplicate ঠেকাতে idempotency key সমর্থন করে। [6] [7]
+
 ## ৬. Admin campaign পাঠানোর নিয়ম
 
 Admin panel-এর **কনটেন্ট → নোটিফিকেশন** page-এ গিয়ে campaign তৈরি করুন। Title, Bengali message এবং optional app link দেওয়ার পর audience বেছে নিন।
@@ -96,11 +110,11 @@ Admin panel-এর **কনটেন্ট → নোটিফিকেশন** 
 
 ## ৭. Test checklist
 
-প্রথমে সব migration, বিশেষ করে 051, 052 এবং 053, চালিয়ে Supabase-এ tables, functions, trigger এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং SQL Editor-এ `notification_webhook_config`-এ একই secret বসান। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
+প্রথমে সব migration, বিশেষ করে 051, 052, 053 এবং 054, চালিয়ে Supabase-এ tables, functions, trigger এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`) save করে নতুন deployment দিন এবং SQL Editor-এ `notification_webhook_config`-এ একই secret বসান। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
 
 Admin account দিয়ে **কনটেন্ট → নোটিফিকেশন** খুলে একটি ছোট **নির্দিষ্ট user** campaign পাঠান। In-app inbox-এ notification দেখা, header bell-এর unread badge বাড়া, এবং browser background অবস্থায় push আসা—এই তিনটি আলাদাভাবে পরীক্ষা করুন। Push tap করলে campaign-এর app link খুলছে কি না দেখুন।
 
-এরপর Firebase Console-এর Cloud Messaging test flow-তে চাইলে সেই browser token দিয়ে test message পাঠানো যায়; Firebase official guide-এ test notification-এর জন্য registration token ব্যবহার করে background device-এ test করার ধাপ দেওয়া আছে। [1]
+এরপর একটি নতুন order তৈরি করে তিনটি ফল আলাদাভাবে পরীক্ষা করুন: customer-এর email, seller-এর email, এবং আগের মতো buyer/seller in-app ও push notification। Resend dashboard-এ email delivery দেখা যাবে। একই order event retry হলে duplicate email না যাওয়ার কথা। Firebase Console-এর Cloud Messaging test flow-তে চাইলে সেই browser token দিয়ে test message পাঠানো যায়; Firebase official guide-এ test notification-এর জন্য registration token ব্যবহার করে background device-এ test করার ধাপ দেওয়া আছে। [1]
 
 যদি push না আসে, প্রথমে browser permission, HTTPS, service worker scope, VAPID key, Firebase project match এবং Vercel service-account variables যাচাই করুন। Firebase Admin delivery endpoint error করলে Admin campaign history-তে in-app delivery থাকবে, কিন্তু push status queued বা failed হিসেবে দেখা যেতে পারে; এটি ইচ্ছাকৃতভাবে in-app channel-কে push failure থেকে আলাদা রাখে।
 
@@ -117,3 +131,5 @@ Firebase service-account JSON, Supabase service-role key এবং private VAPID
 [3]: https://firebase.google.com/docs/reference/admin/node/firebase-admin.messaging.messaging "Firebase Admin Node.js Messaging reference"
 [4]: https://supabase.com/docs/guides/database/webhooks "Supabase — Database Webhooks"
 [5]: https://supabase.com/docs/guides/database/extensions/pg_net "Supabase — pg_net async networking"
+[6]: https://resend.com/docs/api-reference/emails/send-email "Resend — Send Email API"
+[7]: https://resend.com/docs/dashboard/emails/idempotency-keys "Resend — Idempotency Keys"

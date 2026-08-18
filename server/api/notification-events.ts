@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 import { getFirebaseApp, isInvalidTokenCode, sendWebPushBatch } from '../lib/firebasePush.js'
+import { isResendConfigured, sendNewOrderEmail } from '../lib/resendEmail.js'
 
 type NotificationRecord = {
   id?: string
@@ -10,6 +11,7 @@ type NotificationRecord = {
   body?: string
   link?: string | null
   campaign_id?: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 type WebhookPayload = {
@@ -23,6 +25,22 @@ type QueuedDelivery = {
   delivery_id: string
   user_id: string
   token: string
+}
+
+type ProfileEmail = {
+  name?: string | null
+  email?: string | null
+}
+
+type OrderEmailRecord = {
+  id: string
+  product_title: string
+  price: number | string
+  status: string
+  buyer_id: string
+  seller_id: string
+  buyer?: ProfileEmail | ProfileEmail[] | null
+  seller?: ProfileEmail | ProfileEmail[] | null
 }
 
 function parseBody(req: VercelRequest): WebhookPayload {
@@ -45,6 +63,52 @@ function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) return String(error.message)
   return 'Notification event delivery failed'
+}
+
+function oneProfile(value: ProfileEmail | ProfileEmail[] | null | undefined) {
+  return Array.isArray(value) ? value[0] ?? {} : value ?? {}
+}
+
+async function sendOrderEmailIfNeeded(
+  supabase: ReturnType<typeof createClient>,
+  notification: NotificationRecord,
+) {
+  const metadata = notification.metadata ?? {}
+  if (metadata.event !== 'ORDER_CREATED') return { status: 'NOT_ORDER' as const }
+  if (!isResendConfigured()) return { status: 'SKIPPED' as const, reason: 'RESEND_NOT_CONFIGURED' }
+
+  const orderId = typeof metadata.order_id === 'string' ? metadata.order_id.trim() : ''
+  const role = metadata.recipient_role === 'SELLER' ? 'SELLER' as const : metadata.recipient_role === 'CUSTOMER' ? 'CUSTOMER' as const : null
+  if (!orderId || !role) return { status: 'SKIPPED' as const, reason: 'ORDER_METADATA_INCOMPLETE' }
+
+  const { data: order, error } = await supabase
+    .from('orders')
+    .select('id, product_title, price, status, buyer_id, seller_id, buyer:profiles!orders_buyer_id_fkey(name,email), seller:profiles!orders_seller_id_fkey(name,email)')
+    .eq('id', orderId)
+    .maybeSingle()
+  if (error) throw error
+  if (!order) return { status: 'SKIPPED' as const, reason: 'ORDER_NOT_FOUND' }
+
+  const typedOrder = order as OrderEmailRecord
+  const customer = oneProfile(typedOrder.buyer)
+  const seller = oneProfile(typedOrder.seller)
+  const recipient = role === 'CUSTOMER' ? customer : seller
+  const recipientEmail = recipient.email?.trim()
+  if (!recipientEmail) return { status: 'SKIPPED' as const, reason: `${role}_EMAIL_MISSING` }
+
+  const siteUrl = (process.env.SITE_URL || 'https://bikrikoro.com').replace(/\/$/, '')
+  const result = await sendNewOrderEmail({
+    orderId: typedOrder.id,
+    role,
+    to: recipientEmail,
+    productTitle: typedOrder.product_title,
+    price: typedOrder.price,
+    status: typedOrder.status,
+    customerName: customer.name?.trim() || 'Customer',
+    sellerName: seller.name?.trim() || 'Seller',
+    orderLink: `${siteUrl}/orders/${typedOrder.id}`,
+  })
+  return result.skipped ? { status: 'SKIPPED' as const, reason: result.reason } : { status: 'SENT' as const, id: result.id }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -87,6 +151,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!supabaseUrl || !serviceRoleKey) throw new Error('Supabase server configuration is missing')
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
+    let emailStatus: 'NOT_ORDER' | 'SKIPPED' | 'SENT' | 'FAILED' = 'NOT_ORDER'
+    let emailReason: string | undefined
+    try {
+      const emailResult = await sendOrderEmailIfNeeded(supabase, notification ?? {})
+      emailStatus = emailResult.status
+      if ('reason' in emailResult) emailReason = emailResult.reason
+    } catch (error) {
+      emailStatus = 'FAILED'
+      emailReason = getErrorMessage(error)
+      console.error('New order email delivery failed', error)
+    }
+
     const { data: queued, error: queueError } = await supabase.rpc('queue_notification_push_deliveries', {
       p_notification_id: notificationId,
     })
@@ -94,7 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const targets = (queued ?? []) as QueuedDelivery[]
     if (targets.length === 0) {
-      res.status(200).json({ notificationId, targeted: 0, sent: 0, failed: 0 })
+      res.status(200).json({ notificationId, targeted: 0, sent: 0, failed: 0, emailStatus, emailReason })
       return
     }
 
@@ -143,7 +219,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }))
     }
 
-    res.status(200).json({ notificationId, targeted: targets.length, sent, failed })
+    res.status(200).json({ notificationId, targeted: targets.length, sent, failed, emailStatus, emailReason })
   } catch (error) {
     console.error('Notification event delivery failed', error)
     res.status(500).json({ error: getErrorMessage(error) })
