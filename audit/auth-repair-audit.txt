@@ -1,0 +1,165 @@
+=== ProtectedRoute ===
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
+
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/login" replace />
+
+  return <>{children}</>
+}
+=== AdminRoute ===
+import { Navigate, useLocation } from 'react-router-dom'
+import { useIsAdmin } from '@/hooks/useIsAdmin'
+import { permissionForAdminPath } from '@/lib/adminPermissions'
+
+export function AdminRoute({ children, permission }: { children: React.ReactNode; permission?: string }) {
+  const { isAdmin, loading, can } = useIsAdmin()
+  const location = useLocation()
+  const requiredPermission = permission ?? permissionForAdminPath(location.pathname)
+  if (loading) return <div className="flex min-h-screen items-center justify-center bg-bg"><div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>
+  if (!isAdmin) return <Navigate to="/" replace />
+  if (!can(requiredPermission)) return <Navigate to="/admin" replace />
+  return <>{children}</>
+}
+=== useIsSeller ===
+import { useEffect, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
+import { supabase, supabaseConfigured } from '@/lib/supabase'
+
+export function useIsSeller() {
+  const { user } = useAuth()
+  const [isSeller, setIsSeller] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    if (!user?.uid) {
+      setIsSeller(false)
+      setLoading(false)
+      return () => { active = false }
+    }
+
+    if (!supabaseConfigured) {
+      setIsSeller(false)
+      setLoading(false)
+      return () => { active = false }
+    }
+
+    setLoading(true)
+    const loadSellerStatus = async () => {
+      try {
+        const [profileResult, registrationResult] = await Promise.all([
+          supabase.from('profiles').select('is_verified').eq('id', user.uid).maybeSingle(),
+          supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('status', 'APPROVED').limit(1),
+        ])
+        if (!active) return
+        setIsSeller(Boolean(profileResult.data?.is_verified || registrationResult.data?.length))
+      } catch (error) {
+        console.error('Seller access check failed:', error)
+        if (active) setIsSeller(false)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void loadSellerStatus()
+    return () => { active = false }
+  }, [user?.uid])
+
+  return { isSeller, loading }
+}
+=== profile bootstrap ===
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+
+function writeError(res: VercelResponse, error: unknown) {
+  const message = error instanceof Error ? error.message : 'Profile bootstrap failed'
+  if (message === 'AUTH_REQUIRED' || message.includes('Firebase ID token')) {
+    res.status(401).json({ error: 'Authentication is required' })
+    return
+  }
+  res.status(500).json({ error: message })
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST')
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const token = await getVerifiedFirebaseToken(req)
+    const supabase = getServiceSupabase()
+    const { data: existing, error: readError } = await supabase
+      .from('profiles')
+      .select('id, email, name, phone, photo_url')
+      .eq('id', token.uid)
+      .maybeSingle()
+    if (readError) throw readError
+
+    if (!existing) {
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id: token.uid,
+        name: token.name ?? '',
+        phone: token.phone_number ?? null,
+        email: token.email ?? null,
+        photo_url: token.picture ?? null,
+      })
+      if (insertError) throw insertError
+    } else if (!existing.email && token.email) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ email: token.email })
+        .eq('id', token.uid)
+      if (updateError) throw updateError
+    }
+
+    res.status(200).json({ ok: true, userId: token.uid, created: !existing })
+  } catch (error) {
+    if (isAuthError(error)) {
+      res.status(401).json({ error: 'Authentication is required' })
+      return
+    }
+    console.error('Profile bootstrap failed', error)
+    writeError(res, error)
+  }
+}
+
+=== file validation ===
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+
+export function validateImageFiles(files: File[], maxCount: number) {
+  if (files.length > maxCount) return `সর্বোচ্চ ${maxCount}টি ছবি যোগ করা যাবে।`
+  const invalidType = files.find((file) => !file.type.startsWith('image/'))
+  if (invalidType) return 'শুধু image file আপলোড করা যাবে।'
+  const oversized = files.find((file) => file.size > MAX_IMAGE_BYTES)
+  if (oversized) return 'প্রতিটি ছবির size সর্বোচ্চ ৫ MB হতে হবে।'
+  return null
+}
+
+export function validateEvidenceFiles(files: File[], maxCount: number) {
+  if (files.length > maxCount) return `সর্বোচ্চ ${maxCount}টি evidence ছবি যোগ করা যাবে।`
+  const invalidType = files.find((file) => !file.type.startsWith('image/'))
+  if (invalidType) return 'Evidence হিসেবে শুধু image file আপলোড করা যাবে।'
+  const oversized = files.find((file) => file.size > MAX_IMAGE_BYTES)
+  if (oversized) return 'প্রতিটি evidence ছবির size সর্বোচ্চ ৫ MB হতে হবে।'
+  return null
+}
+
+export function validateVerificationFile(file: File) {
+  const allowed = file.type.startsWith('image/') || file.type === 'application/pdf'
+  if (!allowed) return 'Document হিসেবে শুধু image বা PDF file আপলোড করা যাবে।'
+  if (file.size > MAX_DOCUMENT_BYTES) return 'প্রতিটি document-এর size সর্বোচ্চ ১০ MB হতে হবে।'
+  return null
+}

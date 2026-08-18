@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -12,7 +13,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`
+    if (returnTo !== '/login') window.sessionStorage.setItem('bikrikoro:auth-return-to', returnTo)
+    return <Navigate to="/login" state={{ from: returnTo }} replace />
+  }
 
   return <>{children}</>
 }

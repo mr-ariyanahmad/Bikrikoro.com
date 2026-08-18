@@ -62,6 +62,11 @@ function getRecaptchaVerifier(): RecaptchaVerifier {
   return recaptchaVerifier
 }
 
+function resetRecaptchaVerifier() {
+  recaptchaVerifier?.clear()
+  recaptchaVerifier = null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -97,9 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe
   }, [])
 
-  const sendOtp = (phoneE164: string) => {
+  const sendOtp = async (phoneE164: string) => {
     ensureFirebaseConfigured()
-    return signInWithPhoneNumber(auth, phoneE164, getRecaptchaVerifier())
+    try {
+      return await signInWithPhoneNumber(auth, phoneE164, getRecaptchaVerifier())
+    } catch (error) {
+      resetRecaptchaVerifier()
+      throw error
+    }
   }
 
   const verifyOtp = async (confirmation: ConfirmationResult, code: string) => {

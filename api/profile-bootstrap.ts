@@ -36,12 +36,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         photo_url: token.picture ?? null,
       })
       if (insertError) throw insertError
-    } else if (!existing.email && token.email) {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ email: token.email })
-        .eq('id', token.uid)
-      if (updateError) throw updateError
+    } else {
+      const profilePatch: Record<string, string> = {}
+      if (!existing.email && token.email) profilePatch.email = token.email
+      if (!existing.name && token.name) profilePatch.name = token.name
+      if (!existing.phone && token.phone_number) profilePatch.phone = token.phone_number
+      if (!existing.photo_url && token.picture) profilePatch.photo_url = token.picture
+      if (Object.keys(profilePatch).length > 0) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(profilePatch)
+          .eq('id', token.uid)
+        if (updateError) throw updateError
+      }
     }
 
     res.status(200).json({ ok: true, userId: token.uid, created: !existing })

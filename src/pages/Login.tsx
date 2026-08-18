@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Home, ShoppingBag } from 'lucide-react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import type { ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 
@@ -14,6 +14,10 @@ function toE164(bdLocalNumber: string): string {
 export default function Login() {
   const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithFacebook, authError } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const requestedPath = typeof location.state?.from === 'string' ? location.state.from : null
+  const storedPath = typeof window !== 'undefined' ? window.sessionStorage.getItem('bikrikoro:auth-return-to') : null
+  const returnTo = [requestedPath, storedPath].find((path) => Boolean(path && path.startsWith('/') && !path.startsWith('//'))) ?? '/'
   const [mode, setMode] = useState<'phone' | 'email'>('phone')
   const [googleLoading, setGoogleLoading] = useState(false)
   const [facebookLoading, setFacebookLoading] = useState(false)
@@ -36,7 +40,10 @@ export default function Login() {
     if (authError) setError(socialAuthErrorMessage('সামাজিক', authError))
   }, [authError])
 
-  if (user) return <Navigate to="/" replace />
+  if (user) {
+    if (typeof window !== 'undefined') window.sessionStorage.removeItem('bikrikoro:auth-return-to')
+    return <Navigate to={returnTo} replace />
+  }
 
   const handleSendOtp = async () => {
     setError(null)
@@ -141,6 +148,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
         </div>
 
         <button
+          type="button"
           onClick={handleGoogle}
           disabled={googleLoading || facebookLoading}
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
@@ -172,6 +180,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
 
         <div className="mb-5 flex rounded-lg border border-outline p-1">
           <button
+            type="button"
             onClick={() => setMode('phone')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === 'phone' ? 'bg-brand-500 text-white' : 'text-ink-600'
@@ -180,6 +189,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
             ফোন নম্বর
           </button>
           <button
+            type="button"
             onClick={() => setMode('email')}
             className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
               mode === 'email' ? 'bg-brand-500 text-white' : 'text-ink-600'
@@ -201,6 +211,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
                   className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
                 <button
+                  type="button"
                   onClick={handleSendOtp}
                   disabled={loading || phone.trim().length < 11}
                   className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -219,6 +230,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
                   className="tabular-amount w-full rounded-lg border border-outline px-3 py-2.5 text-center text-lg tracking-widest outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
                 <button
+                  type="button"
                   onClick={handleVerifyOtp}
                   disabled={loading || otp.trim().length < 6}
                   className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -256,6 +268,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
               className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
             <button
+              type="button"
               onClick={handleEmailSubmit}
               disabled={loading}
               className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -268,6 +281,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
               </Link>
             )}
             <button
+              type="button"
               onClick={() => setIsRegistering((v) => !v)}
               className="w-full text-center text-sm text-ink-600 hover:text-brand-600"
             >
