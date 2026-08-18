@@ -47,7 +47,7 @@ export default function AdminSystemStatus() {
         actions={
           <button
             onClick={run}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600"
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"
           >
             রিফ্রেশ
           </button>
@@ -76,7 +76,7 @@ export default function AdminSystemStatus() {
         </div>
       </AdminTableCard>
 
-      <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5 text-sm leading-relaxed text-blue-900">
+      <div className="mt-5 rounded-2xl border border-brand-100 bg-brand-50 p-5 text-sm leading-relaxed text-brand-700">
         <p className="font-bold">Setup checklist</p>
         <p className="mt-2">
           Supabase SQL Editor-এ 013 এবং 014 migration run না করলে coupon, digital delivery, notification, content, settings এবং admin mutation action-এর কিছু অংশ কাজ করবে না।

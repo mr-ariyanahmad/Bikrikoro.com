@@ -143,7 +143,7 @@ export function AdminPageHeader({ title, description, actions }: { title: string
 }
 
 export function AdminStatCard({ label, value, helper, tone = 'green' }: { label: string; value: string | number; helper?: string; tone?: 'green' | 'blue' | 'amber' | 'red' }) {
-  const tones = { green: 'text-brand-700 bg-brand-50', blue: 'text-blue-700 bg-blue-50', amber: 'text-amber-700 bg-amber-50', red: 'text-red-700 bg-red-50' }
+  const tones = { green: 'text-brand-700 bg-brand-50', blue: 'text-brand-700 bg-brand-50', amber: 'text-amber-700 bg-amber-50', red: 'text-red-700 bg-red-50' }
   return (
     <div className="rounded-2xl border border-outline bg-surface p-5 shadow-sm">
       <p className="text-sm font-medium text-ink-500">{label}</p>

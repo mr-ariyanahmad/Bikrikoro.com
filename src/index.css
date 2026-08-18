@@ -98,8 +98,18 @@ body {
 }
 
 .admin-theme .text-slate-500,
-.admin-theme .text-slate-400 {
+.admin-theme .text-slate-400,
+.admin-theme .text-slate-300 {
   color: var(--color-ink-300) !important;
+}
+
+.admin-theme .bg-slate-950,
+.admin-theme .bg-slate-900 {
+  background-color: var(--color-ink-900) !important;
+}
+
+.admin-theme .border-slate-400 {
+  border-color: var(--color-outline) !important;
 }
 
 .admin-theme .bg-blue-50,
@@ -107,13 +117,17 @@ body {
   background-color: var(--color-brand-50) !important;
 }
 
+.admin-theme .text-blue-900,
+.admin-theme .text-blue-800,
 .admin-theme .text-blue-700,
 .admin-theme .text-blue-600 {
   color: var(--color-brand-700) !important;
 }
 
+.admin-theme .border-blue-100,
 .admin-theme .border-blue-200,
 .admin-theme .border-blue-300,
+.admin-theme .border-blue-400,
 .admin-theme .border-blue-500 {
   border-color: var(--color-brand-100) !important;
 }
@@ -122,6 +136,11 @@ body {
 .admin-theme .bg-blue-600 {
   background-color: var(--color-brand-500) !important;
 }
+
+.admin-theme .bg-blue-700 {
+  background-color: var(--color-brand-600) !important;
+}
+
 
 @keyframes splash-card-in {
   from { opacity: 0; transform: translateY(18px) scale(0.97); }
