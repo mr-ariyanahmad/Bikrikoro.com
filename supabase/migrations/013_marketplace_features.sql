@@ -310,7 +310,7 @@ begin
         v_body := 'অর্ডার: ' || new.product_title;
         insert into notifications(user_id, type, title, body, link)
         values (new.buyer_id, 'ORDER', v_title, v_body, v_link);
-        if new.seller_id <> new.buyer_id then
+        if new.seller_id::text <> new.buyer_id::text then
             insert into notifications(user_id, type, title, body, link)
             values (new.seller_id, 'ORDER', v_title, v_body, v_link);
         end if;

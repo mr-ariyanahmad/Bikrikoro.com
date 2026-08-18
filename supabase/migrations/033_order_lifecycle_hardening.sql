@@ -391,7 +391,7 @@ begin
     insert into public.notifications(user_id, type, title, body, link)
     values (new.buyer_id, 'ORDER', v_buyer_title, v_body, v_link);
 
-    if new.seller_id <> new.buyer_id then
+    if new.seller_id::text <> new.buyer_id::text then
       insert into public.notifications(user_id, type, title, body, link)
       values (new.seller_id, 'ORDER', v_seller_title, v_body, v_link);
     end if;

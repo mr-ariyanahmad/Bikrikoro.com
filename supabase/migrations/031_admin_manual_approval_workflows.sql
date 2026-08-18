@@ -214,7 +214,7 @@ begin
     v_title := case when new.admin_review_status = 'APPROVED' then 'অর্ডার admin approve করেছে' when new.admin_review_status = 'REJECTED' then 'অর্ডার admin reject করেছে' else 'অর্ডার review status update' end;
     v_body := 'অর্ডার: ' || new.product_title || coalesce(case when new.admin_review_note <> '' then ' — ' || new.admin_review_note else '' end, '');
     insert into public.notifications(user_id, type, title, body, link) values (new.buyer_id, 'ORDER', v_title, v_body, v_link);
-    if new.seller_id <> new.buyer_id then
+    if new.seller_id::text <> new.buyer_id::text then
       insert into public.notifications(user_id, type, title, body, link) values (new.seller_id, 'ORDER', v_title, v_body, v_link);
     end if;
   end if;
