@@ -1,3 +1,4 @@
+import type { VercelRequest } from '@vercel/node'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'

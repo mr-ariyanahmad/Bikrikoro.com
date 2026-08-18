@@ -1,4 +1,5 @@
-import { getServiceSupabase, isAuthError, verifyFirebaseRequest } from './_server-auth'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { getServiceSupabase, isAuthError, verifyFirebaseRequest } from './_server-auth.js'
 
 type NotificationRequest = {
   action?: 'list' | 'count' | 'read' | 'mark_all' | 'register_token' | 'disable_token' | 'admin_campaigns' | 'create_campaign'
@@ -37,7 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const userId = await verifyFirebaseRequest(req)
-    const input = req.method === 'GET' ? { action: typeof req.query.action === 'string' ? req.query.action : 'list' } : parseBody(req)
+    const input: NotificationRequest = req.method === 'GET'
+      ? { action: typeof req.query.action === 'string' ? req.query.action as NotificationRequest['action'] : 'list' }
+      : parseBody(req)
     const supabase = getServiceSupabase()
 
     if (input.action === 'list') {
