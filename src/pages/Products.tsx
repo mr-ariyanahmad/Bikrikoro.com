@@ -20,6 +20,7 @@ export default function Products() {
   const condition = (searchParams.get('condition') as ConditionFilter) || 'all'
   const digital = (searchParams.get('digital') as DigitalFilter) || 'all'
   const location = searchParams.get('location') ?? ''
+  const delivery = searchParams.get('delivery') ?? ''
   const minPrice = searchParams.get('min') ?? ''
   const maxPrice = searchParams.get('max') ?? ''
 
@@ -58,6 +59,7 @@ export default function Products() {
       if (digital === 'digital') request = request.eq('is_digital', true)
       if (digital === 'physical') request = request.eq('is_digital', false)
       if (location.trim()) request = request.ilike('location', `%${location.trim()}%`)
+      if (delivery === 'free') request = request.eq('free_delivery', true)
       if (minPrice && Number(minPrice) >= 0) request = request.gte('price', Number(minPrice))
       if (maxPrice && Number(maxPrice) > 0) request = request.lte('price', Number(maxPrice))
 
@@ -88,11 +90,11 @@ export default function Products() {
     return () => {
       cancelled = true
     }
-  }, [categoryId, query, sort, condition, digital, location, minPrice, maxPrice])
+  }, [categoryId, query, sort, condition, digital, location, delivery, minPrice, maxPrice])
 
   const activeFilterCount = useMemo(
-    () => [condition !== 'all', digital !== 'all', Boolean(location), Boolean(minPrice), Boolean(maxPrice)].filter(Boolean).length,
-    [condition, digital, location, minPrice, maxPrice]
+    () => [condition !== 'all', digital !== 'all', Boolean(location), delivery === 'free', Boolean(minPrice), Boolean(maxPrice)].filter(Boolean).length,
+    [condition, digital, location, delivery, minPrice, maxPrice]
   )
 
   const updateParam = (key: string, value: string) => {
@@ -104,7 +106,7 @@ export default function Products() {
 
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams)
-    ;['condition', 'digital', 'location', 'min', 'max', 'sort'].forEach((key) => next.delete(key))
+    ;['condition', 'digital', 'location', 'delivery', 'min', 'max', 'sort'].forEach((key) => next.delete(key))
     setSearchParams(next)
   }
 
@@ -208,9 +210,7 @@ export default function Products() {
           </label>
         </div>
         {activeFilterCount > 0 && (
-          <button onClick={clearFilters} className="mt-3 text-sm font-semibold text-error hover:underline">
-            সব ফিল্টার পরিষ্কার করুন
-          </button>
+          <div className="mt-3 flex flex-wrap items-center gap-3"><button onClick={clearFilters} className="text-sm font-semibold text-error hover:underline">সব ফিল্টার পরিষ্কার করুন</button>{delivery === 'free' && <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">ফ্রি ডেলিভারি</span>}</div>
         )}
       </div>
 

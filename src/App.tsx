@@ -25,6 +25,7 @@ import DisputeThread from '@/pages/DisputeThread'
 import ChatList from '@/pages/ChatList'
 import ChatThread from '@/pages/ChatThread'
 import Wallet from '@/pages/Wallet'
+import RewardsHub from '@/pages/RewardsHub'
 import Account from '@/pages/Account'
 import SellerProfile from '@/pages/SellerProfile'
 import SellerDashboard from '@/pages/SellerDashboard'
@@ -165,6 +166,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Wallet />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rewards"
+        element={
+          <ProtectedRoute>
+            <RewardsHub />
           </ProtectedRoute>
         }
       />
