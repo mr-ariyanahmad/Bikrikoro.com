@@ -3,6 +3,19 @@ import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_se
 
 type AdminRpcRequest = { rpc?: string; args?: Record<string, unknown> }
 
+type SupabaseErrorLike = { message?: unknown; code?: unknown; details?: unknown; hint?: unknown }
+
+function supabaseErrorMessage(error: unknown) {
+  if (error && typeof error === 'object') {
+    const value = error as SupabaseErrorLike
+    const message = typeof value.message === 'string' ? value.message.trim() : ''
+    const details = typeof value.details === 'string' ? value.details.trim() : ''
+    const hint = typeof value.hint === 'string' ? value.hint.trim() : ''
+    return [message, details, hint].filter(Boolean).join(' ')
+  }
+  return error instanceof Error ? error.message : ''
+}
+
 const ALLOWED_ADMIN_RPCS = new Set([
   'admin_adjust_customer_wallet',
   'admin_assign_member',
@@ -86,8 +99,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     console.error('Admin RPC failed:', error)
-    const message = error instanceof Error ? error.message : 'Admin operation failed'
+    const message = supabaseErrorMessage(error) || 'Admin operation failed'
+    const code = error && typeof error === 'object' && typeof (error as SupabaseErrorLike).code === 'string' ? (error as SupabaseErrorLike).code : undefined
     const status = /not authorized|permission|admin/i.test(message) ? 403 : /required|invalid|not found|unsupported/i.test(message) ? 400 : 500
-    res.status(status).json({ error: message })
+    res.status(status).json({ error: message, ...(code ? { code } : {}) })
   }
 }

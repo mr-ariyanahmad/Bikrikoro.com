@@ -88,6 +88,7 @@ export default function AdminSellerVerifications() {
           {registrations.map((registration) => {
             const approvedCount = registration.documents.filter((document) => document.status === 'APPROVED').length
             const pendingCount = registration.documents.filter((document) => document.status === 'PENDING').length
+            const allDocumentsApproved = registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED')
             const expanded = expandedId === registration.id
             return (
               <AdminTableCard key={registration.id} className="transition-shadow hover:shadow-md">
@@ -132,10 +133,11 @@ export default function AdminSellerVerifications() {
 
                   <div className="border-t border-slate-200 bg-slate-50/70 p-4 sm:p-5">
                     <p className="mb-2 text-xs font-semibold text-slate-600">Final application decision</p>
+                    {!allDocumentsApproved && <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Final approve করার আগে সব document-এ Approve দিতে হবে।</p>}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                       <textarea value={noteById[registration.id] ?? ''} onChange={(e) => setNoteById((current) => ({ ...current, [registration.id]: e.target.value }))} rows={2} placeholder="Final review note" className="min-h-20 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500" />
                       <div className="flex gap-2 sm:pb-0.5">
-                        <button type="button" onClick={() => finalize(registration.id, 'APPROVED')} disabled={processingId === registration.id} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Check size={15} />Final approve</button>
+                        <button type="button" onClick={() => finalize(registration.id, 'APPROVED')} disabled={processingId === registration.id || !allDocumentsApproved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Check size={15} />Final approve</button>
                         <button type="button" onClick={() => finalize(registration.id, 'REJECTED')} disabled={processingId === registration.id} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 disabled:opacity-50"><X size={15} />Reject</button>
                       </div>
                     </div>
