@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product } from '@/types/product'
 
@@ -75,7 +76,7 @@ export default function Favorites() {
             এই folder-এ কোনো পণ্য নেই। Product card-এর ♡ চাপুন বা অন্য folder বেছে নিন।
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{visibleProducts.map((product) => <div key={product.id} className="min-w-0"><ProductCard product={product} /><select value={folderByProduct[product.id] ?? ''} onChange={(e) => assignFolder(product.id, e.target.value)} className="mt-1 w-full rounded-lg border border-outline bg-surface px-2 py-1.5 text-xs text-ink-600 outline-none"><option value="">সব folder</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></div>)}</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{visibleProducts.map((product) => <div key={product.id} className="min-w-0"><ProductCard product={product} /><div className="mt-2"><BrandSelect label="Folder" value={folderByProduct[product.id] ?? ''} options={[{ value: '', label: 'সব folder' }, ...folders.map((folder) => ({ value: folder.id, label: folder.name }))]} onChange={(value) => assignFolder(product.id, value)} /></div></div>)}</div>
         )}
       </div>
     </Layout>

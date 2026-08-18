@@ -6,6 +6,7 @@ import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
+import { BrandSelect } from '@/components/BrandSelect'
 import type { Product, Category } from '@/types/product'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
@@ -145,18 +146,7 @@ export default function Products() {
         >
           ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
         </button>
-        <select
-          value={sort}
-          onChange={(e) => updateParam('sort', e.target.value)}
-          className="rounded-lg border border-outline px-3 py-2.5 text-sm text-ink-600 outline-none focus:border-brand-500"
-        >
-          <option value="newest">নতুন আগে</option>
-          <option value="oldest">পুরোনো আগে</option>
-          <option value="popular">জনপ্রিয় আগে</option>
-          <option value="discount">বেশি ছাড় আগে</option>
-          <option value="price_asc">দাম: কম থেকে বেশি</option>
-          <option value="price_desc">দাম: বেশি থেকে কম</option>
-        </select>
+        <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'popular', label: 'জনপ্রিয় আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
       </div>
 
       <div className={`${showFilters ? 'block' : 'hidden'} mb-5 rounded-2xl border border-outline bg-surface p-4 sm:block`}>
@@ -183,22 +173,8 @@ export default function Products() {
               className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500"
             />
           </label>
-          <label className="text-sm text-ink-600">
-            <span className="mb-1 block font-medium text-ink-900">অবস্থা</span>
-            <select value={condition} onChange={(e) => updateParam('condition', e.target.value)} className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500">
-              <option value="all">সব ধরনের</option>
-              <option value="NEW">নতুন</option>
-              <option value="USED">ব্যবহৃত</option>
-            </select>
-          </label>
-          <label className="text-sm text-ink-600">
-            <span className="mb-1 block font-medium text-ink-900">পণ্যের ধরন</span>
-            <select value={digital} onChange={(e) => updateParam('digital', e.target.value)} className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500">
-              <option value="all">সব পণ্য</option>
-              <option value="digital">ডিজিটাল</option>
-              <option value="physical">ফিজিক্যাল</option>
-            </select>
-          </label>
+          <BrandSelect label="অবস্থা" value={condition} options={[{ value: 'all', label: 'সব ধরনের' }, { value: 'NEW', label: 'নতুন' }, { value: 'USED', label: 'ব্যবহৃত' }]} onChange={(value) => updateParam('condition', value)} />
+          <BrandSelect label="পণ্যের ধরন" value={digital} options={[{ value: 'all', label: 'সব পণ্য' }, { value: 'digital', label: 'ডিজিটাল' }, { value: 'physical', label: 'ফিজিক্যাল' }]} onChange={(value) => updateParam('digital', value)} />
           <label className="text-sm text-ink-600">
             <span className="mb-1 block font-medium text-ink-900">লোকেশন</span>
             <input

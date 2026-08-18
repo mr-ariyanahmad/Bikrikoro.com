@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { ReviewModal } from '@/components/ReviewModal'
@@ -112,7 +113,7 @@ export default function Orders() {
           বিক্রি করেছি
         </button>
       </div>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={orderQuery} onChange={(e) => setOrderQuery(e.target.value)} placeholder="পণ্যের নামে অর্ডার খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'ALL')} className="rounded-xl border border-outline px-3 py-2.5 text-sm text-ink-600 outline-none focus:border-brand-500"><option value="ALL">সব status</option>{Object.entries(STATUS_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={orderQuery} onChange={(e) => setOrderQuery(e.target.value)} placeholder="পণ্যের নামে অর্ডার খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><div className="min-w-52"><BrandSelect label="অর্ডারের status" value={statusFilter} options={[{ value: 'ALL', label: 'সব status' }, ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))]} onChange={(value) => setStatusFilter(value as OrderStatus | 'ALL')} /></div></div>
 
       <div className="mt-5 space-y-3">
         {loading ? (

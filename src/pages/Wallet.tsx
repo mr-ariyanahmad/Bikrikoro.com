@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
 import { BalanceCard } from '@/components/BalanceCard'
 import { LedgerThread } from '@/components/LedgerThread'
+import { BrandSelect } from '@/components/BrandSelect'
 import { WithdrawModal } from '@/components/WithdrawModal'
 import type { WalletBalance, WalletLedgerEntry } from '@/types/wallet'
 
@@ -79,7 +80,7 @@ export default function Wallet() {
             onWithdrawClick={() => setShowWithdraw(true)}
           />
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="inline-flex items-center gap-1 rounded-xl border border-outline px-2 py-1.5 text-xs"><Filter size={14} className="text-ink-400" /><select value={entryFilter} onChange={(e) => setEntryFilter(e.target.value as typeof entryFilter)} className="bg-transparent font-semibold text-ink-600 outline-none"><option value="all">সব</option><option value="credit">জমা</option><option value="debit">খরচ</option></select></div><button onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="flex min-w-32 items-center gap-1"><Filter size={14} className="text-ink-400" /><BrandSelect label="লেনদেনের ধরন" value={entryFilter} options={[{ value: 'all', label: 'সব' }, { value: 'credit', label: 'জমা' }, { value: 'debit', label: 'খরচ' }]} onChange={(value) => setEntryFilter(value as typeof entryFilter)} /></div><button onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
           <LedgerThread entries={visibleEntries} />
         </>
       )}

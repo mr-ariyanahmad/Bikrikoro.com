@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
+import { BrandSelect } from '@/components/BrandSelect'
 
 export function BuyModal({
   product,
@@ -110,7 +111,7 @@ export function BuyModal({
           ) : (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink-900">ডেলিভারি ঠিকানা</label>
-              {savedAddresses.length > 0 && <select value={selectedAddressId} onChange={(e) => { const next = savedAddresses.find((item) => item.id === e.target.value); setSelectedAddressId(e.target.value); if (next) setAddress(`${next.recipient_name}, ${next.phone}, ${next.address_line}, ${next.area}, ${next.city}`) }} className="mb-2 w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500"><option value="">সেভড ঠিকানা বেছে নিন</option>{savedAddresses.map((saved) => <option key={saved.id} value={saved.id}>{saved.label} — {saved.address_line}, {saved.city}</option>)}</select>}
+              {savedAddresses.length > 0 && <div className="mb-2"><BrandSelect label="সেভড ঠিকানা" value={selectedAddressId} options={[{ value: '', label: 'সেভড ঠিকানা বেছে নিন' }, ...savedAddresses.map((saved) => ({ value: saved.id, label: `${saved.label} — ${saved.address_line}, ${saved.city}` }))]} onChange={(value) => { const next = savedAddresses.find((item) => item.id === value); setSelectedAddressId(value); if (next) setAddress(`${next.recipient_name}, ${next.phone}, ${next.address_line}, ${next.area}, ${next.city}`) }} /></div>}
               <textarea value={address} onChange={(e) => { setAddress(e.target.value); setSelectedAddressId('') }} rows={2} placeholder="বাসা/রোড/এলাকা, শহর" className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
               <p className="mt-1 text-xs text-ink-400">ঠিকানা পরে <span className="font-medium text-brand-600">সেভড ঠিকানা</span> পেজ থেকেও বদলাতে পারবেন।</p>
             </div>

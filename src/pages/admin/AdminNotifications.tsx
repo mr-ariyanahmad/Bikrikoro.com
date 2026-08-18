@@ -4,6 +4,7 @@ import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/co
 import { useAuth } from '@/context/AuthContext'
 import { auth } from '@/lib/firebase'
 import { formatDateTime } from '@/lib/format'
+import { BrandSelect } from '@/components/BrandSelect'
 
 type TargetType = 'ALL' | 'CUSTOMERS' | 'SELLERS' | 'USER_LIST'
 type Campaign = {
@@ -136,7 +137,7 @@ export default function AdminNotifications() {
         <AdminTableCard>
           <div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center gap-2"><Megaphone size={18} className="text-brand-700" /><h2 className="font-semibold text-slate-900">নতুন campaign</h2></div><p className="mt-1 text-xs text-slate-500">একবার পাঠালে in-app inbox-এ সংরক্ষিত হবে।</p></div>
           <div className="space-y-4 p-5">
-            <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">কাকে পাঠাবেন?</span><select value={form.target_type} onChange={(event) => setForm({ ...form, target_type: event.target.value as TargetType })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-brand-500">{targetOptions.map((option) => <option key={option.value} value={option.value}>{option.label} — {option.description}</option>)}</select></label>
+            <BrandSelect label="কাকে পাঠাবেন?" value={form.target_type} options={targetOptions.map((option) => ({ value: option.value, label: `${option.label} — ${option.description}` }))} onChange={(value) => setForm({ ...form, target_type: value as TargetType })} />
             {form.target_type === 'USER_LIST' && <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">Firebase UID তালিকা</span><textarea value={form.user_ids} onChange={(event) => setForm({ ...form, user_ids: event.target.value })} rows={3} placeholder="প্রতি লাইনে একটি UID বা comma দিয়ে" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-xs outline-none focus:border-brand-500" /></label>}
             <Field label="শিরোনাম" value={form.title} onChange={(value) => setForm({ ...form, title: value })} placeholder="আজকের marketplace update" />
             <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">বার্তা</span><textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={4} placeholder="আপনার জন্য নতুন সুবিধা এসেছে…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label>

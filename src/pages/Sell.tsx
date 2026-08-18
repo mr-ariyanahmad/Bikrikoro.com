@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
 import { ImageUploader } from '@/components/ImageUploader'
 import { uploadProductImages } from '@/lib/storage'
 import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
@@ -45,6 +46,8 @@ export default function Sell() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
+  const [digitalVerified, setDigitalVerified] = useState(false)
+  const [digitalVerificationLoading, setDigitalVerificationLoading] = useState(true)
 
   useEffect(() => {
     supabase
@@ -57,6 +60,20 @@ export default function Sell() {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setDigitalVerificationLoading(false)
+      return
+    }
+    let active = true
+    supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('listing_mode', 'DIGITAL').eq('status', 'APPROVED').maybeSingle().then(({ data }) => {
+      if (!active) return
+      setDigitalVerified(Boolean(data))
+      setDigitalVerificationLoading(false)
+    })
+    return () => { active = false }
+  }, [user])
 
   useEffect(() => {
     if (isEditing) return
@@ -181,20 +198,29 @@ export default function Sell() {
     Number(price) > 0 &&
     categoryId &&
     (isDigital || location.trim().length >= 2) &&
+    (!isDigital || digitalVerified) &&
     (!isDigital || digitalDeliveryText.trim().length >= 3) &&
     images.length > 0 &&
     !images.some((img) => img.uploading)
   const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
   const qualityScore = Math.round((qualityChecks.filter(Boolean).length / qualityChecks.length) * 100)
 
+  useEffect(() => {
+    if (!isEditing && !digitalVerificationLoading && !digitalVerified && isDigital) {
+      setIsDigital(false)
+      setModeSelected(requestedMode !== 'DIGITAL')
+    }
+  }, [digitalVerificationLoading, digitalVerified, isDigital, isEditing, requestedMode])
+
   const handleSubmit = async () => {
-    if (!user || !isValid) return
+    if (!user || !isValid || digitalVerificationLoading) return
     setSubmitting(true)
     setError(null)
 
-    if (isDigital) {
-      const { data: verification } = await supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('listing_mode', 'DIGITAL').eq('status', 'APPROVED').maybeSingle()
-      if (!verification) { setError('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।'); setSubmitting(false); return }
+    if (isDigital && !digitalVerified) {
+      setError('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।')
+      setSubmitting(false)
+      return
     }
 
     const payload = {
@@ -270,8 +296,16 @@ export default function Sell() {
     )
   }
 
+  if (isDigital && digitalVerificationLoading) {
+    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-brand-100 bg-brand-50 p-6 text-center"><ShieldCheck className="mx-auto text-brand-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification যাচাই হচ্ছে</h1><p className="mt-2 text-sm leading-6 text-ink-600">আপনার account-এ ডিজিটাল পণ্য বিক্রির অনুমোদন আছে কি না যাচাই করছি।</p></div></Layout>
+  }
+
+  if (isEditing && isDigital && !digitalVerificationLoading && !digitalVerified) {
+    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center"><ShieldCheck className="mx-auto text-amber-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল listing edit করা যাচ্ছে না</h1><p className="mt-2 text-sm leading-6 text-ink-700">ডিজিটাল পণ্য edit করতে Digital Seller Verification আবার অনুমোদিত হতে হবে।</p><button type="button" onClick={() => navigate('/my-listings')} className="mt-4 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white">My Listings-এ ফিরুন</button></div></Layout>
+  }
+
   if (!isEditing && !modeSelected) {
-    return <Layout wide><div className="mx-auto max-w-3xl"><div className="rounded-3xl bg-ink-900 p-6 text-white sm:p-8"><p className="text-sm font-semibold text-brand-300">Seller setup</p><h1 className="mt-2 text-2xl font-bold">আপনি কী বিক্রি করবেন?</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে listing-এর ধরন নির্বাচন করুন। Digital product seller হলে publish করার আগে শক্ত verification লাগবে।</p></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><button onClick={() => navigate('/become-seller/verify?mode=DIGITAL')} className="rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white"><FileCheck2 size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ডিজিটাল</span><span className="mt-1 block text-xs text-ink-500">কোড, ফাইল, course, service বা software</span></span></div><p className="mt-4 text-sm font-semibold text-brand-700">আগে verification করুন →</p></button><button onClick={() => { setIsDigital(false); setModeSelected(true) }} className="rounded-2xl border border-outline bg-surface p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg text-brand-600"><Package size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ফিজিক্যাল</span><span className="mt-1 block text-xs text-ink-500">Courier-এ পাঠানো যাবে এমন পণ্য</span></span></div><p className="mt-4 text-sm font-semibold text-ink-600">Listing form-এ যান →</p></button></div><div className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Admin approval, document verification এবং sector badge ক্রেতার trust বাড়াতে সাহায্য করবে।</div></div></Layout>
+    return <Layout wide><div className="mx-auto max-w-3xl"><div className="rounded-3xl bg-ink-900 p-6 text-white sm:p-8"><p className="text-sm font-semibold text-brand-300">Seller setup</p><h1 className="mt-2 text-2xl font-bold">আপনি কী বিক্রি করবেন?</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে listing-এর ধরন নির্বাচন করুন। Digital product seller হলে publish করার আগে শক্ত verification লাগবে।</p></div><div className={`mt-5 grid gap-3 ${digitalVerified ? 'sm:grid-cols-2' : ''}`}>{digitalVerified && <button type="button" onClick={() => { setIsDigital(true); setModeSelected(true) }} className="rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white"><FileCheck2 size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ডিজিটাল</span><span className="mt-1 block text-xs text-ink-500">আপনার verification অনুমোদিত — কোড, ফাইল, course বা service</span></span></div><p className="mt-4 text-sm font-semibold text-brand-700">Digital listing তৈরি করুন →</p></button>}<button type="button" onClick={() => { setIsDigital(false); setModeSelected(true) }} className="rounded-2xl border border-outline bg-surface p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg text-brand-600"><Package size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ফিজিক্যাল</span><span className="mt-1 block text-xs text-ink-500">Courier-এ পাঠানো যাবে এমন পণ্য</span></span></div><p className="mt-4 text-sm font-semibold text-ink-600">Physical listing তৈরি করুন →</p></button></div>{!digitalVerified && <div className="mt-4 rounded-xl border border-outline bg-bg p-3 text-xs leading-5 text-ink-600"><ShieldCheck size={15} className="mr-1 inline text-brand-600" /> Digital product option verification approve হওয়ার পরে চালু হবে। এখন আপনি শুধু physical product list করতে পারবেন।</div>}<div className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Admin approval, document verification এবং sector badge ক্রেতার trust বাড়াতে সাহায্য করবে।</div></div></Layout>
   }
 
   return (
@@ -344,20 +378,14 @@ export default function Sell() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">ক্যাটাগরি</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <BrandSelect
+            label="ক্যাটাগরি"
+            value={categoryId}
+            options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+            onChange={setCategoryId}
+            placeholder="ক্যাটাগরি বেছে নিন"
+            disabled={categories.length === 0}
+          />
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label>
             <div className="flex rounded-lg border border-outline p-1">
@@ -377,25 +405,18 @@ export default function Sell() {
           </div>
         </div>
 
-        <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-ink-900"><input type="checkbox" checked={isDigital} onChange={(e) => setIsDigital(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)</label>
-          <p className="mt-1 text-xs text-ink-300">ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না, এবং কোনো ক্যাশ অন ডেলিভারি হয় না — আগে থেকে পেমেন্ট করে অর্ডার করতে হবে।</p>
-        </div>
+        {digitalVerified ? <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-3"><label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink-900"><input type="checkbox" checked={isDigital} onChange={(e) => setIsDigital(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)</label><p className="mt-1 text-xs text-brand-700">আপনার Digital Seller Verification অনুমোদিত হয়েছে।</p><p className="mt-1 text-xs text-ink-500">ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না এবং ক্যাশ অন ডেলিভারি প্রযোজ্য নয়।</p></div> : <div className="rounded-xl border border-outline bg-bg p-3"><div className="flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">শুধু ফিজিক্যাল listing চালু আছে</p><p className="mt-1 text-xs leading-5 text-ink-600">ডিজিটাল পণ্য বিক্রি করতে Digital Seller Verification এবং Admin approval প্রয়োজন।</p></div></div></div>}
 
         {!isDigital && <div className="rounded-xl border border-outline bg-bg p-4"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-ink-900">ক্রেতার জন্য ডেলিভারি ব্যাজ</p><p className="mt-1 text-xs text-ink-500">শুধু আপনি সত্যিই দিতে পারবেন এমন সুবিধা বেছে নিন।</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${qualityScore >= 80 ? 'bg-success/10 text-success' : 'bg-amber-50 text-amber-700'}`}>Listing quality {qualityScore}%</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{[[supportsCod, setSupportsCod, 'ক্যাশ অন ডেলিভারি (COD)'], [freeDelivery, setFreeDelivery, 'ফ্রি ডেলিভারি'], [fastDelivery, setFastDelivery, 'দ্রুত ডেলিভারি'], [freeReturn, setFreeReturn, 'ফ্রি রিটার্ন']].map(([checked, setter, label]) => <label key={label as string} className="flex items-center gap-2 rounded-lg border border-outline bg-surface px-3 py-2 text-sm text-ink-700"><input type="checkbox" checked={checked as boolean} onChange={(e) => (setter as (value: boolean) => void)(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />{label as string}</label>)}</div></div>}
 
         {isDigital && (
           <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">ডিজিটাল ডেলিভারি</label>
-            <select
+            <BrandSelect
+              label="ডিজিটাল ডেলিভারি"
               value={digitalDeliveryType}
-              onChange={(e) => setDigitalDeliveryType(e.target.value as typeof digitalDeliveryType)}
-              className="w-full rounded-lg border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            >
-              <option value="INSTRUCTIONS">ব্যবহারের নির্দেশনা</option>
-              <option value="LICENSE_KEY">লাইসেন্স / এক্টিভেশন কী</option>
-              <option value="DOWNLOAD_LINK">ডাউনলোড লিংক</option>
-            </select>
+              options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]}
+              onChange={(value) => setDigitalDeliveryType(value as typeof digitalDeliveryType)}
+            />
             <textarea
               value={digitalDeliveryText}
               onChange={(e) => setDigitalDeliveryText(e.target.value)}

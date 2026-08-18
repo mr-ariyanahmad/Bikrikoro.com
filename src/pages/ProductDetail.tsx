@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { BuyModal } from '@/components/BuyModal'
 import { RecommendedProducts } from '@/components/RecommendedProducts'
+import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
@@ -445,7 +446,7 @@ export default function ProductDetail() {
       />
 
       {showBuy && user && <BuyModal product={product} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
-      {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">Listing report করুন</h2><p className="mt-1 text-sm text-ink-500">কেন listing-টি সমস্যা মনে হচ্ছে?</p><select value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="mt-4 w-full rounded-xl border border-outline px-3 py-2.5 text-sm"><option>ভুল বা বিভ্রান্তিকর তথ্য</option><option>নিষিদ্ধ পণ্য</option><option>ভুয়া বা প্রতারণামূলক listing</option><option>অন্য কারণ</option></select><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button onClick={() => setShowReport(false)} className="flex-1 rounded-xl border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button onClick={handleReport} className="flex-1 rounded-xl bg-error py-2.5 text-sm font-semibold text-white">Report পাঠান</button></div></div></div>}
+      {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">Listing report করুন</h2><p className="mt-1 text-sm text-ink-500">কেন listing-টি সমস্যা মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="Report-এর কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক listing', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button onClick={() => setShowReport(false)} className="flex-1 rounded-xl border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button onClick={handleReport} className="flex-1 rounded-xl bg-error py-2.5 text-sm font-semibold text-white">Report পাঠান</button></div></div></div>}
     </Layout>
   )
 }
