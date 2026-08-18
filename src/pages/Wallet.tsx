@@ -8,7 +8,7 @@ import { BalanceCard } from '@/components/BalanceCard'
 import { LedgerThread } from '@/components/LedgerThread'
 import { BrandSelect } from '@/components/BrandSelect'
 import { WithdrawModal } from '@/components/WithdrawModal'
-import type { WalletBalance, WalletLedgerEntry } from '@/types/wallet'
+import type { WalletBalance, WalletLedgerEntry, WalletWithdrawalSummary } from '@/types/wallet'
 
 export default function Wallet() {
   const { user } = useAuth()
@@ -16,6 +16,7 @@ export default function Wallet() {
 
   const [balance, setBalance] = useState<WalletBalance | null>(null)
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([])
+  const [withdrawalSummary, setWithdrawalSummary] = useState<WalletWithdrawalSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showWithdraw, setShowWithdraw] = useState(false)
@@ -29,10 +30,11 @@ export default function Wallet() {
       const idToken = await auth.currentUser?.getIdToken()
       if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
-      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[] }
+      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null }
       if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
       setBalance(payload.balance ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
       setEntries(payload.ledger ?? [])
+      setWithdrawalSummary(payload.withdrawalSummary ?? null)
     } catch (error) {
       console.error('Wallet load failed:', error)
       setLoadError(error instanceof Error ? error.message : 'ওয়ালেট লোড করা যায়নি।')
@@ -44,9 +46,9 @@ export default function Wallet() {
   useEffect(() => {
     loadWallet()
 
-    // Balance and ledger update the moment a seller-cancelled order
-    // refunds the buyer, a sale completes, or a withdrawal is marked
-    // paid — all server-side, this just reflects it live.
+    // Balance, ledger, and withdrawal requests update the moment a seller-
+    // cancelled order refunds the buyer, a sale completes, or a payout is
+    // requested/rejected/paid — all server-side, this just reflects it live.
     const channel = supabase
       .channel(`wallet-${uid}`)
       .on(
@@ -57,6 +59,11 @@ export default function Wallet() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${uid}` },
+        loadWallet
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wallet_withdrawal_requests', filter: `user_id=eq.${uid}` },
         loadWallet
       )
       .subscribe()
@@ -83,6 +90,7 @@ export default function Wallet() {
           {loadError && <p className="mb-4 border border-error/20 bg-error/5 p-3 text-sm text-error">ওয়ালেট লোড করা যায়নি: {loadError}</p>}
           <BalanceCard
             balance={balance?.available_balance ?? 0}
+            reservedAmount={withdrawalSummary?.reserved_amount ?? 0}
             onWithdrawClick={() => setShowWithdraw(true)}
           />
 
@@ -94,11 +102,12 @@ export default function Wallet() {
       {showWithdraw && balance && (
         <WithdrawModal
           userId={uid}
-          availableBalance={balance.available_balance}
+          availableBalance={withdrawalSummary?.spendable_balance ?? balance.available_balance}
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             setShowWithdraw(false)
-            setToast('উত্তোলনের অনুরোধ জমা হয়েছে — পর্যালোচনার পর টাকা পাঠানো হবে।')
+            void loadWallet()
+            setToast('উত্তোলনের অনুরোধ জমা হয়েছে — এই amount এখন reserved আছে।')
             setTimeout(() => setToast(null), 4000)
           }}
         />

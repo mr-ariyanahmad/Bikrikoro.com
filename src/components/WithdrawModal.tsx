@@ -47,8 +47,8 @@ export function WithdrawModal({
       if (!response.ok) {
         const rawError = result.error || `Withdrawal failed (HTTP ${response.status})`
         const normalized = rawError.toLowerCase()
-        if (normalized.includes('after pending payouts') || normalized.includes('reserved')) throw new Error('আপনার wallet balance-এর কিছু অংশ আগের payout request-এ reserved আছে। নতুন payout-এর পরিমাণ কমান বা pending request-এর status দেখুন।')
-        if (normalized.includes('insufficient wallet balance')) throw new Error('এই পরিমাণ উত্তোলনের জন্য wallet balance যথেষ্ট নয়।')
+        if (normalized.includes('after pending payouts') || normalized.includes('reserved') || normalized.includes('spendable')) throw new Error('আপনার wallet-এর কিছু অংশ আগের payout request-এ reserved আছে। উত্তোলনের পরিমাণ spendable balance-এর মধ্যে রাখুন।')
+        if (normalized.includes('insufficient wallet balance') || normalized.includes('insufficient spendable')) throw new Error('এই পরিমাণ উত্তোলনের জন্য spendable balance যথেষ্ট নয়।')
         if (normalized.includes('wallet balance not found')) throw new Error('আপনার wallet এখনো প্রস্তুত হয়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
         throw new Error(rawError)
       }
@@ -73,7 +73,7 @@ export function WithdrawModal({
           </button>
         </div>
         <p className="mt-1 text-sm text-ink-600">
-          উপলব্ধ ব্যালেন্স: <span className="tabular-amount font-medium">{formatTaka(availableBalance)}</span>
+          উত্তোলনের জন্য উপলব্ধ: <span className="tabular-amount font-medium">{formatTaka(availableBalance)}</span>
         </p>
 
         <div className="mt-5 space-y-4">
@@ -108,7 +108,7 @@ export function WithdrawModal({
               className="tabular-amount w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
             {parsedAmount > availableBalance && (
-              <p className="mt-1 text-xs text-error">ব্যালেন্সের চেয়ে বেশি পরিমাণ দেওয়া যাবে না।</p>
+              <p className="mt-1 text-xs text-error">উত্তোলনের জন্য উপলব্ধ amount-এর চেয়ে বেশি দেওয়া যাবে না।</p>
             )}
           </div>
 

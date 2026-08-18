@@ -12,6 +12,14 @@ export interface WalletBalance {
   updated_at: string
 }
 
+export interface WalletWithdrawalSummary {
+  available_balance: number
+  reserved_amount: number
+  spendable_balance: number
+  pending_amount: number
+  approved_amount: number
+}
+
 export interface WalletLedgerEntry {
   id: string
   user_id: string
