@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { uploadProductImages } from '@/lib/storage'
+import { validateImageFiles } from '@/lib/fileValidation'
 import type { Profile } from '@/types/product'
 
 export default function Account() {
@@ -43,6 +44,8 @@ export default function Account() {
   }
 
   const handlePhotoChange = async (file: File) => {
+    const fileError = validateImageFiles([file], 1)
+    if (fileError) { showToast(fileError); return }
     setUploadingPhoto(true)
     try {
       // Reuses the product-images bucket under a profile-photos/ prefix
@@ -53,8 +56,8 @@ export default function Account() {
       if (error) throw error
       setProfile((prev) => (prev ? { ...prev, photo_url: url } : prev))
       showToast('ছবি আপডেট হয়েছে।')
-    } catch {
-      showToast('ছবি আপলোড করা যায়নি।')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'ছবি আপলোড করা যায়নি।')
     } finally {
       setUploadingPhoto(false)
     }
@@ -158,7 +161,8 @@ export default function Account() {
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0]
-              if (file) handlePhotoChange(file)
+              if (file) void handlePhotoChange(file)
+              e.target.value = ''
             }}
           />
         </label>

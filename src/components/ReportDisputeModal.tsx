@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { reportOrderDispute } from '@/lib/orders'
+import { validateEvidenceFiles } from '@/lib/fileValidation'
 import { uploadDisputeEvidence } from '@/lib/storage'
 import type { DisputeReason } from '@/types/order'
 
@@ -99,7 +100,7 @@ export function ReportDisputeModal({
               type="file"
               accept="image/*"
               multiple
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))}
+              onChange={(e) => { const selected = Array.from(e.target.files ?? []); const fileError = validateEvidenceFiles(selected, 4); if (fileError) { setError(fileError); e.target.value = ''; return }; setError(null); setFiles(selected) }}
               className="w-full text-sm text-ink-600"
             />
           </div>

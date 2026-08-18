@@ -1,14 +1,17 @@
 import { useRef } from 'react'
+import { validateImageFiles } from '@/lib/fileValidation'
 
 export function ImageUploader({
   images,
   onAdd,
   onRemove,
+  onError,
   max = 6,
 }: {
   images: { url: string; uploading?: boolean }[]
   onAdd: (files: File[]) => void
   onRemove: (index: number) => void
+  onError?: (message: string) => void
   max?: number
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -53,7 +56,9 @@ export function ImageUploader({
         className="hidden"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? [])
-          if (files.length) onAdd(files)
+          const validationError = validateImageFiles(files, Math.max(0, max - images.length))
+          if (validationError) onError?.(validationError)
+          else if (files.length) onAdd(files)
           e.target.value = ''
         }}
       />

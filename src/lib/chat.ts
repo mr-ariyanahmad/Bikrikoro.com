@@ -1,10 +1,9 @@
 import { supabase } from '@/lib/supabase'
 
 /**
- * chat_threads has `unique (buyer_id, seller_id)` (001_init.sql) — reuses
- * the same thread across every product two users discuss, matching how
- * the Android app's chat list works (one thread per counterpart, not per
- * product).
+ * Creates or reuses one secure chat thread per buyer/seller pair.
+ * Firebase UIDs are passed to a security-definer RPC; the client never writes
+ * directly to chat_threads.
  */
 export async function findOrCreateThread(
   buyerId: string,
@@ -13,30 +12,11 @@ export async function findOrCreateThread(
 ): Promise<string> {
   if (!buyerId || !sellerId || buyerId === sellerId) throw new Error('নিজের listing-এ chat করা যাবে না।')
 
-  const findExisting = async () => supabase
-    .from('chat_threads')
-    .select('id, product_id')
-    .eq('buyer_id', buyerId)
-    .eq('seller_id', sellerId)
-    .maybeSingle()
-
-  const { data: existing, error: lookupError } = await findExisting()
-  if (lookupError) throw lookupError
-  if (existing) {
-    if (!existing.product_id && productId) await supabase.from('chat_threads').update({ product_id: productId }).eq('id', existing.id)
-    return existing.id
-  }
-
-  const { data, error } = await supabase
-    .from('chat_threads')
-    .insert({ buyer_id: buyerId, seller_id: sellerId, product_id: productId })
-    .select('id')
-    .maybeSingle()
-
-  if (!error && data) return data.id
-  if (error?.code === '23505') {
-    const { data: raced, error: raceError } = await findExisting()
-    if (!raceError && raced) return raced.id
-  }
-  throw error ?? new Error('Chat thread তৈরি করা যায়নি।')
+  const { data, error } = await supabase.rpc('find_or_create_chat_thread', {
+    p_buyer_id: buyerId,
+    p_seller_id: sellerId,
+    p_product_id: productId,
+  })
+  if (error || !data) throw error ?? new Error('Chat thread তৈরি করা যায়নি।')
+  return data as string
 }

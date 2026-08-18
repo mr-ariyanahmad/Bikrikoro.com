@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { MAX_IMAGE_BYTES, validateEvidenceFiles, validateImageFiles } from '@/lib/fileValidation'
 
 const PRODUCT_BUCKET = 'product-images'
 const DISPUTE_BUCKET = 'dispute-evidence' // matches SupabaseStorageHelper.uploadDisputeEvidence on Android
@@ -14,6 +15,12 @@ export async function uploadDisputeEvidence(files: File[], orderId: string): Pro
 }
 
 async function uploadTo(bucket: string, files: File[], ownerFolder: string): Promise<string[]> {
+  const validationError = bucket === DISPUTE_BUCKET
+    ? validateEvidenceFiles(files, 4)
+    : validateImageFiles(files, 12)
+  if (validationError) throw new Error(validationError)
+  if (files.some((file) => file.size > MAX_IMAGE_BYTES)) throw new Error('ফাইলের size limit অতিক্রম করেছে।')
+
   const urls: string[] = []
 
   for (const file of files) {

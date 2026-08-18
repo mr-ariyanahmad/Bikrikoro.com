@@ -63,10 +63,10 @@ export default function MyListings() {
       return
     }
     if (product.is_digital && digitalContent) {
-      const { error: contentError } = await supabase.from('digital_product_contents').insert({ product_id: newProductId, seller_id: user.uid, delivery_type: digitalContent.delivery_type, delivery_text: digitalContent.delivery_text })
+      const { error: contentError } = await supabase.rpc('seller_upsert_digital_content', { p_seller_id: user.uid, p_product_id: newProductId, p_delivery_type: digitalContent.delivery_type, p_delivery_text: digitalContent.delivery_text })
       if (contentError) {
-        await supabase.from('products').delete().eq('id', newProductId).eq('seller_id', user.uid)
-        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য copy বাতিল করা হয়েছে।')
+        await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
+        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
         setDuplicatingId(null)
         return
       }
@@ -78,9 +78,15 @@ export default function MyListings() {
   }
 
   const handleDelete = async (productId: string) => {
+    if (!user) return
     setDeletingId(productId)
-    await supabase.from('products').delete().eq('id', productId)
-    setProducts((prev) => prev.filter((p) => p.id !== productId))
+    const { error } = await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: productId })
+    if (error) {
+      setMessage(`লিস্টিং archive করা যায়নি: ${error.message}`)
+    } else {
+      setProducts((prev) => prev.map((product) => product.id === productId ? { ...product, is_hidden: true } : product))
+      setMessage('লিস্টিং archive হয়েছে। এটি customer-এর public catalogue-এ আর দেখা যাবে না।')
+    }
     setDeletingId(null)
   }
 
@@ -135,7 +141,8 @@ export default function MyListings() {
                 <p className="tabular-amount mt-0.5 text-sm text-brand-600">{formatTaka(product.price)}</p>
                 <p className="mt-0.5 text-xs text-ink-300">{product.view_count} বার দেখা হয়েছে</p>
                 <span className={`mt-1 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${product.approval_status === 'APPROVED' ? 'bg-brand-50 text-brand-700' : product.approval_status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{product.approval_status === 'APPROVED' ? 'এডমিন অনুমোদিত' : product.approval_status === 'REJECTED' ? 'এডমিন বাতিল করেছে' : 'এডমিনের অনুমোদন বাকি'}</span>
-                {product.approval_status === 'REJECTED' && product.approval_note && <p className="mt-1 line-clamp-2 text-xs text-red-600">কারণ: {product.approval_note}</p>}
+                  {product.is_hidden && <span className="mt-1 inline-flex w-fit rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">আর্কাইভ করা</span>}
+                  {product.approval_status === 'REJECTED' && product.approval_note && <p className="mt-1 line-clamp-2 text-xs text-red-600">কারণ: {product.approval_note}</p>}
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">
                 <Link

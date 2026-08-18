@@ -20,13 +20,14 @@ export default function ChatList() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from('chat_threads')
-      .select('*')
-      .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
-      .order('last_message_at', { ascending: false })
+    const { data, error } = await supabase.rpc('list_my_chat_threads', { p_user_id: uid })
+    if (error) {
+      setThreads([])
+      setLoading(false)
+      return
+    }
 
-    const rows = data ?? []
+    const rows = (data ?? []) as ChatThread[]
     const otherIds = [...new Set(rows.map((t) => (t.buyer_id === uid ? t.seller_id : t.buyer_id)))]
 
     const { data: profiles } = otherIds.length

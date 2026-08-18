@@ -24,21 +24,16 @@ export default function ChatThreadPage() {
 
   const loadMessages = useCallback(async () => {
     if (!threadId) return
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true })
+    const { data } = await supabase.rpc('list_my_chat_messages', { p_user_id: uid, p_thread_id: threadId })
     setMessages(data ?? [])
-  }, [threadId])
+  }, [threadId, uid])
 
   useEffect(() => {
     if (!threadId) return
 
     async function init() {
-      const { data: threadData, error: threadError } = await supabase.from('chat_threads').select('*').eq('id', threadId).maybeSingle()
-      if (threadError || !threadData) { setError('এই chat thread পাওয়া যায়নি।'); setLoading(false); return }
-      if (threadData.buyer_id !== uid && threadData.seller_id !== uid) { setError('এই chat দেখার অনুমতি আপনার নেই।'); setLoading(false); return }
+      const { data: threadData, error: threadError } = await supabase.rpc('get_my_chat_thread', { p_user_id: uid, p_thread_id: threadId })
+      if (threadError || !threadData) { setError(threadError?.message || 'এই chat thread পাওয়া যায়নি।'); setLoading(false); return }
       setThread(threadData)
       setLoading(false)
 
@@ -51,9 +46,8 @@ export default function ChatThreadPage() {
       const { data: profile } = await supabase.from('profiles').select('name').eq('id', otherId).maybeSingle()
       setOtherName(profile?.name || 'ব্যবহারকারী')
 
-      // clear my side's unread count on open
-      const unreadField = threadData.buyer_id === uid ? 'buyer_unread_count' : 'seller_unread_count'
-      await supabase.from('chat_threads').update({ [unreadField]: 0 }).eq('id', threadId)
+      // Clear only the current participant's unread count through the secure RPC.
+      await supabase.rpc('mark_my_chat_thread_read', { p_user_id: uid, p_thread_id: threadId })
 
       await loadMessages()
     }
@@ -83,21 +77,9 @@ export default function ChatThreadPage() {
     const text = input.trim()
     setInput('')
 
-    const otherIsSeller = thread.buyer_id === uid
-    const unreadField = otherIsSeller ? 'seller_unread_count' : 'buyer_unread_count'
-
-    const { error: messageError } = await supabase.from('chat_messages').insert({ thread_id: thread.id, sender_id: uid, text })
-    if (messageError) { setInput(text); setSending(false); setError('মেসেজ পাঠানো যায়নি। Supabase chat migration ও participant permission দেখুন।'); return }
-    const { error: threadUpdateError } = await supabase
-      .from('chat_threads')
-      .update({
-        last_message: text,
-        last_message_at: new Date().toISOString(),
-        [unreadField]: (otherIsSeller ? thread.seller_unread_count : thread.buyer_unread_count) + 1,
-      })
-      .eq('id', thread.id)
-    if (threadUpdateError) setError('মেসেজ গেছে, কিন্তু unread count আপডেট হয়নি।')
-
+    const { error: messageError } = await supabase.rpc('send_chat_message', { p_sender_id: uid, p_thread_id: thread.id, p_text: text })
+    if (messageError) { setInput(text); setSending(false); setError(messageError.message || 'মেসেজ পাঠানো যায়নি।'); return }
+    await loadMessages()
     setSending(false)
   }
 

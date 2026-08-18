@@ -187,15 +187,21 @@ export default function Sell() {
         }
         return next
       })
+      placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
     } catch (err) {
       console.error('Image upload failed:', err)
-      setError('ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
+      setError(err instanceof Error ? err.message : 'ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
+      placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
       setImages((prev) => prev.filter((img) => !placeholders.some((p) => p.url === img.url)))
     }
   }
 
   const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index))
+    setImages((prev) => {
+      const target = prev[index]
+      if (target?.url.startsWith('blob:')) URL.revokeObjectURL(target.url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const isValid =
@@ -254,7 +260,24 @@ export default function Sell() {
     }
 
     const result = isEditing
-      ? await supabase.from('products').update(payload).eq('id', id)
+      ? await supabase.rpc('seller_update_product', {
+          p_seller_id: user.uid,
+          p_product_id: id,
+          p_title: payload.title,
+          p_description: payload.description,
+          p_price: payload.price,
+          p_original_price: payload.original_price,
+          p_category_id: payload.category_id,
+          p_condition: payload.condition,
+          p_location: payload.location,
+          p_images: payload.images,
+          p_is_digital: payload.is_digital,
+          p_supports_cod: payload.supports_cod,
+          p_free_delivery: payload.free_delivery,
+          p_fast_delivery: payload.fast_delivery,
+          p_free_return: payload.free_return,
+          p_video_url: payload.video_url,
+        })
       : await supabase.rpc('seller_create_product', {
           p_seller_id: user.uid,
           p_title: payload.title,
@@ -342,7 +365,7 @@ export default function Sell() {
       <div className="mt-6 space-y-5">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-900">ছবি</label>
-          <ImageUploader images={images} onAdd={handleAddImages} onRemove={handleRemoveImage} />
+          <ImageUploader images={images} onAdd={handleAddImages} onRemove={handleRemoveImage} onError={setError} max={8} />
         </div>
 
         <div>

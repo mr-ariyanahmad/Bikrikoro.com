@@ -38,7 +38,10 @@ export default function Products() {
       .from('categories')
       .select('*')
       .order('sort_order')
-      .then(({ data }) => setCategories(data ?? []))
+      .then(({ data, error }) => {
+        if (error) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${error.message}`)
+        setCategories(data ?? [])
+      })
   }, [])
 
   useEffect(() => {
@@ -70,9 +73,11 @@ export default function Products() {
       else if (sort === 'popular') request = request.order('view_count', { ascending: false })
       else request = request.order('created_at', { ascending: false })
 
-        const { data } = await request.limit(60)
+        const { data, error } = await request.limit(60)
+        if (error) throw error
         if (!cancelled) {
           const nextProducts = [...(data ?? [])]
+          setNotice(null)
           if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
           setProducts(nextProducts)
         }
@@ -137,11 +142,14 @@ export default function Products() {
           type="search"
           value={query}
           onChange={(e) => updateParam('q', e.target.value)}
+          aria-label="পণ্য খুঁজুন"
           placeholder="পণ্য খুঁজুন..."
           className="flex-1 rounded-lg border border-outline px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         />
         <button
+          type="button"
           onClick={() => setShowFilters((current) => !current)}
+          aria-expanded={showFilters}
           className="rounded-lg border border-outline px-3 py-2.5 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 sm:hidden"
         >
           ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}

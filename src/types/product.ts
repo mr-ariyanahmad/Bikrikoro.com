@@ -30,6 +30,7 @@ export interface Product {
   approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'
   approval_note?: string
   approval_reviewed_email?: string | null
+  is_hidden?: boolean
 }
 
 export interface Profile {
