@@ -41,7 +41,7 @@ const groups: { label: string; links: AdminLink[] }[] = [
       { to: '/admin/downloads', label: 'ডাউনলোড', icon: Download },
       { to: '/admin/blog', label: 'নিউজ ও ব্লগ', icon: Newspaper },
       { to: '/admin/faq', label: 'FAQ প্রশ্ন', icon: CircleHelp },
-      { to: '/admin/pages', label: 'পাবলিক পেজ', icon: BookOpen },
+      { to: '/admin/pages', label: 'নীতি ও Help পেজ', icon: BookOpen },
       { to: '/admin/features', label: 'ফিচার কন্ট্রোল', icon: Settings },
       { to: '/admin/team', label: 'অ্যাডমিন টিম', icon: Users },
       { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
