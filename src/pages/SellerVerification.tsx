@@ -32,7 +32,7 @@ const FALLBACK_REQUIREMENTS_BY_TYPE: Record<BusinessType, Requirement[]> = {
 
 export default function SellerVerification() {
   const { user } = useAuth()
-  const uid = user!.uid
+  const uid = user?.uid ?? ''
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const modeFromUrl = searchParams.get('mode') === 'PHYSICAL' ? 'PHYSICAL' : 'DIGITAL'
@@ -62,6 +62,11 @@ export default function SellerVerification() {
   useEffect(() => {
     let active = true
     const loadRegistration = async () => {
+      if (!uid) {
+        setStatusLoadError('আপনার login session পাওয়া যায়নি। আবার login করে চেষ্টা করুন।')
+        setLoading(false)
+        return
+      }
       try {
         setStatusLoadError(null)
         const idToken = await auth.currentUser?.getIdToken()
@@ -101,13 +106,32 @@ export default function SellerVerification() {
   }
 
   const handleSubmit = async () => {
-    if (!isValid || submitting || !businessType) return
+    if (!isValid || submitting || !businessType || !uid) return
     setSubmitting(true); setError(null)
     try {
       const uploaded = await uploadVerificationDocuments(requiredRequirements.map((item) => ({ documentType: item.document_type, file: files[item.document_type]! })), uid)
-      await submitSellerRegistrationV2({ userId: uid, listingMode, businessType, sector, fullName: fullName.trim(), phone: phone.trim(), nidOrBusinessNumber: idNumber.trim(), businessName: businessType === 'PERSONAL' ? null : businessName.trim(), address: address.trim(), documents: uploaded })
-      window.location.reload()
-    } catch (err) { console.error('Seller verification submit failed:', err); setError(err instanceof Error ? err.message : 'আবেদন জমা দেওয়া যায়নি। সব তথ্য ও document পরীক্ষা করুন।'); setSubmitting(false) }
+      const registrationId = await submitSellerRegistrationV2({ userId: uid, listingMode, businessType, sector, fullName: fullName.trim(), phone: phone.trim(), nidOrBusinessNumber: idNumber.trim(), businessName: businessType === 'PERSONAL' ? null : businessName.trim(), address: address.trim(), documents: uploaded })
+      setExisting({
+        id: registrationId,
+        user_id: uid,
+        seller_type: businessType === 'PERSONAL' ? 'INDIVIDUAL' : 'BUSINESS',
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        nid_or_business_number: idNumber.trim(),
+        business_name: businessType === 'PERSONAL' ? null : businessName.trim(),
+        address: address.trim(),
+        document_path: uploaded[0]?.document_path ?? '',
+        status: 'PENDING',
+        admin_note: null,
+        submitted_at: new Date().toISOString(),
+        reviewed_at: null,
+        listing_mode: listingMode,
+        business_type: businessType,
+        sector,
+      })
+      setPreviousRejectionNote(null)
+    } catch (err) { console.error('Seller verification submit failed:', err); setError(err instanceof Error ? err.message : 'আবেদন জমা দেওয়া যায়নি। সব তথ্য ও document পরীক্ষা করুন।') }
+    finally { setSubmitting(false) }
   }
 
   if (loading) return <Layout wide><div className="mx-auto max-w-4xl"><div className="h-96 animate-pulse rounded-3xl bg-outline/40" /></div></Layout>

@@ -296,14 +296,26 @@ export default function Sell() {
       const savedProductId = id ?? result.data
       if (!savedProductId) throw new Error('সেভ হওয়া পণ্যের ID পাওয়া যায়নি।')
       const deliveryResult = isDigital
-        ? await supabase.from('digital_product_contents').upsert({
-            product_id: savedProductId,
-            seller_id: user.uid,
-            delivery_type: digitalDeliveryType,
-            delivery_text: digitalDeliveryText.trim(),
+        ? await supabase.rpc('seller_upsert_digital_content', {
+            p_seller_id: user.uid,
+            p_product_id: savedProductId,
+            p_delivery_type: digitalDeliveryType,
+            p_delivery_text: digitalDeliveryText.trim(),
           })
-        : await supabase.from('digital_product_contents').delete().eq('product_id', savedProductId)
-      if (deliveryResult.error) throw new Error(isDigital ? `ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি: ${deliveryResult.error.message}` : deliveryResult.error.message)
+        : await supabase.rpc('seller_clear_digital_content', {
+            p_seller_id: user.uid,
+            p_product_id: savedProductId,
+          })
+      if (deliveryResult.error) {
+        if (!isEditing) {
+          const { error: archiveError } = await supabase.rpc('seller_archive_product', {
+            p_seller_id: user.uid,
+            p_product_id: savedProductId,
+          })
+          if (archiveError) console.error('Failed to archive incomplete listing:', archiveError)
+        }
+        throw new Error(isDigital ? `ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি: ${deliveryResult.error.message}` : deliveryResult.error.message)
+      }
 
       clearListingDraft()
       navigate('/my-listings')

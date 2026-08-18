@@ -12,6 +12,17 @@ import type { Product, Category } from '@/types/product'
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
 type DigitalFilter = 'all' | 'digital' | 'physical'
+type SavedSearch = { label: string; url: string }
+
+function readSavedSearches(): SavedSearch[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem('bikrikoro:saved-searches') ?? '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is SavedSearch => Boolean(item) && typeof item === 'object' && typeof (item as { label?: unknown }).label === 'string' && typeof (item as { url?: unknown }).url === 'string')
+  } catch {
+    return []
+  }
+}
 
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -120,12 +131,36 @@ export default function Products() {
   const saveCurrentSearch = () => {
     const url = `${window.location.pathname}${window.location.search}`
     const label = query.trim() || (categoryId ? 'ক্যাটাগরি ফলাফল' : 'সব পণ্য')
-    const saved = JSON.parse(localStorage.getItem('bikrikoro:saved-searches') ?? '[]') as Array<{ label: string; url: string }>
+    const saved = readSavedSearches()
     localStorage.setItem('bikrikoro:saved-searches', JSON.stringify([{ label, url }, ...saved.filter((item) => item.url !== url)].slice(0, 8)))
     setNotice('সার্চটি সেভ হয়েছে।')
   }
   const shareCurrentSearch = async () => {
-    try { await navigator.clipboard.writeText(window.location.href); setNotice('এই filter link কপি হয়েছে।') } catch { setNotice('Filter link কপি করা যায়নি।') }
+    const url = window.location.href
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'BikriKoro.Com পণ্য সার্চ', url })
+        setNotice('এই filter link শেয়ার হয়েছে।')
+        return
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+        setNotice('এই filter link কপি হয়েছে।')
+        return
+      }
+      const textarea = document.createElement('textarea')
+      textarea.value = url
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      const copied = document.execCommand('copy')
+      textarea.remove()
+      setNotice(copied ? 'এই filter link কপি হয়েছে।' : 'Filter link কপি করা যায়নি।')
+    } catch {
+      setNotice('Filter link কপি করা যায়নি।')
+    }
   }
   const changeView = (next: 'grid' | 'list') => { setViewMode(next); localStorage.setItem('bikrikoro:products-view', next) }
 

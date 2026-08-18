@@ -10,7 +10,7 @@ import type { ChatThread, ChatMessage } from '@/types/chat'
 export default function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>()
   const { user } = useAuth()
-  const uid = user!.uid
+  const uid = user?.uid ?? ''
 
   const [thread, setThread] = useState<ChatThread | null>(null)
   const [otherName, setOtherName] = useState('')
@@ -23,13 +23,17 @@ export default function ChatThreadPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const loadMessages = useCallback(async () => {
-    if (!threadId) return
-    const { data } = await supabase.rpc('list_my_chat_messages', { p_user_id: uid, p_thread_id: threadId })
+    if (!threadId || !uid) return
+    const { data, error: messagesError } = await supabase.rpc('list_my_chat_messages', { p_user_id: uid, p_thread_id: threadId })
+    if (messagesError) throw messagesError
     setMessages(data ?? [])
   }, [threadId, uid])
 
   useEffect(() => {
-    if (!threadId) return
+    if (!threadId || !uid) {
+      setLoading(false)
+      return
+    }
 
     async function init() {
       const { data: threadData, error: threadError } = await supabase.rpc('get_my_chat_thread', { p_user_id: uid, p_thread_id: threadId })
@@ -38,20 +42,23 @@ export default function ChatThreadPage() {
       setLoading(false)
 
       if (threadData.product_id) {
-        const { data: productData } = await supabase.from('products').select('title').eq('id', threadData.product_id).maybeSingle()
+        const { data: productData, error: productError } = await supabase.from('products').select('title').eq('id', threadData.product_id).maybeSingle()
+        if (productError) console.warn('Chat product context load failed:', productError)
         setProductTitle(productData?.title ?? '')
       }
 
       const otherId = threadData.buyer_id === uid ? threadData.seller_id : threadData.buyer_id
-      const { data: profile } = await supabase.from('profiles').select('name').eq('id', otherId).maybeSingle()
+      const { data: profile, error: profileError } = await supabase.from('profiles').select('name').eq('id', otherId).maybeSingle()
+      if (profileError) console.warn('Chat participant profile load failed:', profileError)
       setOtherName(profile?.name || 'ব্যবহারকারী')
 
       // Clear only the current participant's unread count through the secure RPC.
-      await supabase.rpc('mark_my_chat_thread_read', { p_user_id: uid, p_thread_id: threadId })
+      const { error: readError } = await supabase.rpc('mark_my_chat_thread_read', { p_user_id: uid, p_thread_id: threadId })
+      if (readError) console.warn('Chat unread count update failed:', readError)
 
       await loadMessages()
     }
-    init().catch((initError) => { console.error('chat thread load failed:', initError); setError('Chat লোড করা যায়নি। আবার চেষ্টা করুন।'); setLoading(false) })
+    init().catch((initError) => { console.error('chat thread load failed:', initError); setError(initError instanceof Error ? initError.message : 'Chat লোড করা যায়নি। আবার চেষ্টা করুন।'); setLoading(false) })
 
     const channel = supabase
       .channel(`chat-${threadId}`)
@@ -72,15 +79,22 @@ export default function ChatThreadPage() {
   }, [messages])
 
   const handleSend = async () => {
-    if (!input.trim() || !thread || sending) return
+    if (!input.trim() || !thread || !uid || sending) return
     setSending(true)
     const text = input.trim()
     setInput('')
+    setError(null)
 
-    const { error: messageError } = await supabase.rpc('send_chat_message', { p_sender_id: uid, p_thread_id: thread.id, p_text: text })
-    if (messageError) { setInput(text); setSending(false); setError(messageError.message || 'মেসেজ পাঠানো যায়নি।'); return }
-    await loadMessages()
-    setSending(false)
+    try {
+      const { error: messageError } = await supabase.rpc('send_chat_message', { p_sender_id: uid, p_thread_id: thread.id, p_text: text })
+      if (messageError) throw messageError
+      await loadMessages()
+    } catch (sendError) {
+      setInput(text)
+      setError(sendError instanceof Error ? sendError.message : 'মেসেজ পাঠানো যায়নি।')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
