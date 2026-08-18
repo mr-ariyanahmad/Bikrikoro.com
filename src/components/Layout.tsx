@@ -33,13 +33,16 @@ const ACCOUNT_LINKS: NavItem[] = [
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
 export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান' }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string }) {
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
-  const { isSeller } = useIsSeller()
+  const { isSeller, loading: sellerLoading } = useIsSeller()
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS).map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
+  const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
+  const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS)
+    .filter((item) => !(item.to === '/become-seller' && sellerStatusLoading))
+    .map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
 
   useEffect(() => {

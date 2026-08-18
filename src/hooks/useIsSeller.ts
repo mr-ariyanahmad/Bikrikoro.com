@@ -6,23 +6,28 @@ import { auth } from '@/lib/firebase'
 export function useIsSeller() {
   const { user } = useAuth()
   const [isSeller, setIsSeller] = useState(false)
+  const [checkedUserId, setCheckedUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
     if (!user?.uid) {
       setIsSeller(false)
+      setCheckedUserId(null)
       setLoading(false)
       return () => { active = false }
     }
 
     if (!supabaseConfigured) {
       setIsSeller(false)
+      setCheckedUserId(user.uid)
       setLoading(false)
       return () => { active = false }
     }
 
     setLoading(true)
+    setIsSeller(false)
+    setCheckedUserId(null)
     const loadSellerStatus = async () => {
       try {
         const idToken = await auth.currentUser?.getIdToken()
@@ -32,9 +37,13 @@ export function useIsSeller() {
         if (!response.ok) throw new Error(payload.error || `Seller access check failed (HTTP ${response.status})`)
         if (!active) return
         setIsSeller(payload.isSeller === true)
+        setCheckedUserId(user.uid)
       } catch (error) {
         console.error('Seller access check failed:', error)
-        if (active) setIsSeller(false)
+        if (active) {
+          setIsSeller(false)
+          setCheckedUserId(user.uid)
+        }
       } finally {
         if (active) setLoading(false)
       }
@@ -43,5 +52,5 @@ export function useIsSeller() {
     return () => { active = false }
   }, [user?.uid])
 
-  return { isSeller, loading }
+  return { isSeller: checkedUserId === user?.uid && isSeller, loading: loading || Boolean(user?.uid && checkedUserId !== user.uid) }
 }
