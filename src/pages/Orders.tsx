@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { BrandSelect } from '@/components/BrandSelect'
@@ -36,6 +37,7 @@ export default function Orders() {
   const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set())
   const [disputeIdByOrder, setDisputeIdByOrder] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [disputeTarget, setDisputeTarget] = useState<Order | null>(null)
   const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
@@ -43,20 +45,28 @@ export default function Orders() {
   const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [ordersRes, reviewsRes, disputesRes] = await Promise.all([
-      supabase
-        .from('orders')
-        .select('*')
-        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
-        .order('created_at', { ascending: false }),
-      supabase.from('reviews').select('order_id').eq('buyer_id', uid),
-      supabase.from('order_disputes').select('id, order_id').eq('buyer_id', uid),
-    ])
-    setOrders(ordersRes.data ?? [])
-    setReviewedOrderIds(new Set((reviewsRes.data ?? []).map((r) => r.order_id)))
-    setDisputeIdByOrder(new Map((disputesRes.data ?? []).map((d) => [d.order_id, d.id])))
-    setLoading(false)
-  }, [uid])
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const idToken = await auth.currentUser?.getIdToken()
+      if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+      const response = await fetch('/api/order-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ action: 'list' }),
+      })
+      const payload = await response.json().catch(() => ({})) as { error?: string; orders?: Order[]; reviewedOrderIds?: string[]; disputes?: Array<{ id: string; order_id: string }> }
+      if (!response.ok) throw new Error(payload.error || `Order load failed (HTTP ${response.status})`)
+      setOrders(payload.orders ?? [])
+      setReviewedOrderIds(new Set(payload.reviewedOrderIds ?? []))
+      setDisputeIdByOrder(new Map((payload.disputes ?? []).map((d) => [d.order_id, d.id])))
+    } catch (error) {
+      console.error('Orders load failed:', error)
+      setLoadError(error instanceof Error ? error.message : 'অর্ডার লোড করা যায়নি।')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     load()
@@ -80,8 +90,8 @@ export default function Orders() {
     setProcessingId(orderId)
     try {
       await action()
-    } catch {
-      showToast('কাজটি সম্পন্ন করা যায়নি — আবার চেষ্টা করুন।')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'কাজটি সম্পন্ন করা যায়নি — আবার চেষ্টা করুন।')
     } finally {
       setProcessingId(null)
     }
@@ -98,6 +108,7 @@ export default function Orders() {
 
       <div className="mt-4 flex rounded-lg border border-outline p-1">
         <button
+          type="button"
           onClick={() => setTab('buying')}
           className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
             tab === 'buying' ? 'bg-brand-500 text-white' : 'text-ink-600'
@@ -106,6 +117,7 @@ export default function Orders() {
           কিনেছি
         </button>
         <button
+          type="button"
           onClick={() => setTab('selling')}
           className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
             tab === 'selling' ? 'bg-brand-500 text-white' : 'text-ink-600'
@@ -116,6 +128,7 @@ export default function Orders() {
       </div>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={orderQuery} onChange={(e) => setOrderQuery(e.target.value)} placeholder="পণ্যের নামে অর্ডার খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><div className="min-w-52"><BrandSelect label="অর্ডারের status" value={statusFilter} options={[{ value: 'ALL', label: 'সব status' }, ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))]} onChange={(value) => setStatusFilter(value as OrderStatus | 'ALL')} /></div></div>
 
+      {loadError && <p className="mt-4 border border-error/20 bg-error/5 p-3 text-sm text-error">অর্ডার লোড করা যায়নি: {loadError}</p>}
       <div className="mt-5 space-y-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
@@ -304,6 +317,7 @@ function ActionButton({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={loading}
       className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}

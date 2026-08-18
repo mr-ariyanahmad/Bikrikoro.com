@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import type { DisputeReason, PaymentMethod } from '@/types/order'
 
 /** Backed by supabase/migrations/009_tier1_....sql create_order_atomic(). */
@@ -18,52 +19,41 @@ export async function createOrder(params: {
   return data as string
 }
 
-export async function confirmOrderDelivery(orderId: string, buyerId: string) {
-  const { error } = await supabase.rpc('confirm_order_delivery', {
-    p_order_id: orderId,
-    p_buyer_id: buyerId,
+async function callOrderAction(action: string, payload: Record<string, unknown>) {
+  if (!auth.currentUser) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/order-action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ action, ...payload }),
   })
-  if (error) throw error
+  const result = await response.json().catch(() => ({})) as { error?: string; data?: unknown }
+  if (!response.ok) throw new Error(result.error || `Order action failed (HTTP ${response.status})`)
+  return result.data
 }
 
-export async function buyerCancelOrder(orderId: string, buyerId: string) {
-  const { error } = await supabase.rpc('buyer_cancel_order', {
-    p_order_id: orderId,
-    p_buyer_id: buyerId,
-  })
-  if (error) throw error
+export async function confirmOrderDelivery(orderId: string, _buyerId: string) {
+  await callOrderAction('confirm_delivery', { orderId })
 }
 
-export async function sellerMarkPreparing(orderId: string, sellerId: string) {
-  const { error } = await supabase.rpc('seller_mark_preparing', {
-    p_order_id: orderId,
-    p_seller_id: sellerId,
-  })
-  if (error) throw error
+export async function buyerCancelOrder(orderId: string, _buyerId: string) {
+  await callOrderAction('buyer_cancel', { orderId })
 }
 
-export async function sellerMarkShipped(orderId: string, sellerId: string) {
-  const { error } = await supabase.rpc('seller_mark_shipped', {
-    p_order_id: orderId,
-    p_seller_id: sellerId,
-  })
-  if (error) throw error
+export async function sellerMarkPreparing(orderId: string, _sellerId: string) {
+  await callOrderAction('seller_prepare', { orderId })
 }
 
-export async function sellerMarkDelivered(orderId: string, sellerId: string) {
-  const { error } = await supabase.rpc('seller_mark_delivered', {
-    p_order_id: orderId,
-    p_seller_id: sellerId,
-  })
-  if (error) throw error
+export async function sellerMarkShipped(orderId: string, _sellerId: string) {
+  await callOrderAction('seller_ship', { orderId })
 }
 
-export async function sellerCancelOrder(orderId: string, sellerId: string) {
-  const { error } = await supabase.rpc('seller_cancel_order', {
-    p_order_id: orderId,
-    p_seller_id: sellerId,
-  })
-  if (error) throw error
+export async function sellerMarkDelivered(orderId: string, _sellerId: string) {
+  await callOrderAction('seller_deliver', { orderId })
+}
+
+export async function sellerCancelOrder(orderId: string, _sellerId: string) {
+  await callOrderAction('seller_cancel', { orderId })
 }
 
 export async function reportOrderDispute(params: {
@@ -73,22 +63,15 @@ export async function reportOrderDispute(params: {
   description: string
   evidenceUrls: string[]
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('report_order_dispute', {
-    p_order_id: params.orderId,
-    p_buyer_id: params.buyerId,
-    p_reason: params.reason,
-    p_description: params.description,
-    p_evidence_urls: params.evidenceUrls,
+  const data = await callOrderAction('report_dispute', {
+    orderId: params.orderId,
+    reason: params.reason,
+    description: params.description,
+    evidenceUrls: params.evidenceUrls,
   })
-  if (error) throw error
   return data as string
 }
 
-export async function sendDisputeMessage(disputeId: string, senderId: string, message: string) {
-  const { error } = await supabase.rpc('send_dispute_message', {
-    p_dispute_id: disputeId,
-    p_sender_id: senderId,
-    p_message: message,
-  })
-  if (error) throw error
+export async function sendDisputeMessage(disputeId: string, _senderId: string, message: string) {
+  await callOrderAction('send_dispute_message', { disputeId, message })
 }

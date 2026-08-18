@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { confirmOrderDelivery, buyerCancelOrder, sellerMarkPreparing, sellerMarkShipped, sellerMarkDelivered, sellerCancelOrder } from '@/lib/orders'
 import { formatDate, formatTaka } from '@/lib/format'
@@ -35,22 +35,28 @@ export default function OrderDetail() {
 
   useEffect(() => {
     if (!id || !user) return
-    const uid = user.uid
     let cancelled = false
 
     async function loadOrder() {
-      const [orderResult, reviewResult] = await Promise.all([
-        supabase.from('orders').select('*').eq('id', id).maybeSingle(),
-        supabase.from('reviews').select('id').eq('order_id', id).maybeSingle(),
-      ])
-      if (cancelled) return
-      if (orderResult.error || !orderResult.data || ![orderResult.data.buyer_id, orderResult.data.seller_id].includes(uid)) {
-        setError('অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
-      } else {
-        setOrder(orderResult.data as Order)
-        setReviewed(Boolean(reviewResult.data))
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/order-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ action: 'detail', orderId: id }),
+        })
+        const payload = await response.json().catch(() => ({})) as { error?: string; order?: Order | null; reviewed?: boolean }
+        if (!response.ok || !payload.order) throw new Error(payload.error || 'অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
+        if (cancelled) return
+        setOrder(payload.order)
+        setReviewed(payload.reviewed === true)
+      } catch (loadError) {
+        console.error('Order detail load failed:', loadError)
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'অর্ডারটি লোড করা যায়নি।')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
     }
 
     loadOrder()
@@ -70,12 +76,17 @@ export default function OrderDetail() {
       await action()
       showToast(success)
       if (id) {
-        const { data } = await supabase.from('orders').select('*').eq('id', id).maybeSingle()
-        setOrder(data as Order | null)
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'detail', orderId: id }) })
+        const payload = await response.json().catch(() => ({})) as { error?: string; order?: Order | null; reviewed?: boolean }
+        if (!response.ok || !payload.order) throw new Error(payload.error || 'অর্ডারটি আবার লোড করা যায়নি।')
+        setOrder(payload.order)
+        setReviewed(payload.reviewed === true)
       }
     } catch (err) {
       console.error('order action failed:', err)
-      showToast('কাজটি সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।')
+      showToast(err instanceof Error ? err.message : 'কাজটি সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।')
     } finally {
       setProcessing(false)
     }
@@ -115,7 +126,7 @@ export default function OrderDetail() {
           </Link>
           <h1 className="mt-2 text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1>
         </div>
-        <button onClick={() => window.print()} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
+        <button type="button" onClick={() => window.print()} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
           রসিদ প্রিন্ট করুন
         </button>
       </div>
@@ -201,5 +212,5 @@ function ActionButton({ label, variant, loading, onClick }: { label: string; var
     outline: 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600',
     danger: 'border border-error/40 text-error hover:bg-error/5',
   }[variant]
-  return <button onClick={onClick} disabled={loading} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}>{loading ? '...' : label}</button>
+  return <button type="button" onClick={onClick} disabled={loading} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}>{loading ? '...' : label}</button>
 }

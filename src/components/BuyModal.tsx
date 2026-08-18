@@ -28,13 +28,26 @@ export function BuyModal({
   const [acceptedPolicy, setAcceptedPolicy] = useState(false)
 
   useEffect(() => {
-    if (product.is_digital) return
-    supabase.rpc('list_saved_addresses', { p_user_id: buyerId }).then(({ data }) => {
-      const addresses = (data ?? []) as typeof savedAddresses
-      setSavedAddresses(addresses)
-      const defaultAddress = addresses[0]
-      if (defaultAddress) { setSelectedAddressId(defaultAddress.id); setAddress(`${defaultAddress.recipient_name}, ${defaultAddress.phone}, ${defaultAddress.address_line}, ${defaultAddress.area}, ${defaultAddress.city}`) }
-    })
+    let active = true
+    setSavedAddresses([])
+    setSelectedAddressId('')
+    if (product.is_digital) return () => { active = false }
+    const loadSavedAddresses = async () => {
+      try {
+        const { data, error: addressError } = await supabase.rpc('list_saved_addresses', { p_user_id: buyerId })
+        if (addressError) throw addressError
+        if (!active) return
+        const addresses = (data ?? []) as typeof savedAddresses
+        setSavedAddresses(addresses)
+        const defaultAddress = addresses[0]
+        if (defaultAddress) { setSelectedAddressId(defaultAddress.id); setAddress(`${defaultAddress.recipient_name}, ${defaultAddress.phone}, ${defaultAddress.address_line}, ${defaultAddress.area}, ${defaultAddress.city}`) }
+      } catch (addressError) {
+        console.error('Saved addresses failed:', addressError)
+        if (active) setError(addressError instanceof Error ? addressError.message : 'সেভড ঠিকানা লোড করা যায়নি।')
+      }
+    }
+    void loadSavedAddresses()
+    return () => { active = false }
   }, [buyerId, product.is_digital])
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
@@ -127,7 +140,7 @@ export function BuyModal({
                 placeholder="যেমন: WELCOME10"
                 className="min-w-0 flex-1 rounded-lg border border-outline px-3 py-2 text-sm uppercase outline-none focus:border-brand-500"
               />
-              <button onClick={handleApplyCoupon} disabled={couponLoading} className="rounded-lg border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 disabled:opacity-50">
+              <button type="button" onClick={handleApplyCoupon} disabled={couponLoading} className="rounded-lg border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 disabled:opacity-50">
                 {couponLoading ? 'যাচাই হচ্ছে…' : 'প্রয়োগ করুন'}
               </button>
             </div>
@@ -159,6 +172,7 @@ export function BuyModal({
           {error && <p className="text-sm text-error">{error}</p>}
 
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting || !acceptedPolicy}
             className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"

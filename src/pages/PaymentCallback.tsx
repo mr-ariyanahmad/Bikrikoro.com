@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import type { OrderStatus } from '@/types/order'
 
@@ -12,6 +12,7 @@ export default function PaymentCallback() {
   const wasCancelled = searchParams.get('cancelled') === '1'
 
   const [view, setView] = useState<ViewState>(wasCancelled ? 'cancelled' : 'checking')
+  const [pollError, setPollError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!orderId || wasCancelled) return
@@ -20,10 +21,14 @@ export default function PaymentCallback() {
     let cancelled = false
 
     async function poll() {
-      const { data } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle()
-      const status = data?.status as OrderStatus | undefined
-
-      if (cancelled) return
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'payment_state', orderId }) })
+        const payload = await response.json().catch(() => ({})) as { error?: string; status?: OrderStatus }
+        if (!response.ok) throw new Error(payload.error || `Payment status failed (HTTP ${response.status})`)
+        const status = payload.status
+        if (cancelled) return
 
       if (status === 'ESCROW_HELD') {
         setView('confirmed')
@@ -34,13 +39,20 @@ export default function PaymentCallback() {
         return
       }
 
-      attempts++
-      // UddoktaPay's webhook is usually near-instant, but poll for up to
-      // ~20s to cover network delays before telling the buyer it's still processing.
-      if (attempts < 10) {
-        setTimeout(poll, 2000)
-      } else {
-        setView('still_pending')
+        attempts++
+        // UddoktaPay's webhook is usually near-instant, but poll for up to
+        // ~20s to cover network delays before telling the buyer it's still processing.
+        if (attempts < 10) {
+          setTimeout(poll, 2000)
+        } else {
+          setView('still_pending')
+        }
+      } catch (error) {
+        console.error('Payment status polling failed:', error)
+        if (!cancelled) {
+          setPollError(error instanceof Error ? error.message : 'পেমেন্ট status যাচাই করা যায়নি।')
+          setView('still_pending')
+        }
       }
     }
     poll()
@@ -83,8 +95,7 @@ export default function PaymentCallback() {
             </div>
             <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট প্রসেস হচ্ছে</h1>
             <p className="mt-1 max-w-sm text-sm text-ink-600">
-              কিছুটা সময় লাগছে। কনফার্মেশন এলে অর্ডার পেজে স্ট্যাটাস আপডেট হয়ে যাবে — এখনই টাকা কাটা থাকলে চিন্তার কিছু
-              নেই।
+              {pollError ?? 'কিছুটা সময় লাগছে। কনফার্মেশন এলে অর্ডার পেজে স্ট্যাটাস আপডেট হয়ে যাবে — এখনই টাকা কাটা থাকলে চিন্তার কিছু নেই।'}
             </p>
             <Link
               to="/orders"

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import type { WithdrawalMethod } from '@/types/wallet'
 import { formatTaka } from '@/lib/format'
 
@@ -27,27 +27,31 @@ export function WithdrawModal({
   const [error, setError] = useState<string | null>(null)
 
   const parsedAmount = Number(amount)
-  const isValid =
-    parsedAmount > 0 && parsedAmount <= availableBalance && accountDetails.trim().length >= 6
+  const accountIsValid = method === 'BANK' ? accountDetails.trim().length >= 10 : /^01\d{9}$/.test(accountDetails.replace(/\D/g, ''))
+  const isValid = parsedAmount > 0 && parsedAmount <= availableBalance && accountIsValid
 
   const handleSubmit = async () => {
     if (!isValid) return
     setSubmitting(true)
     setError(null)
 
-    const { error: rpcError } = await supabase.rpc('request_wallet_withdrawal', {
-      p_user_id: userId,
-      p_amount: parsedAmount,
-      p_method: method,
-      p_account_details: accountDetails.trim(),
-    })
-
-    setSubmitting(false)
-    if (rpcError) {
-      setError('অনুরোধ পাঠানো যায়নি — আবার চেষ্টা করুন।')
-      return
+    try {
+      if (auth.currentUser?.uid !== userId) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+      const idToken = await auth.currentUser.getIdToken()
+      const response = await fetch('/api/wallet-withdrawal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ amount: parsedAmount, method, accountDetails: accountDetails.trim() }),
+      })
+      const result = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) throw new Error(result.error || `Withdrawal failed (HTTP ${response.status})`)
+      onSuccess()
+    } catch (withdrawError) {
+      console.error('Withdrawal request failed:', withdrawError)
+      setError(withdrawError instanceof Error ? withdrawError.message : 'উত্তোলনের অনুরোধ পাঠানো যায়নি।')
+    } finally {
+      setSubmitting(false)
     }
-    onSuccess()
   }
 
   const selected = METHODS.find((m) => m.value === method)!
@@ -57,7 +61,7 @@ export function WithdrawModal({
       <div className="w-full max-w-md rounded-t-2xl bg-surface p-6 sm:rounded-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">উত্তোলন করুন</h2>
-          <button onClick={onClose} className="text-ink-300 hover:text-ink-600" aria-label="বন্ধ করুন">
+          <button type="button" onClick={onClose} className="text-ink-300 hover:text-ink-600" aria-label="বন্ধ করুন">
             ✕
           </button>
         </div>
@@ -71,6 +75,7 @@ export function WithdrawModal({
             <div className="flex gap-2">
               {METHODS.map((m) => (
                 <button
+                  type="button"
                   key={m.value}
                   onClick={() => setMethod(m.value)}
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
@@ -114,6 +119,7 @@ export function WithdrawModal({
           {error && <p className="text-sm text-error">{error}</p>}
 
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={!isValid || submitting}
             className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"

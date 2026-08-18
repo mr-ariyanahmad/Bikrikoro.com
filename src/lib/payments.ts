@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 
 /** Backed by create_order_pending_payment() (010_uddoktapay_payments.sql) — website-only order path. */
 export async function createPendingOrder(params: {
@@ -7,21 +8,16 @@ export async function createPendingOrder(params: {
   deliveryAddress: string
   couponCode?: string
 }): Promise<string> {
-  const couponCode = params.couponCode?.trim()
-  const { data, error } = couponCode
-    ? await supabase.rpc('create_order_pending_payment_with_coupon', {
-        p_product_id: params.productId,
-        p_buyer_id: params.buyerId,
-        p_delivery_address: params.deliveryAddress,
-        p_coupon_code: couponCode,
-      })
-    : await supabase.rpc('create_order_pending_payment', {
-        p_product_id: params.productId,
-        p_buyer_id: params.buyerId,
-        p_delivery_address: params.deliveryAddress,
-      })
-  if (error) throw error
-  return data as string
+  if (auth.currentUser?.uid !== params.buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/pending-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ action: 'create', productId: params.productId, deliveryAddress: params.deliveryAddress, couponCode: params.couponCode?.trim() || undefined }),
+  })
+  const result = await response.json().catch(() => ({})) as { orderId?: string; error?: string }
+  if (!response.ok || !result.orderId) throw new Error(result.error || `Order creation failed (HTTP ${response.status})`)
+  return result.orderId
 }
 
 /** Asks the uddoktapay-create-charge Edge Function for a hosted payment URL, then the caller redirects there. */
@@ -37,9 +33,13 @@ export async function startUddoktaPayCheckout(orderId: string): Promise<string> 
 }
 
 export async function cancelPendingOrder(orderId: string, buyerId: string) {
-  const { error } = await supabase.rpc('buyer_cancel_pending_order', {
-    p_order_id: orderId,
-    p_buyer_id: buyerId,
+  if (auth.currentUser?.uid !== buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/pending-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ action: 'cancel', orderId }),
   })
-  if (error) throw error
+  const result = await response.json().catch(() => ({})) as { error?: string }
+  if (!response.ok) throw new Error(result.error || `Order cancellation failed (HTTP ${response.status})`)
 }

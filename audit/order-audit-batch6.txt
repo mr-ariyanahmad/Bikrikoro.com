@@ -1,0 +1,1528 @@
+
+=== src/components/BuyModal.tsx ===
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { X } from 'lucide-react'
+import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { supabase } from '@/lib/supabase'
+import type { Product } from '@/types/product'
+import { formatTaka } from '@/lib/format'
+import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
+import { BrandSelect } from '@/components/BrandSelect'
+
+export function BuyModal({
+  product,
+  buyerId,
+  onClose,
+}: {
+  product: Product
+  buyerId: string
+  onClose: () => void
+}) {
+  const [address, setAddress] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [coupon, setCoupon] = useState<CouponPreview | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState<Array<{ id: string; label: string; recipient_name: string; phone: string; address_line: string; city: string; area: string; postal_code: string | null }>>([])
+  const [selectedAddressId, setSelectedAddressId] = useState('')
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false)
+
+  useEffect(() => {
+    if (product.is_digital) return
+    supabase.rpc('list_saved_addresses', { p_user_id: buyerId }).then(({ data }) => {
+      const addresses = (data ?? []) as typeof savedAddresses
+      setSavedAddresses(addresses)
+      const defaultAddress = addresses[0]
+      if (defaultAddress) { setSelectedAddressId(defaultAddress.id); setAddress(`${defaultAddress.recipient_name}, ${defaultAddress.phone}, ${defaultAddress.address_line}, ${defaultAddress.area}, ${defaultAddress.city}`) }
+    })
+  }, [buyerId, product.is_digital])
+
+  const discountedPrice = coupon?.valid ? coupon.final_price : product.price
+  const escrowFee = Math.max(discountedPrice * 0.01, 10)
+  const total = discountedPrice + escrowFee
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setError('কুপন কোড লিখুন।')
+      return
+    }
+    setCouponLoading(true)
+    setError(null)
+    try {
+      const result = await validateCoupon(couponCode, product.id, buyerId)
+      setCoupon(result)
+      if (!result.valid) setError(result.message)
+    } catch (err) {
+      console.error('coupon validation failed:', err)
+      setCoupon(null)
+      setError('কুপন যাচাই করা যায়নি।')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!product.is_digital && address.trim().length < 8) {
+      setError('ডেলিভারি ঠিকানা লিখুন (কমপক্ষে ৮ অক্ষর)')
+      return
+    }
+    if (!acceptedPolicy) { setError('অর্ডার করতে প্রাইভেসি পলিসি ও রিটার্ন/রিফান্ড নীতি মেনে নেওয়া আবশ্যক।'); return }
+    setSubmitting(true)
+    setError(null)
+
+    let orderId: string | null = null
+    try {
+      orderId = await createPendingOrder({
+        productId: product.id,
+        buyerId,
+        deliveryAddress: product.is_digital ? 'ডিজিটাল পণ্য — কোনো শিপিং ঠিকানা প্রযোজ্য নয়' : address.trim(),
+        couponCode: coupon?.valid ? coupon.normalized_code : undefined,
+      })
+      const paymentUrl = await startUddoktaPayCheckout(orderId)
+      window.location.href = paymentUrl // hand off to UddoktaPay's hosted checkout page
+    } catch (err) {
+      console.error('Checkout failed:', err)
+      // Payment couldn't even start — don't leave a dangling PENDING_PAYMENT
+      // order the buyer never got a chance to pay for.
+      if (orderId) await cancelPendingOrder(orderId, buyerId).catch(() => {})
+      setError('পেমেন্ট শুরু করা যায়নি — আবার চেষ্টা করুন।')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-ink-900/55" role="dialog" aria-modal="true" aria-labelledby="confirm-order-title">
+      <div className="flex min-h-full items-start justify-center sm:items-center sm:p-5">
+        <div className="min-h-screen w-full bg-surface p-4 sm:min-h-0 sm:max-w-lg sm:rounded-2xl sm:p-6 sm:shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h2 id="confirm-order-title" className="text-lg font-semibold text-ink-900">অর্ডার নিশ্চিত করুন</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-ink-400 transition hover:bg-bg hover:text-ink-700" aria-label="বন্ধ করুন">
+            <X size={19} />
+          </button>
+        </div>
+
+        <p className="mt-3 line-clamp-1 text-sm text-ink-600">{product.title}</p>
+
+        <div className="mt-4 space-y-4">
+          {product.is_digital ? (
+            <p className="rounded-lg bg-bg p-3 text-sm text-ink-600">
+              এটি একটি ডিজিটাল পণ্য — কুরিয়ারে পাঠানো হবে না, তাই কোনো ডেলিভারি ঠিকানা লাগবে না।
+            </p>
+          ) : (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-ink-900">ডেলিভারি ঠিকানা</label>
+              {savedAddresses.length > 0 && <div className="mb-2"><BrandSelect label="সেভড ঠিকানা" value={selectedAddressId} options={[{ value: '', label: 'সেভড ঠিকানা বেছে নিন' }, ...savedAddresses.map((saved) => ({ value: saved.id, label: `${saved.label} — ${saved.address_line}, ${saved.city}` }))]} onChange={(value) => { const next = savedAddresses.find((item) => item.id === value); setSelectedAddressId(value); if (next) setAddress(`${next.recipient_name}, ${next.phone}, ${next.address_line}, ${next.area}, ${next.city}`) }} /></div>}
+              <textarea value={address} onChange={(e) => { setAddress(e.target.value); setSelectedAddressId('') }} rows={2} placeholder="বাসা/রোড/এলাকা, শহর" className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+              <p className="mt-1 text-xs text-ink-400">ঠিকানা পরে <span className="font-medium text-brand-600">সেভড ঠিকানা</span> পেজ থেকেও বদলাতে পারবেন।</p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-outline p-3">
+            <label className="mb-1.5 block text-sm font-medium text-ink-900" htmlFor="coupon-code">কুপন কোড</label>
+            <div className="flex gap-2">
+              <input
+                id="coupon-code"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCoupon(null) }}
+                placeholder="যেমন: WELCOME10"
+                className="min-w-0 flex-1 rounded-lg border border-outline px-3 py-2 text-sm uppercase outline-none focus:border-brand-500"
+              />
+              <button onClick={handleApplyCoupon} disabled={couponLoading} className="rounded-lg border border-brand-500 px-3 py-2 text-sm font-semibold text-brand-600 disabled:opacity-50">
+                {couponLoading ? 'যাচাই হচ্ছে…' : 'প্রয়োগ করুন'}
+              </button>
+            </div>
+            {coupon?.valid && <p className="mt-2 text-xs font-medium text-brand-700">কুপন প্রয়োগ হয়েছে: {coupon.message || 'ছাড় পাওয়া গেছে'}</p>}
+          </div>
+
+          <div className="rounded-lg bg-bg p-3 text-sm">
+            <div className="flex justify-between text-ink-600">
+              <span>পণ্যের দাম</span>
+              <span className="tabular-amount">{formatTaka(product.price)}</span>
+            </div>
+            {coupon?.valid && (
+              <div className="mt-1 flex justify-between text-brand-700">
+                <span>কুপন ছাড়</span>
+                <span className="tabular-amount">−{formatTaka(coupon.discount_amount)}</span>
+              </div>
+            )}
+            <div className="mt-1 flex justify-between text-ink-600">
+              <span>এসক্রো ফি</span>
+              <span className="tabular-amount">{formatTaka(escrowFee)}</span>
+            </div>
+            <div className="mt-2 flex justify-between border-t border-outline pt-2 font-semibold text-ink-900">
+              <span>মোট</span>
+              <span className="tabular-amount">{formatTaka(total)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-xl border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input id="order-policy-consent" type="checkbox" checked={acceptedPolicy} onChange={(e) => setAcceptedPolicy(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline text-brand-500 focus:ring-brand-500" /><label htmlFor="order-policy-consent">আমি BikriKoro-এর <Link to="/privacy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>প্রাইভেসি পলিসি</Link> এবং <Link to="/return-policy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>রিটার্ন ও রিফান্ড নীতি</Link> পড়েছি এবং অর্ডারের পণ্যের ধরন অনুযায়ী প্রযোজ্য নিয়ম মেনে নিচ্ছি।</label></div>
+          {error && <p className="text-sm text-error">{error}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !acceptedPolicy}
+            className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? 'পেমেন্ট পেজে নিয়ে যাচ্ছে...' : 'বিকাশ/নগদ/রকেট দিয়ে পেমেন্ট করুন'}
+          </button>
+          <p className="text-center text-xs text-ink-300">
+            UddoktaPay-এর নিরাপদ পেমেন্ট পেজে নিয়ে যাওয়া হবে। টাকা এসক্রোতে জমা থাকবে — পণ্য হাতে পাওয়ার আগে বিক্রেতাকে
+            দেওয়া হবে না।
+          </p>
+        </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+=== src/pages/Orders.tsx ===
+import { useEffect, useState, useCallback } from 'react'
+import { Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
+import { ReportDisputeModal } from '@/components/ReportDisputeModal'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
+import { ReviewModal } from '@/components/ReviewModal'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkPreparing, sellerMarkShipped, sellerMarkDelivered, sellerCancelOrder } from '@/lib/orders'
+import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { formatTaka, formatDate } from '@/lib/format'
+import type { Order, OrderStatus } from '@/types/order'
+
+type Tab = 'buying' | 'selling'
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: 'পেমেন্ট বাকি',
+  ESCROW_HELD: 'এসক্রোতে',
+  PREPARING: 'প্রস্তুত করা হচ্ছে',
+  SHIPPED: 'পাঠানো হয়েছে',
+  DELIVERED: 'পৌঁছেছে',
+  COMPLETED: 'সম্পন্ন',
+  CANCELLED: 'বাতিল',
+}
+
+export default function Orders() {
+  const { user } = useAuth()
+  const uid = user!.uid
+
+  const [tab, setTab] = useState<Tab>('buying')
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
+  const [orderQuery, setOrderQuery] = useState('')
+  const [orders, setOrders] = useState<Order[]>([])
+  const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set())
+  const [disputeIdByOrder, setDisputeIdByOrder] = useState<Map<string, string>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [disputeTarget, setDisputeTarget] = useState<Order | null>(null)
+  const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
+  const [sellerCancelTarget, setSellerCancelTarget] = useState<Order | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const [ordersRes, reviewsRes, disputesRes] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('*')
+        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
+        .order('created_at', { ascending: false }),
+      supabase.from('reviews').select('order_id').eq('buyer_id', uid),
+      supabase.from('order_disputes').select('id, order_id').eq('buyer_id', uid),
+    ])
+    setOrders(ordersRes.data ?? [])
+    setReviewedOrderIds(new Set((reviewsRes.data ?? []).map((r) => r.order_id)))
+    setDisputeIdByOrder(new Map((disputesRes.data ?? []).map((d) => [d.order_id, d.id])))
+    setLoading(false)
+  }, [uid])
+
+  useEffect(() => {
+    load()
+
+    const channel = supabase
+      .channel(`orders-${uid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, load)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [uid, load])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  const runAction = async (orderId: string, action: () => Promise<void>) => {
+    setProcessingId(orderId)
+    try {
+      await action()
+    } catch {
+      showToast('কাজটি সম্পন্ন করা যায়নি — আবার চেষ্টা করুন।')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const buying = orders.filter((o) => o.buyer_id === uid)
+  const selling = orders.filter((o) => o.seller_id === uid)
+  const list = (tab === 'buying' ? buying : selling).filter((order) => (statusFilter === 'ALL' || order.status === statusFilter) && (!orderQuery.trim() || order.product_title.toLowerCase().includes(orderQuery.trim().toLowerCase())))
+  const activeCount = (tab === 'buying' ? buying : selling).filter((order) => !['COMPLETED', 'CANCELLED'].includes(order.status)).length
+
+  return (
+    <Layout wide>
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">আমার অর্ডার</h1><p className="mt-1 text-sm text-ink-500">{activeCount}টি চলমান অর্ডার</p></div><div className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">মোট {orders.length}টি</div></div>
+
+      <div className="mt-4 flex rounded-lg border border-outline p-1">
+        <button
+          onClick={() => setTab('buying')}
+          className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
+            tab === 'buying' ? 'bg-brand-500 text-white' : 'text-ink-600'
+          }`}
+        >
+          কিনেছি
+        </button>
+        <button
+          onClick={() => setTab('selling')}
+          className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
+            tab === 'selling' ? 'bg-brand-500 text-white' : 'text-ink-600'
+          }`}
+        >
+          বিক্রি করেছি
+        </button>
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={orderQuery} onChange={(e) => setOrderQuery(e.target.value)} placeholder="পণ্যের নামে অর্ডার খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><div className="min-w-52"><BrandSelect label="অর্ডারের status" value={statusFilter} options={[{ value: 'ALL', label: 'সব status' }, ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))]} onChange={(value) => setStatusFilter(value as OrderStatus | 'ALL')} /></div></div>
+
+      <div className="mt-5 space-y-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-outline/40" />
+          ))
+        ) : list.length === 0 ? (
+          <div className="rounded-2xl border border-outline bg-surface p-8 text-center text-ink-600">
+            {tab === 'buying' ? 'আপনি এখনো কোনো পণ্য অর্ডার করেননি।' : 'আপনার কোনো পণ্যের অর্ডার এখনো আসেনি।'}
+          </div>
+        ) : (
+          list.map((order) => (
+            <div key={order.id} className="rounded-xl border border-outline bg-surface p-4">
+              <div className="flex items-center gap-3">
+                <Link
+                  to={`/products/${order.product_id}`}
+                  className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-outline/30"
+                >
+                  {order.product_image && (
+                    <img src={order.product_image} alt="" className="h-full w-full object-cover" />
+                  )}
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-1 text-sm font-medium text-ink-900">{order.product_title}</p>
+                  <p className="tabular-amount mt-0.5 text-sm text-brand-600">{formatTaka(order.price)}</p>
+                  <p className="mt-0.5 text-xs text-ink-300">{formatDate(order.created_at)}</p>
+                </div>
+                <span className="shrink-0 rounded-md bg-bg px-2 py-1 text-xs font-medium text-ink-600">
+                  {STATUS_LABEL[order.status]}
+                </span>
+              </div>
+
+              {order.dispute_status && (
+                <Link
+                  to={disputeIdByOrder.has(order.id) ? `/disputes/${disputeIdByOrder.get(order.id)}` : '#'}
+                  className="mt-3 block rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium text-warning hover:bg-warning/20"
+                >
+                  {order.dispute_status === 'REPORTED' || order.dispute_status === 'UNDER_REVIEW'
+                    ? 'রিপোর্ট পর্যালোচনাধীন — বিস্তারিত দেখতে ট্যাপ করুন'
+                    : order.dispute_status === 'RESOLVED_REFUNDED'
+                      ? 'সমাধান হয়েছে — টাকা ফেরত দেওয়া হয়েছে'
+                      : 'সমাধান হয়েছে — রিফান্ড প্রযোজ্য নয়'}
+                </Link>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  to={`/orders/${order.id}`}
+                  className="rounded-lg border border-outline px-3 py-1.5 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
+                >
+                  বিস্তারিত দেখুন
+                </Link>
+                {tab === 'buying' && order.status === 'PENDING_PAYMENT' && (
+                  <>
+                    <ActionButton
+                      label="পেমেন্ট সম্পন্ন করুন"
+                      variant="primary"
+                      loading={processingId === order.id}
+                      onClick={() =>
+                        runAction(order.id, async () => {
+                          const url = await startUddoktaPayCheckout(order.id)
+                          window.location.href = url
+                        })
+                      }
+                    />
+                    <ActionButton
+                      label="বাতিল করুন"
+                      variant="danger"
+                      loading={processingId === order.id}
+                      onClick={() => runAction(order.id, () => cancelPendingOrder(order.id, uid))}
+                    />
+                  </>
+                )}
+                {tab === 'buying' && order.status === 'ESCROW_HELD' && (
+                  <ActionButton
+                    label="বাতিল করুন"
+                    variant="danger"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => buyerCancelOrder(order.id, uid))}
+                  />
+                )}
+                {tab === 'buying' && order.status === 'DELIVERED' && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && (
+                  <ActionButton
+                    label="পণ্য পেয়েছি — নিশ্চিত করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => confirmOrderDelivery(order.id, uid))}
+                  />
+                )}
+                {tab === 'buying' && ['SHIPPED', 'DELIVERED'].includes(order.status) && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && (
+                  <ActionButton label="পাইনি/সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setDisputeTarget(order)} />
+                )}
+                {tab === 'buying' && order.status === 'COMPLETED' && !reviewedOrderIds.has(order.id) && (
+                  <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setReviewTarget(order)} />
+                )}
+
+                {tab === 'selling' && order.status === 'ESCROW_HELD' && (
+                  <ActionButton
+                    label="প্রস্তুতি শুরু করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkPreparing(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && order.status === 'PREPARING' && (
+                  <ActionButton
+                    label="শিপড মার্ক করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkShipped(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && order.status === 'SHIPPED' && (
+                  <ActionButton
+                    label="ডেলিভার্ড মার্ক করুন"
+                    variant="primary"
+                    loading={processingId === order.id}
+                    onClick={() => runAction(order.id, () => sellerMarkDelivered(order.id, uid))}
+                  />
+                )}
+                {tab === 'selling' && ['ESCROW_HELD', 'PREPARING', 'SHIPPED'].includes(order.status) && (
+                  <ActionButton
+                    label="বাতিল করুন"
+                    variant="danger"
+                    loading={processingId === order.id}
+                    onClick={() => setSellerCancelTarget(order)}
+                  />
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {disputeTarget && (
+        <ReportDisputeModal
+          orderId={disputeTarget.id}
+          buyerId={uid}
+          onClose={() => setDisputeTarget(null)}
+          onSuccess={() => {
+            setDisputeTarget(null)
+            showToast('রিপোর্ট জমা হয়েছে — পর্যালোচনার পর জানানো হবে।')
+            load()
+          }}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          order={reviewTarget}
+          buyerName={user?.displayName ?? ''}
+          onClose={() => setReviewTarget(null)}
+          onSuccess={() => {
+            setReviewTarget(null)
+            showToast('রিভিউ জমা হয়েছে — ধন্যবাদ!')
+            load()
+          }}
+        />
+      )}
+
+      <BrandedDialog open={Boolean(sellerCancelTarget)} title="অর্ডার বাতিল করবেন?" tone="warning" onClose={() => setSellerCancelTarget(null)} actions={<><DialogButton onClick={() => setSellerCancelTarget(null)} variant="outline">থাক</DialogButton><DialogButton onClick={() => { if (sellerCancelTarget) runAction(sellerCancelTarget.id, () => sellerCancelOrder(sellerCancelTarget.id, uid)); setSellerCancelTarget(null) }} tone="warning">বাতিল নিশ্চিত করুন</DialogButton></>}><p>এই action-এর পরে ক্রেতার refund প্রক্রিয়া শুরু হবে। Seller হিসেবে সত্যিই বাতিল করতে চান কি না নিশ্চিত করুন।</p></BrandedDialog>
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg">
+          {toast}
+        </div>
+      )}
+    </Layout>
+  )
+}
+
+function ActionButton({
+  label,
+  variant,
+  loading,
+  onClick,
+}: {
+  label: string
+  variant: 'primary' | 'outline' | 'danger'
+  loading?: boolean
+  onClick: () => void
+}) {
+  const styles = {
+    primary: 'bg-brand-500 text-white hover:bg-brand-600',
+    outline: 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600',
+    danger: 'border border-error/40 text-error hover:bg-error/5',
+  }[variant]
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}
+    >
+      {loading ? '...' : label}
+    </button>
+  )
+}
+
+=== src/pages/OrderDetail.tsx ===
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Layout } from '@/components/Layout'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { confirmOrderDelivery, buyerCancelOrder, sellerMarkPreparing, sellerMarkShipped, sellerMarkDelivered, sellerCancelOrder } from '@/lib/orders'
+import { formatDate, formatTaka } from '@/lib/format'
+import { ReportDisputeModal } from '@/components/ReportDisputeModal'
+import { ReviewModal } from '@/components/ReviewModal'
+import type { Order, OrderStatus } from '@/types/order'
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: 'পেমেন্ট বাকি',
+  ESCROW_HELD: 'এসক্রোতে সুরক্ষিত',
+  PREPARING: 'প্রস্তুত করা হচ্ছে',
+  SHIPPED: 'পাঠানো হয়েছে',
+  DELIVERED: 'পৌঁছে গেছে',
+  COMPLETED: 'অর্ডার সম্পন্ন',
+  CANCELLED: 'বাতিল',
+}
+
+const TIMELINE: OrderStatus[] = ['PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED']
+
+export default function OrderDetail() {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [reviewed, setReviewed] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [showDispute, setShowDispute] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id || !user) return
+    const uid = user.uid
+    let cancelled = false
+
+    async function loadOrder() {
+      const [orderResult, reviewResult] = await Promise.all([
+        supabase.from('orders').select('*').eq('id', id).maybeSingle(),
+        supabase.from('reviews').select('id').eq('order_id', id).maybeSingle(),
+      ])
+      if (cancelled) return
+      if (orderResult.error || !orderResult.data || ![orderResult.data.buyer_id, orderResult.data.seller_id].includes(uid)) {
+        setError('অর্ডারটি পাওয়া যায়নি বা দেখার অনুমতি নেই।')
+      } else {
+        setOrder(orderResult.data as Order)
+        setReviewed(Boolean(reviewResult.data))
+      }
+      setLoading(false)
+    }
+
+    loadOrder()
+    return () => {
+      cancelled = true
+    }
+  }, [id, user])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 3000)
+  }
+
+  const run = async (action: () => Promise<void>, success: string) => {
+    setProcessing(true)
+    try {
+      await action()
+      showToast(success)
+      if (id) {
+        const { data } = await supabase.from('orders').select('*').eq('id', id).maybeSingle()
+        setOrder(data as Order | null)
+      }
+    } catch (err) {
+      console.error('order action failed:', err)
+      showToast('কাজটি সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      </Layout>
+    )
+  }
+
+  if (error || !order || !user) {
+    return (
+      <Layout>
+        <div className="rounded-2xl border border-outline bg-surface p-8 text-center">
+          <p className="text-ink-600">{error ?? 'অর্ডারটি পাওয়া যায়নি।'}</p>
+          <Link to="/orders" className="mt-4 inline-flex rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">
+            অর্ডারে ফিরে যান
+          </Link>
+        </div>
+      </Layout>
+    )
+  }
+
+  const isBuyer = order.buyer_id === user.uid
+  const isSeller = order.seller_id === user.uid
+  const currentIndex = TIMELINE.indexOf(order.status)
+
+  return (
+    <Layout>
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <div>
+          <Link to="/orders" className="text-sm font-medium text-brand-600 hover:underline">
+            ← অর্ডারে ফিরে যান
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1>
+        </div>
+        <button onClick={() => window.print()} className="rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">
+          রসিদ প্রিন্ট করুন
+        </button>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-outline bg-surface p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs text-ink-300">অর্ডার নম্বর</p>
+            <p className="mt-1 break-all font-mono text-sm text-ink-900">{order.id}</p>
+          </div>
+          <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${order.status === 'CANCELLED' ? 'bg-error/10 text-error' : 'bg-brand-50 text-brand-700'}`}>
+            {STATUS_LABEL[order.status]}
+          </span>
+        </div>
+
+        <div className="mt-6 flex items-start">
+          {TIMELINE.map((status, index) => {
+            const done = order.status !== 'CANCELLED' && currentIndex >= index
+            return (
+              <div key={status} className="flex min-w-0 flex-1 items-start">
+                <div className="flex min-w-0 flex-col items-center text-center">
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-brand-500 text-white' : 'bg-outline text-ink-600'}`}>
+                    {done ? '✓' : index + 1}
+                  </span>
+                  <span className="mt-2 text-[10px] leading-tight text-ink-600 sm:text-xs">{STATUS_LABEL[status]}</span>
+                </div>
+                {index < TIMELINE.length - 1 && <div className={`mt-4 h-0.5 flex-1 ${done && currentIndex > index ? 'bg-brand-500' : 'bg-outline'}`} />}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-outline bg-surface p-5">
+        <div className="flex gap-3">
+          <Link to={`/products/${order.product_id}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-outline/30">
+            {order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}
+          </Link>
+          <div className="min-w-0 flex-1">
+            <Link to={`/products/${order.product_id}`} className="font-semibold text-ink-900 hover:text-brand-600">
+              {order.product_title}
+            </Link>
+            <p className="mt-1 text-sm text-ink-600">অর্ডার করা হয়েছে {formatDate(order.created_at)}</p>
+            <p className="mt-1 text-xs text-ink-300">পরিমাণ: {order.quantity}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2 rounded-xl bg-bg p-4 text-sm">
+          <div className="flex justify-between text-ink-600"><span>পণ্যের দাম</span><span>{formatTaka(order.price)}</span></div>
+          <div className="flex justify-between text-ink-600"><span>এসক্রো ফি</span><span>{formatTaka(order.escrow_fee)}</span></div>
+          <div className="flex justify-between border-t border-outline pt-2 font-bold text-ink-900"><span>মোট</span><span>{formatTaka(order.price + order.escrow_fee)}</span></div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-outline p-4 text-sm">
+          <p className="font-medium text-ink-900">ডেলিভারি তথ্য</p>
+          <p className="mt-1 leading-relaxed text-ink-600">{order.delivery_address}</p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 print:hidden">
+          {isBuyer && order.status === 'ESCROW_HELD' && (
+            <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => buyerCancelOrder(order.id, user.uid), 'অর্ডার বাতিলের অনুরোধ পাঠানো হয়েছে।')} />
+          )}
+          {isBuyer && order.status === 'DELIVERED' && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && <ActionButton label="পণ্য পেয়েছি — নিশ্চিত করুন" variant="primary" loading={processing} onClick={() => run(() => confirmOrderDelivery(order.id, user.uid), 'ডেলিভারি নিশ্চিত হয়েছে।')} />}
+          {isBuyer && ['SHIPPED', 'DELIVERED'].includes(order.status) && (!order.dispute_status || order.dispute_status === 'RESOLVED_DENIED') && <ActionButton label="পাইনি/সমস্যা রিপোর্ট করুন" variant="outline" onClick={() => setShowDispute(true)} />}
+          {isBuyer && order.status === 'COMPLETED' && !reviewed && <ActionButton label="রিভিউ দিন" variant="outline" onClick={() => setShowReview(true)} />}
+          {isSeller && order.status === 'ESCROW_HELD' && <ActionButton label="প্রস্তুতি শুরু করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkPreparing(order.id, user.uid), 'অর্ডার প্রস্তুত করা শুরু হয়েছে।')} />}
+          {isSeller && order.status === 'PREPARING' && <ActionButton label="শিপড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkShipped(order.id, user.uid), 'অর্ডারটি শিপড হিসেবে চিহ্নিত হয়েছে।')} />}
+          {isSeller && order.status === 'SHIPPED' && <ActionButton label="ডেলিভার্ড মার্ক করুন" variant="primary" loading={processing} onClick={() => run(() => sellerMarkDelivered(order.id, user.uid), 'অর্ডারটি ডেলিভার্ড হিসেবে চিহ্নিত হয়েছে।')} />}
+          {isSeller && ['ESCROW_HELD', 'PREPARING', 'SHIPPED'].includes(order.status) && <ActionButton label="অর্ডার বাতিল করুন" variant="danger" loading={processing} onClick={() => run(() => sellerCancelOrder(order.id, user.uid), 'অর্ডার বাতিল হয়েছে।')} />}
+        </div>
+      </div>
+
+      {showDispute && <ReportDisputeModal orderId={order.id} buyerId={user.uid} onClose={() => setShowDispute(false)} onSuccess={() => { setShowDispute(false); showToast('রিপোর্ট জমা হয়েছে।') }} />}
+      {showReview && <ReviewModal order={order} buyerName={user.displayName ?? ''} onClose={() => setShowReview(false)} onSuccess={() => { setShowReview(false); setReviewed(true); showToast('রিভিউ জমা হয়েছে।') }} />}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg print:hidden">{toast}</div>}
+    </Layout>
+  )
+}
+
+function ActionButton({ label, variant, loading, onClick }: { label: string; variant: 'primary' | 'outline' | 'danger'; loading?: boolean; onClick: () => void }) {
+  const styles = {
+    primary: 'bg-brand-500 text-white hover:bg-brand-600',
+    outline: 'border border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600',
+    danger: 'border border-error/40 text-error hover:bg-error/5',
+  }[variant]
+  return <button onClick={onClick} disabled={loading} className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${styles}`}>{loading ? '...' : label}</button>
+}
+
+=== src/pages/PaymentCallback.tsx ===
+import { useEffect, useState } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { Layout } from '@/components/Layout'
+import type { OrderStatus } from '@/types/order'
+
+type ViewState = 'checking' | 'confirmed' | 'still_pending' | 'cancelled'
+
+export default function PaymentCallback() {
+  const [searchParams] = useSearchParams()
+  const orderId = searchParams.get('order_id')
+  const wasCancelled = searchParams.get('cancelled') === '1'
+
+  const [view, setView] = useState<ViewState>(wasCancelled ? 'cancelled' : 'checking')
+
+  useEffect(() => {
+    if (!orderId || wasCancelled) return
+
+    let attempts = 0
+    let cancelled = false
+
+    async function poll() {
+      const { data } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle()
+      const status = data?.status as OrderStatus | undefined
+
+      if (cancelled) return
+
+      if (status === 'ESCROW_HELD') {
+        setView('confirmed')
+        return
+      }
+      if (status === 'CANCELLED') {
+        setView('cancelled')
+        return
+      }
+
+      attempts++
+      // UddoktaPay's webhook is usually near-instant, but poll for up to
+      // ~20s to cover network delays before telling the buyer it's still processing.
+      if (attempts < 10) {
+        setTimeout(poll, 2000)
+      } else {
+        setView('still_pending')
+      }
+    }
+    poll()
+
+    return () => {
+      cancelled = true
+    }
+  }, [orderId, wasCancelled])
+
+  return (
+    <Layout>
+      <div className="flex flex-col items-center py-16 text-center">
+        {view === 'checking' && (
+          <>
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
+            <p className="mt-4 text-ink-600">পেমেন্ট যাচাই করা হচ্ছে...</p>
+          </>
+        )}
+
+        {view === 'confirmed' && (
+          <>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-3xl text-brand-600">
+              ✓
+            </div>
+            <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট সফল হয়েছে!</h1>
+            <p className="mt-1 text-sm text-ink-600">টাকা এসক্রোতে জমা হয়েছে। বিক্রেতা এখন অর্ডারটি পাঠাবেন।</p>
+            <Link
+              to="/orders"
+              className="mt-6 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+            >
+              অর্ডার দেখুন
+            </Link>
+          </>
+        )}
+
+        {view === 'still_pending' && (
+          <>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 text-3xl text-warning">
+              ⏳
+            </div>
+            <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট প্রসেস হচ্ছে</h1>
+            <p className="mt-1 max-w-sm text-sm text-ink-600">
+              কিছুটা সময় লাগছে। কনফার্মেশন এলে অর্ডার পেজে স্ট্যাটাস আপডেট হয়ে যাবে — এখনই টাকা কাটা থাকলে চিন্তার কিছু
+              নেই।
+            </p>
+            <Link
+              to="/orders"
+              className="mt-6 rounded-xl border border-outline px-6 py-2.5 text-sm font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600"
+            >
+              অর্ডার পেজে যান
+            </Link>
+          </>
+        )}
+
+        {view === 'cancelled' && (
+          <>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-error/10 text-3xl text-error">
+              ✕
+            </div>
+            <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট বাতিল হয়েছে</h1>
+            <p className="mt-1 text-sm text-ink-600">কোনো টাকা কাটা হয়নি। আবার চেষ্টা করতে পারেন।</p>
+            <Link
+              to="/products"
+              className="mt-6 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+            >
+              কেনাকাটা চালিয়ে যান
+            </Link>
+          </>
+        )}
+      </div>
+    </Layout>
+  )
+}
+
+=== src/pages/Wallet.tsx ===
+import { useEffect, useState, useCallback } from 'react'
+import { Download, Filter } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/lib/supabase'
+import { Layout } from '@/components/Layout'
+import { BalanceCard } from '@/components/BalanceCard'
+import { LedgerThread } from '@/components/LedgerThread'
+import { BrandSelect } from '@/components/BrandSelect'
+import { WithdrawModal } from '@/components/WithdrawModal'
+import type { WalletBalance, WalletLedgerEntry } from '@/types/wallet'
+
+export default function Wallet() {
+  const { user } = useAuth()
+  const uid = user!.uid
+
+  const [balance, setBalance] = useState<WalletBalance | null>(null)
+  const [entries, setEntries] = useState<WalletLedgerEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showWithdraw, setShowWithdraw] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const [entryFilter, setEntryFilter] = useState<'all' | 'credit' | 'debit'>('all')
+
+  const loadWallet = useCallback(async () => {
+    const [balanceRes, ledgerRes] = await Promise.all([
+      supabase.from('wallet_balances').select('*').eq('user_id', uid).maybeSingle(),
+      supabase
+        .from('wallet_ledger')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ])
+
+    setBalance(balanceRes.data ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
+    setEntries(ledgerRes.data ?? [])
+    setLoading(false)
+  }, [uid])
+
+  useEffect(() => {
+    loadWallet()
+
+    // Balance and ledger update the moment a seller-cancelled order
+    // refunds the buyer, a sale completes, or a withdrawal is marked
+    // paid — all server-side, this just reflects it live.
+    const channel = supabase
+      .channel(`wallet-${uid}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wallet_balances', filter: `user_id=eq.${uid}` },
+        loadWallet
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${uid}` },
+        loadWallet
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [uid, loadWallet])
+
+  const visibleEntries = entries.filter((entry) => entryFilter === 'all' || (entryFilter === 'credit' ? entry.amount >= 0 : entry.amount < 0))
+  const exportCsv = () => {
+    const rows = [['তারিখ', 'ধরন', 'বিবরণ', 'পরিমাণ'], ...visibleEntries.map((entry) => [new Date(entry.created_at).toLocaleString('bn-BD'), entry.type, entry.description, String(entry.amount)])]
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'bikrikoro-wallet.csv'; anchor.click(); URL.revokeObjectURL(url)
+  }
+
+  return (
+    <Layout wide>
+      {loading ? (
+        <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
+      ) : (
+        <>
+          <BalanceCard
+            balance={balance?.available_balance ?? 0}
+            onWithdrawClick={() => setShowWithdraw(true)}
+          />
+
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="flex min-w-32 items-center gap-1"><Filter size={14} className="text-ink-400" /><BrandSelect label="লেনদেনের ধরন" value={entryFilter} options={[{ value: 'all', label: 'সব' }, { value: 'credit', label: 'জমা' }, { value: 'debit', label: 'খরচ' }]} onChange={(value) => setEntryFilter(value as typeof entryFilter)} /></div><button onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
+          <LedgerThread entries={visibleEntries} />
+        </>
+      )}
+
+      {showWithdraw && balance && (
+        <WithdrawModal
+          userId={uid}
+          availableBalance={balance.available_balance}
+          onClose={() => setShowWithdraw(false)}
+          onSuccess={() => {
+            setShowWithdraw(false)
+            setToast('উত্তোলনের অনুরোধ জমা হয়েছে — পর্যালোচনার পর টাকা পাঠানো হবে।')
+            setTimeout(() => setToast(null), 4000)
+          }}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg">
+          {toast}
+        </div>
+      )}
+    </Layout>
+  )
+}
+
+=== src/pages/DisputeThread.tsx ===
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { sendDisputeMessage } from '@/lib/orders'
+import { formatDateTime } from '@/lib/format'
+import type { OrderDispute, DisputeMessage, DisputeStatus } from '@/types/order'
+
+const STATUS_LABEL: Record<DisputeStatus, string> = {
+  REPORTED: 'রিপোর্ট জমা হয়েছে',
+  UNDER_REVIEW: 'পর্যালোচনাধীন',
+  RESOLVED_REFUNDED: 'সমাধান — টাকা ফেরত',
+  RESOLVED_DENIED: 'সমাধান — রিফান্ড প্রযোজ্য নয়',
+}
+
+export default function DisputeThread() {
+  const { disputeId } = useParams<{ disputeId: string }>()
+  const { user } = useAuth()
+  const uid = user!.uid
+
+  const [dispute, setDispute] = useState<OrderDispute | null>(null)
+  const [messages, setMessages] = useState<DisputeMessage[]>([])
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const loadMessages = useCallback(async () => {
+    if (!disputeId) return
+    const { data } = await supabase
+      .from('dispute_messages')
+      .select('*')
+      .eq('dispute_id', disputeId)
+      .order('created_at', { ascending: true })
+    setMessages(data ?? [])
+  }, [disputeId])
+
+  useEffect(() => {
+    if (!disputeId) return
+
+    async function init() {
+      const { data } = await supabase.from('order_disputes').select('*').eq('id', disputeId).single()
+      setDispute(data)
+      await loadMessages()
+      setLoading(false)
+    }
+    init()
+
+    const disputeChannel = supabase
+      .channel(`dispute-${disputeId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'order_disputes', filter: `id=eq.${disputeId}` },
+        () => supabase.from('order_disputes').select('*').eq('id', disputeId).single().then(({ data }) => setDispute(data))
+      )
+      .subscribe()
+
+    const messagesChannel = supabase
+      .channel(`dispute-messages-${disputeId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'dispute_messages', filter: `dispute_id=eq.${disputeId}` },
+        loadMessages
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(disputeChannel)
+      supabase.removeChannel(messagesChannel)
+    }
+  }, [disputeId, loadMessages])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSend = async () => {
+    if (!input.trim() || !dispute || sending) return
+    setSending(true)
+    try {
+      await sendDisputeMessage(dispute.id, uid, input.trim())
+      setInput('')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      </Layout>
+    )
+  }
+
+  if (!dispute) {
+    return (
+      <Layout>
+        <p className="py-16 text-center text-ink-600">রিপোর্টটি পাওয়া যায়নি।</p>
+      </Layout>
+    )
+  }
+
+  const isResolved = dispute.status === 'RESOLVED_REFUNDED' || dispute.status === 'RESOLVED_DENIED'
+
+  return (
+    <Layout>
+      <div className="flex items-center gap-2">
+        <Link to="/orders" className="text-ink-600 hover:text-ink-900">
+          ←
+        </Link>
+        <h1 className="text-lg font-semibold text-ink-900">রিপোর্ট বিস্তারিত</h1>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-outline bg-surface p-4">
+        <span
+          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+            isResolved ? (dispute.status === 'RESOLVED_REFUNDED' ? 'bg-brand-100 text-brand-700' : 'bg-error/10 text-error') : 'bg-warning/10 text-warning'
+          }`}
+        >
+          {STATUS_LABEL[dispute.status]}
+        </span>
+        <p className="mt-3 text-sm text-ink-900">{dispute.description}</p>
+        {dispute.evidence_urls.length > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto">
+            {dispute.evidence_urls.map((url) => (
+              <img key={url} src={url} alt="প্রমাণ" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 flex h-[45vh] flex-col rounded-xl border border-outline bg-surface">
+        <div className="flex-1 space-y-2 overflow-y-auto p-4">
+          {messages.length === 0 ? (
+            <p className="text-center text-sm text-ink-300">এখনো কোনো মেসেজ নেই</p>
+          ) : (
+            messages.map((msg) => {
+              const isMine = msg.sender_role === 'BUYER'
+              return (
+                <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
+                      isMine ? 'bg-brand-500 text-white' : 'bg-bg text-ink-900'
+                    }`}
+                  >
+                    {!isMine && <p className="mb-0.5 text-[10px] font-semibold text-brand-600">BikriKoro সাপোর্ট</p>}
+                    <p>{msg.message}</p>
+                    <p className={`mt-1 text-[10px] ${isMine ? 'text-brand-50/70' : 'text-ink-300'}`}>
+                      {formatDateTime(msg.created_at)}
+                    </p>
+                  </div>
+                </div>
+              )
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {!isResolved && (
+          <div className="flex items-center gap-2 border-t border-outline p-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="আরও তথ্য যোগ করুন..."
+              className="flex-1 rounded-full border border-outline px-4 py-2 text-sm outline-none focus:border-brand-500"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || sending}
+              className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              পাঠান
+            </button>
+          </div>
+        )}
+      </div>
+    </Layout>
+  )
+}
+
+=== src/lib/marketplace.ts ===
+import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
+
+export interface CouponPreview {
+  valid: boolean
+  normalized_code: string
+  discount_amount: number
+  final_price: number
+  message: string
+}
+
+export interface DigitalLibraryItem {
+  order_id: string
+  product_id: string
+  product_title: string
+  product_image: string
+  price: number
+  order_status: string
+  delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
+  delivery_text: string
+  delivery_status: 'PENDING' | 'READY' | 'REVOKED'
+  delivered_at: string | null
+  purchased_at: string
+}
+
+export async function validateCoupon(code: string, productId: string, buyerId: string): Promise<CouponPreview> {
+  const { data, error } = await supabase.rpc('validate_coupon', {
+    p_code: code.trim(),
+    p_product_id: productId,
+    p_buyer_id: buyerId,
+  })
+  if (error || !data?.[0]) {
+    return {
+      valid: false,
+      normalized_code: code.trim().toUpperCase(),
+      discount_amount: 0,
+      final_price: 0,
+      message: 'এই মুহূর্তে কুপন যাচাই করা যাচ্ছে না।',
+    }
+  }
+  return data[0] as CouponPreview
+}
+
+export async function loadDigitalLibrary(userId: string): Promise<DigitalLibraryItem[]> {
+  const { data, error } = await supabase.rpc('get_digital_library', { p_buyer_id: userId })
+  if (error) throw error
+  return (data ?? []) as DigitalLibraryItem[]
+}
+
+async function notificationApi(userId: string, payload: Record<string, unknown>) {
+  if (auth.currentUser?.uid !== userId) throw new Error('আপনার notification session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(payload),
+  })
+  const raw = await response.text()
+  let result: { data?: unknown[]; count?: number; error?: string } = {}
+  try {
+    result = raw ? JSON.parse(raw) as typeof result : {}
+  } catch {
+    result = {}
+  }
+  if (!response.ok) {
+    const detail = result.error || raw.trim() || `HTTP ${response.status}`
+    throw new Error(`${detail} (HTTP ${response.status})`)
+  }
+  return result
+}
+
+export async function loadNotifications(userId: string) {
+  const result = await notificationApi(userId, { action: 'list' })
+  return result.data ?? []
+}
+
+export async function markNotificationRead(notificationId: string, userId: string) {
+  await notificationApi(userId, { action: 'read', notificationId })
+}
+
+export async function markAllNotificationsRead(userId: string) {
+  const result = await notificationApi(userId, { action: 'mark_all' })
+  return Number(result.count ?? 0)
+}
+
+export async function loadUnreadNotificationCount(userId: string) {
+  const result = await notificationApi(userId, { action: 'count' })
+  return Number(result.count ?? 0)
+}
+
+=== payment/order migrations ===
+supabase/migrations/001_init.sql:30:    review_count integer not null default 0,
+supabase/migrations/001_init.sql:215:    payment_method text not null check (payment_method in ('BKASH', 'NAGAD', 'CARD', 'CASH_ON_MEETUP')),
+supabase/migrations/002_demo_seed_data.sql:11:insert into profiles (id, name, is_verified, rating, review_count) values
+supabase/migrations/005_reviews.sql:4:-- One review per completed order. A trigger keeps `profiles.rating` /
+supabase/migrations/005_reviews.sql:5:-- `profiles.review_count` in sync automatically on insert, so the app
+supabase/migrations/005_reviews.sql:7:-- the actual review rows.
+supabase/migrations/005_reviews.sql:10:create table if not exists reviews (
+supabase/migrations/005_reviews.sql:12:    order_id text not null unique,             -- one review per order
+supabase/migrations/005_reviews.sql:23:create index if not exists idx_reviews_seller_id on reviews (seller_id);
+supabase/migrations/005_reviews.sql:24:create index if not exists idx_reviews_order_id on reviews (order_id);
+supabase/migrations/005_reviews.sql:26:alter table reviews enable row level security;
+supabase/migrations/005_reviews.sql:29:    on reviews for select
+supabase/migrations/005_reviews.sql:34:-- order can review it" at the repository layer for now.
+supabase/migrations/005_reviews.sql:35:create policy "Buyers can insert their own review"
+supabase/migrations/005_reviews.sql:36:    on reviews for insert
+supabase/migrations/005_reviews.sql:40:-- Keep profiles.rating / profiles.review_count in sync automatically
+supabase/migrations/005_reviews.sql:46:        rating = coalesce((select round(avg(rating)::numeric, 1) from reviews where seller_id = new.seller_id), 0),
+supabase/migrations/005_reviews.sql:47:        review_count = (select count(*) from reviews where seller_id = new.seller_id)
+supabase/migrations/005_reviews.sql:53:drop trigger if exists trg_refresh_seller_rating on reviews;
+supabase/migrations/005_reviews.sql:55:    after insert on reviews
+supabase/migrations/007_order_disputes.sql:2:-- BikriKoro — Order disputes (buyer "report a problem" flow)
+supabase/migrations/007_order_disputes.sql:5:-- UI. A dispute is deliberately modeled as its own table rather than
+supabase/migrations/007_order_disputes.sql:9:-- history — `orders.dispute_status` is just a fast-read snapshot of the
+supabase/migrations/007_order_disputes.sql:10:-- MOST RECENT dispute row, kept in sync by the trigger below the same way
+supabase/migrations/007_order_disputes.sql:11:-- 005_reviews.sql keeps profiles.rating in sync from the reviews table.
+supabase/migrations/007_order_disputes.sql:15:-- orders.dispute_status — snapshot column read by OrderDto/Order.kt
+supabase/migrations/007_order_disputes.sql:18:    add column if not exists dispute_status text
+supabase/migrations/007_order_disputes.sql:19:        check (dispute_status is null or dispute_status in
+supabase/migrations/007_order_disputes.sql:23:-- order_disputes
+supabase/migrations/007_order_disputes.sql:25:create table if not exists order_disputes (
+supabase/migrations/007_order_disputes.sql:40:create index if not exists idx_disputes_order on order_disputes(order_id);
+supabase/migrations/007_order_disputes.sql:41:create index if not exists idx_disputes_buyer on order_disputes(buyer_id);
+supabase/migrations/007_order_disputes.sql:42:create index if not exists idx_disputes_status on order_disputes(status) where status in ('REPORTED', 'UNDER_REVIEW');
+supabase/migrations/007_order_disputes.sql:44:alter table order_disputes enable row level security;
+supabase/migrations/007_order_disputes.sql:49:create policy "Buyer or seller can read a dispute on their order"
+supabase/migrations/007_order_disputes.sql:50:    on order_disputes for select
+supabase/migrations/007_order_disputes.sql:53:create policy "Buyers can open a dispute"
+supabase/migrations/007_order_disputes.sql:54:    on order_disputes for insert
+supabase/migrations/007_order_disputes.sql:60:    on order_disputes for update
+supabase/migrations/007_order_disputes.sql:64:-- Keep orders.dispute_status in sync with the latest dispute row,
+supabase/migrations/007_order_disputes.sql:66:-- UNDER_REVIEW — mirrors 005_reviews.sql's refresh_seller_rating trigger.
+supabase/migrations/007_order_disputes.sql:68:create or replace function refresh_order_dispute_status() returns trigger as $$
+supabase/migrations/007_order_disputes.sql:75:    set dispute_status = new.status
+supabase/migrations/007_order_disputes.sql:82:drop trigger if exists trg_refresh_order_dispute_status on order_disputes;
+supabase/migrations/007_order_disputes.sql:83:create trigger trg_refresh_order_dispute_status
+supabase/migrations/007_order_disputes.sql:84:    before insert or update on order_disputes
+supabase/migrations/007_order_disputes.sql:85:    for each row execute function refresh_order_dispute_status();
+supabase/migrations/007_order_disputes.sql:88:-- banner update live the moment support resolves the dispute, the same
+supabase/migrations/007_order_disputes.sql:90:alter publication supabase_realtime add table order_disputes;
+supabase/migrations/007_order_disputes.sql:96:values ('dispute-evidence', 'dispute-evidence', true)
+supabase/migrations/007_order_disputes.sql:101:    using (bucket_id = 'dispute-evidence');
+supabase/migrations/007_order_disputes.sql:103:create policy "Anyone can upload dispute evidence"
+supabase/migrations/007_order_disputes.sql:105:    with check (bucket_id = 'dispute-evidence');
+supabase/migrations/008_wallet.sql:6:-- Console account. A real-money wallet with a visible balance and
+supabase/migrations/008_wallet.sql:7:-- withdrawal flow inside the app risks Play policy rejection (financial
+supabase/migrations/008_wallet.sql:8:-- features draw extra review scrutiny). So the rule for this schema is:
+supabase/migrations/008_wallet.sql:12:--   • The Android app NEVER reads wallet_balances, wallet_ledger, or
+supabase/migrations/008_wallet.sql:13:--     wallet_withdrawal_requests, and NEVER shows a balance or a
+supabase/migrations/008_wallet.sql:14:--     "withdraw" button anywhere. It only causes events (an order gets
+supabase/migrations/008_wallet.sql:18:--     and let the user request a withdrawal.
+supabase/migrations/008_wallet.sql:24:-- wallet_balances — one row per user, fast-read current balance
+supabase/migrations/008_wallet.sql:26:create table if not exists wallet_balances (
+supabase/migrations/008_wallet.sql:32:alter table wallet_balances enable row level security;
+supabase/migrations/008_wallet.sql:37:create policy "Users can read their own wallet balance"
+supabase/migrations/008_wallet.sql:38:    on wallet_balances for select
+supabase/migrations/008_wallet.sql:42:-- wallet_ledger — append-only history behind the balance. Every credit
+supabase/migrations/008_wallet.sql:44:-- and every debit (a paid-out withdrawal) is one row here. The balance
+supabase/migrations/008_wallet.sql:45:-- in wallet_balances is a derived cache, never edited directly — always
+supabase/migrations/008_wallet.sql:49:create table if not exists wallet_ledger (
+supabase/migrations/008_wallet.sql:55:    withdrawal_request_id uuid,                  -- set for WITHDRAWAL rows, fk added below
+supabase/migrations/008_wallet.sql:60:create index if not exists idx_wallet_ledger_user on wallet_ledger(user_id, created_at desc);
+supabase/migrations/008_wallet.sql:61:create index if not exists idx_wallet_ledger_order on wallet_ledger(order_id);
+supabase/migrations/008_wallet.sql:63:alter table wallet_ledger enable row level security;
+supabase/migrations/008_wallet.sql:65:create policy "Users can read their own wallet ledger"
+supabase/migrations/008_wallet.sql:66:    on wallet_ledger for select
+supabase/migrations/008_wallet.sql:70:-- withdrawal-approval trigger below — never directly by the app/website
+supabase/migrations/008_wallet.sql:73:    on wallet_ledger for insert
+supabase/migrations/008_wallet.sql:77:-- Keep wallet_balances in sync with every ledger insert
+supabase/migrations/008_wallet.sql:79:create or replace function apply_wallet_ledger_entry() returns trigger as $$
+supabase/migrations/008_wallet.sql:81:    insert into wallet_balances (user_id, available_balance, updated_at)
+supabase/migrations/008_wallet.sql:84:        set available_balance = wallet_balances.available_balance + excluded.available_balance,
+supabase/migrations/008_wallet.sql:90:drop trigger if exists trg_apply_wallet_ledger_entry on wallet_ledger;
+supabase/migrations/008_wallet.sql:91:create trigger trg_apply_wallet_ledger_entry
+supabase/migrations/008_wallet.sql:92:    after insert on wallet_ledger
+supabase/migrations/008_wallet.sql:93:    for each row execute function apply_wallet_ledger_entry();
+supabase/migrations/008_wallet.sql:96:-- wallet_withdrawal_requests — website-only "উত্তোলন করুন" flow
+supabase/migrations/008_wallet.sql:98:create table if not exists wallet_withdrawal_requests (
+supabase/migrations/008_wallet.sql:111:alter table wallet_ledger
+supabase/migrations/008_wallet.sql:112:    add constraint wallet_ledger_withdrawal_request_id_fkey
+supabase/migrations/008_wallet.sql:113:    foreign key (withdrawal_request_id) references wallet_withdrawal_requests(id);
+supabase/migrations/008_wallet.sql:115:create index if not exists idx_withdrawal_requests_user on wallet_withdrawal_requests(user_id);
+supabase/migrations/008_wallet.sql:116:create index if not exists idx_withdrawal_requests_status on wallet_withdrawal_requests(status) where status = 'PENDING';
+supabase/migrations/008_wallet.sql:118:alter table wallet_withdrawal_requests enable row level security;
+supabase/migrations/008_wallet.sql:120:create policy "Users can read their own withdrawal requests"
+supabase/migrations/008_wallet.sql:121:    on wallet_withdrawal_requests for select
+supabase/migrations/008_wallet.sql:124:-- The website calls request_wallet_withdrawal() below rather than
+supabase/migrations/008_wallet.sql:127:create policy "Withdrawal requests are inserted via request_wallet_withdrawal()"
+supabase/migrations/008_wallet.sql:128:    on wallet_withdrawal_requests for insert
+supabase/migrations/008_wallet.sql:132:    on wallet_withdrawal_requests for update
+supabase/migrations/008_wallet.sql:135:-- Website calls this (as the signed-in user) to request a withdrawal.
+supabase/migrations/008_wallet.sql:138:create or replace function request_wallet_withdrawal(
+supabase/migrations/008_wallet.sql:148:    select available_balance into v_balance from wallet_balances where user_id = p_user_id;
+supabase/migrations/008_wallet.sql:151:        raise exception 'Insufficient wallet balance';
+supabase/migrations/008_wallet.sql:154:    insert into wallet_withdrawal_requests (user_id, amount, method, account_details)
+supabase/migrations/008_wallet.sql:162:-- When admin/ops marks a withdrawal request PAID (from the Supabase
+supabase/migrations/008_wallet.sql:165:create or replace function apply_paid_withdrawal() returns trigger as $$
+supabase/migrations/008_wallet.sql:172:        insert into wallet_ledger (user_id, type, amount, withdrawal_request_id, description)
+supabase/migrations/008_wallet.sql:180:drop trigger if exists trg_apply_paid_withdrawal on wallet_withdrawal_requests;
+supabase/migrations/008_wallet.sql:181:create trigger trg_apply_paid_withdrawal
+supabase/migrations/008_wallet.sql:182:    before update on wallet_withdrawal_requests
+supabase/migrations/008_wallet.sql:183:    for each row execute function apply_paid_withdrawal();
+supabase/migrations/008_wallet.sql:185:alter publication supabase_realtime add table wallet_balances;
+supabase/migrations/008_wallet.sql:186:alter publication supabase_realtime add table wallet_ledger;
+supabase/migrations/008_wallet.sql:187:alter publication supabase_realtime add table wallet_withdrawal_requests;
+supabase/migrations/008_wallet.sql:191:-- actions ever touch the wallet, and it never knows it happened.
+supabase/migrations/008_wallet.sql:193:create or replace function apply_order_wallet_effects() returns trigger as $$
+supabase/migrations/008_wallet.sql:197:    -- buyer's wallet rather than the original payment method.
+supabase/migrations/008_wallet.sql:201:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/008_wallet.sql:212:    -- escrow to the seller as a wallet credit instead of a bank transfer.
+supabase/migrations/008_wallet.sql:214:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/008_wallet.sql:228:drop trigger if exists trg_apply_order_wallet_effects on orders;
+supabase/migrations/008_wallet.sql:229:create trigger trg_apply_order_wallet_effects
+supabase/migrations/008_wallet.sql:231:    for each row execute function apply_order_wallet_effects();
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:2:-- BikriKoro — Tier 1: atomic order actions, dispute threads, seller verification
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:4:-- Context: orders/order_disputes RLS has so far been `using(true) with
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:5:-- check(true)` everywhere (see 001_init.sql, 007_order_disputes.sql),
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:7:-- file a dispute as any buyer, just by knowing an id. That was an
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:10:-- flip to COMPLETED would fire the wallet payout trigger for money that
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:13:-- This migration moves every state-changing order/dispute action behind
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:17:-- wallet_withdrawal_requests in 008_wallet.sql. Both the Android app and
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:23:-- 1) create_order_atomic — buyer places an order
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:25:create or replace function create_order_atomic(
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:29:    p_payment_method text
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:49:        seller_id, buyer_id, delivery_address, payment_method,
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:53:        v_product.seller_id, p_buyer_id, p_delivery_address, p_payment_method,
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:65:create or replace function seller_mark_shipped(p_order_id uuid, p_seller_id text) returns void as $$
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:77:-- Same trigger from 008_wallet.sql fires off this update and refunds the
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:78:-- buyer's wallet automatically — this function has no wallet awareness.
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:94:-- Same trigger from 008_wallet.sql fires off this update and pays out the
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:95:-- seller's wallet automatically.
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:102:      and dispute_status is null; -- an open dispute must be resolved first
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:105:        raise exception 'Order not found, not yours, not in a confirmable state, or has an open dispute';
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:124:-- a seller cancellation does. Extend 008_wallet.sql's trigger condition
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:126:create or replace function apply_order_wallet_effects() returns trigger as $$
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:131:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:142:        insert into wallet_ledger (user_id, type, amount, order_id, description)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:155:-- (trigger itself already exists from 008_wallet.sql — replacing the
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:156:-- function body is enough, no need to re-create trg_apply_order_wallet_effects)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:161:--    008_wallet.sql's withdrawal-request policy.
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:164:create policy "Orders are created via create_order_atomic()"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:174:-- 5) report_order_dispute — replaces the direct insert in
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:178:create or replace function report_order_dispute(
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:187:    v_dispute_id uuid;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:201:    insert into order_disputes (order_id, buyer_id, reason, description, evidence_urls)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:203:    returning id into v_dispute_id;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:205:    return v_dispute_id;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:209:drop policy if exists "Buyers can open a dispute" on order_disputes;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:210:create policy "Disputes are opened via report_order_dispute()"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:211:    on order_disputes for insert
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:215:-- 6) dispute_messages — back-and-forth thread on an open dispute, so the
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:219:create table if not exists dispute_messages (
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:221:    dispute_id uuid not null references order_disputes(id) on delete cascade,
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:228:create index if not exists idx_dispute_messages_dispute on dispute_messages(dispute_id, created_at);
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:230:alter table dispute_messages enable row level security;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:233:    on dispute_messages for select
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:234:    using (true); -- app enforces "only this dispute's buyer" at the repository layer, same as elsewhere
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:236:create policy "Messages are sent via send_dispute_message()"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:237:    on dispute_messages for insert
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:240:create or replace function send_dispute_message(
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:241:    p_dispute_id uuid,
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:250:    select buyer_id into v_buyer_id from order_disputes where id = p_dispute_id;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:258:    insert into dispute_messages (dispute_id, sender_id, sender_role, message)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:259:    values (p_dispute_id, p_sender_id, v_role, p_message)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:266:alter publication supabase_realtime add table dispute_messages;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:284:    reviewed_at timestamptz
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:304:create policy "Registrations are reviewed by admin/ops only"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:343:create or replace function apply_seller_registration_review() returns trigger as $$
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:346:        if new.reviewed_at is null then
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:347:            new.reviewed_at := now();
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:359:drop trigger if exists trg_apply_seller_registration_review on seller_registrations;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:360:create trigger trg_apply_seller_registration_review
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:362:    for each row execute function apply_seller_registration_review();
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:367:-- product-images/dispute-evidence which are public. Read access is via
+supabase/migrations/010_uddoktapay_payments.sql:2:-- BikriKoro — UddoktaPay payment gateway (website-only, Bangladesh-only)
+supabase/migrations/010_uddoktapay_payments.sql:8:-- Same rule as the wallet system: real payment capture stays OUT of the
+supabase/migrations/010_uddoktapay_payments.sql:12:--   - create_order_atomic() (009_tier1_...sql) — Android only. Places an
+supabase/migrations/010_uddoktapay_payments.sql:14:--   - create_order_pending_payment() (this file) — website only. Places
+supabase/migrations/010_uddoktapay_payments.sql:16:--     uddoktapay-webhook Edge Function confirms a real, verified payment.
+supabase/migrations/010_uddoktapay_payments.sql:20:-- uddoktapay-create-charge and uddoktapay-webhook, which hold it as a
+supabase/migrations/010_uddoktapay_payments.sql:25:-- orders.payment_method was `not null check (in ('BKASH','NAGAD','CARD',
+supabase/migrations/010_uddoktapay_payments.sql:27:-- A website order now starts with no payment method at all (the buyer
+supabase/migrations/010_uddoktapay_payments.sql:29:-- own method names once the webhook confirms payment — normalized to
+supabase/migrations/010_uddoktapay_payments.sql:32:alter table orders alter column payment_method drop not null;
+supabase/migrations/010_uddoktapay_payments.sql:33:alter table orders drop constraint if exists orders_payment_method_check;
+supabase/migrations/010_uddoktapay_payments.sql:34:alter table orders add constraint orders_payment_method_check
+supabase/migrations/010_uddoktapay_payments.sql:35:    check (payment_method is null or payment_method in
+supabase/migrations/010_uddoktapay_payments.sql:38:create table if not exists payments (
+supabase/migrations/010_uddoktapay_payments.sql:44:    payment_method text,                       -- bkash / nagad / rocket / upay, filled in from the webhook payload
+supabase/migrations/010_uddoktapay_payments.sql:52:create index if not exists idx_payments_order on payments(order_id);
+supabase/migrations/010_uddoktapay_payments.sql:54:alter table payments enable row level security;
+supabase/migrations/010_uddoktapay_payments.sql:56:create policy "Users can read payments for their own orders"
+supabase/migrations/010_uddoktapay_payments.sql:57:    on payments for select
+supabase/migrations/010_uddoktapay_payments.sql:60:-- Only the uddoktapay-webhook Edge Function writes here, using the
+supabase/migrations/010_uddoktapay_payments.sql:63:    on payments for insert
+supabase/migrations/010_uddoktapay_payments.sql:66:    on payments for update
+supabase/migrations/010_uddoktapay_payments.sql:69:alter publication supabase_realtime add table payments;
+supabase/migrations/010_uddoktapay_payments.sql:72:-- create_order_pending_payment — website checkout, step 1 of 2
+supabase/migrations/010_uddoktapay_payments.sql:74:create or replace function create_order_pending_payment(
+supabase/migrations/010_uddoktapay_payments.sql:97:        seller_id, buyer_id, delivery_address, payment_method,
+supabase/migrations/010_uddoktapay_payments.sql:111:-- (closed the tab, payment failed) should be cancellable so it doesn't
+supabase/migrations/010_uddoktapay_payments.sql:112:-- sit forever — no wallet refund applies since no payment ever landed
+supabase/migrations/010_uddoktapay_payments.sql:113:-- (apply_order_wallet_effects only fires for ESCROW_HELD/SHIPPED/DELIVERED -> CANCELLED).
+supabase/migrations/010_uddoktapay_payments.sql:121:        raise exception 'Order not found, not yours, or payment already in progress';
+supabase/migrations/011_admin.sql:4:-- Scope: just enough for the two review queues that were left as
+supabase/migrations/011_admin.sql:6:-- dispute resolution and seller verification. Not a full admin/staff
+supabase/migrations/011_admin.sql:50:-- admin_resolve_dispute — approve (refund) or deny a buyer's dispute
+supabase/migrations/011_admin.sql:52:create or replace function admin_resolve_dispute(
+supabase/migrations/011_admin.sql:54:    p_dispute_id uuid,
+supabase/migrations/011_admin.sql:68:    update order_disputes
+supabase/migrations/011_admin.sql:70:    where id = p_dispute_id
+supabase/migrations/011_admin.sql:77:    -- Keeps orders.dispute_status in sync (007_order_disputes.sql's
+supabase/migrations/011_admin.sql:78:    -- trigger only fires on order_disputes writes, which this is).
+supabase/migrations/011_admin.sql:79:    update orders set dispute_status = p_status where id = v_order_id;
+supabase/migrations/011_admin.sql:82:    -- refund" — reuse the exact same wallet-crediting path a seller
+supabase/migrations/011_admin.sql:83:    -- cancellation goes through (008_wallet.sql), rather than duplicating
+supabase/migrations/011_admin.sql:86:    -- already, since disputes block confirm_order_delivery).
+supabase/migrations/011_admin.sql:92:    perform send_dispute_message(p_dispute_id, p_admin_id, p_resolution_note)
+supabase/migrations/011_admin.sql:98:-- admin_review_seller_registration — approve/reject a verification application
+supabase/migrations/011_admin.sql:100:create or replace function admin_review_seller_registration(
+supabase/migrations/011_admin.sql:114:    -- trg_apply_seller_registration_review (009_tier1_...sql) sets
+supabase/migrations/011_admin.sql:121:        raise exception 'Registration not found or already reviewed';
+supabase/migrations/012_digital_products.sql:6:-- address step in BuyModal — checkout for them is payment-only via
+supabase/migrations/013_marketplace_features.sql:150:create or replace function validate_coupon(p_code text, p_product_id uuid, p_buyer_id text)
+supabase/migrations/013_marketplace_features.sql:215:create or replace function create_order_pending_payment_with_coupon(
+supabase/migrations/013_marketplace_features.sql:236:        select * into v_coupon from validate_coupon(p_coupon_code, p_product_id, p_buyer_id);
+supabase/migrations/013_marketplace_features.sql:245:        seller_id, buyer_id, delivery_address, payment_method, status, escrow_fee
+supabase/migrations/014_admin_workspace.sql:10:alter table reviews add column if not exists is_hidden boolean not null default false;
+supabase/migrations/014_admin_workspace.sql:117:create or replace function admin_moderate_review(p_admin_id text, p_review_id text, p_action text) returns void as $$
+supabase/migrations/014_admin_workspace.sql:121:        update reviews set is_hidden = true where id = p_review_id;
+supabase/migrations/014_admin_workspace.sql:123:        update reviews set is_hidden = false where id = p_review_id;
+supabase/migrations/014_admin_workspace.sql:124:    else raise exception 'Invalid review moderation action'; end if;
+supabase/migrations/014_admin_workspace.sql:177:-- Public catalogue/reviews must respect moderation flags. Admin RPCs below
+supabase/migrations/014_admin_workspace.sql:184:drop policy if exists "Reviews are publicly readable" on reviews;
+supabase/migrations/014_admin_workspace.sql:185:drop policy if exists "Public reviews exclude moderated reviews" on reviews;
+supabase/migrations/014_admin_workspace.sql:186:create policy "Public reviews exclude moderated reviews"
+supabase/migrations/014_admin_workspace.sql:187:    on reviews for select using (coalesce(is_hidden, false) = false);
+supabase/migrations/014_admin_workspace.sql:197:create or replace function admin_list_reviews(p_admin_id text)
+supabase/migrations/014_admin_workspace.sql:198:returns setof reviews as $$
+supabase/migrations/014_admin_workspace.sql:201:    return query select * from reviews order by created_at desc;
+supabase/migrations/014_admin_workspace.sql:225:create or replace function admin_list_withdrawals(p_admin_id text)
+supabase/migrations/014_admin_workspace.sql:226:returns setof wallet_withdrawal_requests as $$
+supabase/migrations/014_admin_workspace.sql:229:    return query select * from wallet_withdrawal_requests order by requested_at desc;
+supabase/migrations/014_admin_workspace.sql:233:create or replace function admin_review_withdrawal(p_admin_id text, p_request_id uuid, p_status text, p_admin_note text)
+supabase/migrations/014_admin_workspace.sql:237:    if p_status not in ('PENDING', 'APPROVED', 'REJECTED', 'PAID') then raise exception 'Invalid withdrawal status'; end if;
+supabase/migrations/014_admin_workspace.sql:238:    update wallet_withdrawal_requests
+supabase/migrations/015_admin_control_center.sql:10:alter table reviews add column if not exists is_hidden boolean not null default false;
+supabase/migrations/015_admin_control_center.sql:117:create or replace function admin_moderate_review(p_admin_id text, p_review_id text, p_action text) returns void as $$
+supabase/migrations/015_admin_control_center.sql:121:        update reviews set is_hidden = true where id = p_review_id;
+supabase/migrations/015_admin_control_center.sql:123:        update reviews set is_hidden = false where id = p_review_id;
+supabase/migrations/015_admin_control_center.sql:124:    else raise exception 'Invalid review moderation action'; end if;
+supabase/migrations/015_admin_control_center.sql:177:-- Public catalogue/reviews must respect moderation flags. Admin RPCs below
+supabase/migrations/015_admin_control_center.sql:184:drop policy if exists "Reviews are publicly readable" on reviews;
+supabase/migrations/015_admin_control_center.sql:185:drop policy if exists "Public reviews exclude moderated reviews" on reviews;
+supabase/migrations/015_admin_control_center.sql:186:create policy "Public reviews exclude moderated reviews"
+supabase/migrations/015_admin_control_center.sql:187:    on reviews for select using (coalesce(is_hidden, false) = false);
+supabase/migrations/015_admin_control_center.sql:197:create or replace function admin_list_reviews(p_admin_id text)
+supabase/migrations/015_admin_control_center.sql:198:returns setof reviews as $$
+supabase/migrations/015_admin_control_center.sql:201:    return query select * from reviews order by created_at desc;
+supabase/migrations/015_admin_control_center.sql:225:create or replace function admin_list_withdrawals(p_admin_id text)
+supabase/migrations/015_admin_control_center.sql:226:returns setof wallet_withdrawal_requests as $$
+supabase/migrations/015_admin_control_center.sql:229:    return query select * from wallet_withdrawal_requests order by requested_at desc;
+supabase/migrations/015_admin_control_center.sql:233:create or replace function admin_review_withdrawal(p_admin_id text, p_request_id uuid, p_status text, p_admin_note text)
+supabase/migrations/015_admin_control_center.sql:237:    if p_status not in ('PENDING', 'APPROVED', 'REJECTED', 'PAID') then raise exception 'Invalid withdrawal status'; end if;
+supabase/migrations/015_admin_control_center.sql:238:    update wallet_withdrawal_requests
+supabase/migrations/020_rewards_checkin.sql:1:-- Reward coins are separate from the BDT wallet. They cannot be withdrawn or used as money.
+supabase/migrations/023_seller_verification_v2.sql:27:  reviewed_by text,
+supabase/migrations/023_seller_verification_v2.sql:28:  reviewed_at timestamptz,
+supabase/migrations/023_seller_verification_v2.sql:33:create table if not exists public.seller_verification_reviews (
+supabase/migrations/023_seller_verification_v2.sql:53:create index if not exists idx_seller_reviews_registration_created on public.seller_verification_reviews(registration_id, created_at desc);
+supabase/migrations/023_seller_verification_v2.sql:58:alter table public.seller_verification_reviews enable row level security;
+supabase/migrations/023_seller_verification_v2.sql:133:  insert into public.seller_verification_reviews (registration_id, admin_id, action, note) values (v_registration_id, p_user_id, 'SUBMITTED', 'Application submitted');
+supabase/migrations/024_admin_roles_permissions.sql:25:('OPERATIONS_MANAGER', 'অপারেশন ম্যানেজার', '["dashboard.view","sales.orders","sales.deliveries","sales.customers","sales.disputes"]', true),
+supabase/migrations/024_admin_roles_permissions.sql:29:('SUPPORT_AGENT', 'সাপোর্ট এজেন্ট', '["dashboard.view","sales.customers","sales.disputes","content.support","content.notifications"]', true),
+supabase/migrations/024_admin_roles_permissions.sql:30:('VERIFICATION_REVIEWER', 'ভেরিফিকেশন রিভিউয়ার', '["dashboard.view","content.sellers","sales.reviews"]', true)
+supabase/migrations/025_verification_review_workflow.sql:1:create or replace function public.admin_review_verification_document(p_admin_id text, p_document_id uuid, p_status text, p_admin_note text default '') returns void as $$
+supabase/migrations/025_verification_review_workflow.sql:7:  update public.seller_verification_documents set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_by = p_admin_id, reviewed_at = now() where id = p_document_id returning registration_id into v_registration_id;
+supabase/migrations/025_verification_review_workflow.sql:9:  insert into public.seller_verification_reviews(registration_id, admin_id, action, document_type, note)
+supabase/migrations/025_verification_review_workflow.sql:27:  if not found then raise exception 'Registration not found or already reviewed'; end if;
+supabase/migrations/025_verification_review_workflow.sql:37:  update public.seller_registrations set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_at = now() where id = p_registration_id;
+supabase/migrations/025_verification_review_workflow.sql:38:  insert into public.seller_verification_reviews(registration_id, admin_id, action, note) values (p_registration_id, p_admin_id, p_status, coalesce(p_admin_note, ''));
+supabase/migrations/026_admin_customer_controls.sql:21:  v_wallet jsonb;
+supabase/migrations/026_admin_customer_controls.sql:25:  v_disputes jsonb;
+supabase/migrations/026_admin_customer_controls.sql:32:  select coalesce(to_jsonb(w), '{}'::jsonb) into v_wallet from public.wallet_balances w where w.user_id = p_customer_id;
+supabase/migrations/026_admin_customer_controls.sql:34:  select coalesce(jsonb_agg(to_jsonb(l) order by l.created_at desc), '[]'::jsonb) into v_ledger from public.wallet_ledger l where l.user_id = p_customer_id;
+supabase/migrations/026_admin_customer_controls.sql:36:  select coalesce(jsonb_agg(to_jsonb(d) order by d.created_at desc), '[]'::jsonb) into v_disputes from public.order_disputes d join public.orders o on o.id = d.order_id where o.buyer_id = p_customer_id or o.seller_id = p_customer_id;
+supabase/migrations/026_admin_customer_controls.sql:40:  return jsonb_build_object('profile', v_profile, 'wallet', coalesce(v_wallet, '{}'::jsonb), 'orders', v_orders, 'ledger', v_ledger, 'products', v_products, 'disputes', v_disputes, 'chats', v_chats, 'notifications', v_notifications);
+supabase/migrations/026_admin_customer_controls.sql:44:create or replace function public.admin_adjust_customer_wallet(p_admin_id text, p_customer_id text, p_amount numeric, p_reason text) returns void as $$
+supabase/migrations/026_admin_customer_controls.sql:51:  select coalesce(available_balance, 0) into v_balance from public.wallet_balances where user_id = p_customer_id for update;
+supabase/migrations/026_admin_customer_controls.sql:52:  if coalesce(v_balance, 0) + p_amount < 0 then raise exception 'Adjustment would make wallet negative'; end if;
+supabase/migrations/026_admin_customer_controls.sql:53:  insert into public.wallet_ledger(user_id, type, amount, description) values (p_customer_id, 'ADJUSTMENT', p_amount, 'Admin adjustment: ' || trim(p_reason));
+supabase/migrations/026_admin_customer_controls.sql:90:revoke all on function public.admin_adjust_customer_wallet(text, text, numeric, text) from public;
+supabase/migrations/026_admin_customer_controls.sql:92:grant execute on function public.admin_adjust_customer_wallet(text, text, numeric, text) to anon, authenticated;
+supabase/migrations/028_notifications_push.sql:85:    perform public.notify_user_event(new.user_id, 'VERIFICATION', 'সেলার verification আবেদন জমা হয়েছে', 'আপনার seller verification আবেদন admin review-এর জন্য পাঠানো হয়েছে।', '/become-seller/verify?mode=' || coalesce(new.listing_mode, 'DIGITAL'), jsonb_build_object('registration_id', new.id));
+supabase/migrations/028_notifications_push.sql:96:create or replace function public.notify_wallet_event() returns trigger as $$
+supabase/migrations/028_notifications_push.sql:98:  perform public.notify_user_event(new.user_id, 'WALLET', case when new.amount >= 0 then 'ওয়ালেটে টাকা যোগ হয়েছে' else 'ওয়ালেট থেকে টাকা কাটা হয়েছে' end, coalesce(new.description, 'Wallet ledger-এ নতুন update হয়েছে।'), '/wallet', jsonb_build_object('ledger_id', new.id, 'amount', new.amount, 'type', new.type));
+supabase/migrations/028_notifications_push.sql:103:drop trigger if exists trg_notify_wallet_event on public.wallet_ledger;
+supabase/migrations/028_notifications_push.sql:104:create trigger trg_notify_wallet_event after insert on public.wallet_ledger for each row execute function public.notify_wallet_event();
+supabase/migrations/030_notification_function_hardening.sql:7:alter function public.notify_wallet_event() set search_path = public, pg_temp;
+supabase/migrations/031_admin_manual_approval_workflows.sql:12:alter table public.products add column if not exists approval_reviewed_by text;
+supabase/migrations/031_admin_manual_approval_workflows.sql:13:alter table public.products add column if not exists approval_reviewed_email text;
+supabase/migrations/031_admin_manual_approval_workflows.sql:14:alter table public.products add column if not exists approval_reviewed_at timestamptz;
+supabase/migrations/031_admin_manual_approval_workflows.sql:42:    new.approval_reviewed_by := null;
+supabase/migrations/031_admin_manual_approval_workflows.sql:43:    new.approval_reviewed_email := null;
+supabase/migrations/031_admin_manual_approval_workflows.sql:44:    new.approval_reviewed_at := null;
+supabase/migrations/031_admin_manual_approval_workflows.sql:55:create or replace function public.admin_review_product(
+supabase/migrations/031_admin_manual_approval_workflows.sql:73:      approval_reviewed_by = p_admin_id,
+supabase/migrations/031_admin_manual_approval_workflows.sql:74:      approval_reviewed_email = coalesce(v_email, ''),
+supabase/migrations/031_admin_manual_approval_workflows.sql:75:      approval_reviewed_at = now(),
+supabase/migrations/031_admin_manual_approval_workflows.sql:115:alter table public.orders add column if not exists admin_review_status text;
+supabase/migrations/031_admin_manual_approval_workflows.sql:116:update public.orders set admin_review_status = 'APPROVED' where admin_review_status is null;

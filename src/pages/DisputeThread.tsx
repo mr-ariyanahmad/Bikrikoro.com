@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { sendDisputeMessage } from '@/lib/orders'
@@ -24,35 +25,41 @@ export default function DisputeThread() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const loadMessages = useCallback(async () => {
+  const loadDispute = useCallback(async () => {
     if (!disputeId) return
-    const { data } = await supabase
-      .from('dispute_messages')
-      .select('*')
-      .eq('dispute_id', disputeId)
-      .order('created_at', { ascending: true })
-    setMessages(data ?? [])
+    try {
+      const idToken = await auth.currentUser?.getIdToken()
+      if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+      const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'dispute', disputeId }) })
+      const payload = await response.json().catch(() => ({})) as { error?: string; dispute?: OrderDispute; messages?: DisputeMessage[] }
+      if (!response.ok || !payload.dispute) throw new Error(payload.error || 'রিপোর্টটি পাওয়া যায়নি।')
+      setDispute(payload.dispute)
+      setMessages(payload.messages ?? [])
+      setError(null)
+    } catch (loadError) {
+      console.error('Dispute load failed:', loadError)
+      setError(loadError instanceof Error ? loadError.message : 'রিপোর্ট লোড করা যায়নি।')
+    }
   }, [disputeId])
 
   useEffect(() => {
     if (!disputeId) return
 
     async function init() {
-      const { data } = await supabase.from('order_disputes').select('*').eq('id', disputeId).single()
-      setDispute(data)
-      await loadMessages()
+      await loadDispute()
       setLoading(false)
     }
-    init()
+    void init()
 
     const disputeChannel = supabase
       .channel(`dispute-${disputeId}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'order_disputes', filter: `id=eq.${disputeId}` },
-        () => supabase.from('order_disputes').select('*').eq('id', disputeId).single().then(({ data }) => setDispute(data))
+        () => { void loadDispute() }
       )
       .subscribe()
 
@@ -61,7 +68,7 @@ export default function DisputeThread() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'dispute_messages', filter: `dispute_id=eq.${disputeId}` },
-        loadMessages
+        () => { void loadDispute() }
       )
       .subscribe()
 
@@ -69,7 +76,7 @@ export default function DisputeThread() {
       supabase.removeChannel(disputeChannel)
       supabase.removeChannel(messagesChannel)
     }
-  }, [disputeId, loadMessages])
+  }, [disputeId, loadDispute])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -81,6 +88,9 @@ export default function DisputeThread() {
     try {
       await sendDisputeMessage(dispute.id, uid, input.trim())
       setInput('')
+    } catch (sendError) {
+      console.error('Dispute message failed:', sendError)
+      setError(sendError instanceof Error ? sendError.message : 'মেসেজ পাঠানো যায়নি।')
     } finally {
       setSending(false)
     }
@@ -94,10 +104,10 @@ export default function DisputeThread() {
     )
   }
 
-  if (!dispute) {
+  if (error || !dispute) {
     return (
       <Layout>
-        <p className="py-16 text-center text-ink-600">রিপোর্টটি পাওয়া যায়নি।</p>
+        <p className="py-16 text-center text-ink-600">{error ?? 'রিপোর্টটি পাওয়া যায়নি।'}</p>
       </Layout>
     )
   }
@@ -169,6 +179,7 @@ export default function DisputeThread() {
               className="flex-1 rounded-full border border-outline px-4 py-2 text-sm outline-none focus:border-brand-500"
             />
             <button
+              type="button"
               onClick={handleSend}
               disabled={!input.trim() || sending}
               className="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"

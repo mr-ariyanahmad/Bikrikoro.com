@@ -3,6 +3,7 @@ import { Check, Coins, Crown, Loader2, Truck, WalletCards } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
@@ -61,16 +62,26 @@ export default function Home() {
   useEffect(() => {
     if (!user) { setBalance(0); setRewardCoins(0); setCheckinStreak(0); setCheckedIn(false); return }
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date())
-    Promise.all([
-      supabase.from('wallet_balances').select('available_balance').eq('user_id', user.uid).maybeSingle(),
-      supabase.from('reward_balances').select('coins, checkin_streak, last_checkin_date').eq('user_id', user.uid).maybeSingle(),
-    ]).then(([wallet, rewards]) => {
-      if (wallet.error || rewards.error) setCheckInMessage('Wallet বা reward data এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
-      setBalance(Number(wallet.data?.available_balance ?? 0))
-      setRewardCoins(Number(rewards.data?.coins ?? 0))
-      setCheckinStreak(Number(rewards.data?.checkin_streak ?? 0))
-      setCheckedIn(rewards.data?.last_checkin_date === today)
-    })
+    const loadAccountSnapshot = async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+        const [walletResponse, rewards] = await Promise.all([
+          fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) }),
+          supabase.from('reward_balances').select('coins, checkin_streak, last_checkin_date').eq('user_id', user.uid).maybeSingle(),
+        ])
+        const walletPayload = await walletResponse.json().catch(() => ({})) as { error?: string; balance?: { available_balance?: number } }
+        if (!walletResponse.ok || rewards.error) throw new Error(walletPayload.error || rewards.error?.message || 'Account data load failed')
+        setBalance(Number(walletPayload.balance?.available_balance ?? 0))
+        setRewardCoins(Number(rewards.data?.coins ?? 0))
+        setCheckinStreak(Number(rewards.data?.checkin_streak ?? 0))
+        setCheckedIn(rewards.data?.last_checkin_date === today)
+      } catch (error) {
+        console.error('Account snapshot load failed:', error)
+        setCheckInMessage('Wallet বা reward data এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+      }
+    }
+    void loadAccountSnapshot()
   }, [user])
 
   const checkIn = async () => {

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Download, Filter } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { BalanceCard } from '@/components/BalanceCard'
 import { LedgerThread } from '@/components/LedgerThread'
@@ -16,24 +17,28 @@ export default function Wallet() {
   const [balance, setBalance] = useState<WalletBalance | null>(null)
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState<'all' | 'credit' | 'debit'>('all')
 
   const loadWallet = useCallback(async () => {
-    const [balanceRes, ledgerRes] = await Promise.all([
-      supabase.from('wallet_balances').select('*').eq('user_id', uid).maybeSingle(),
-      supabase
-        .from('wallet_ledger')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ])
-
-    setBalance(balanceRes.data ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
-    setEntries(ledgerRes.data ?? [])
-    setLoading(false)
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const idToken = await auth.currentUser?.getIdToken()
+      if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+      const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
+      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[] }
+      if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
+      setBalance(payload.balance ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
+      setEntries(payload.ledger ?? [])
+    } catch (error) {
+      console.error('Wallet load failed:', error)
+      setLoadError(error instanceof Error ? error.message : 'ওয়ালেট লোড করা যায়নি।')
+    } finally {
+      setLoading(false)
+    }
   }, [uid])
 
   useEffect(() => {
@@ -75,12 +80,13 @@ export default function Wallet() {
         <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
       ) : (
         <>
+          {loadError && <p className="mb-4 border border-error/20 bg-error/5 p-3 text-sm text-error">ওয়ালেট লোড করা যায়নি: {loadError}</p>}
           <BalanceCard
             balance={balance?.available_balance ?? 0}
             onWithdrawClick={() => setShowWithdraw(true)}
           />
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="flex min-w-32 items-center gap-1"><Filter size={14} className="text-ink-400" /><BrandSelect label="লেনদেনের ধরন" value={entryFilter} options={[{ value: 'all', label: 'সব' }, { value: 'credit', label: 'জমা' }, { value: 'debit', label: 'খরচ' }]} onChange={(value) => setEntryFilter(value as typeof entryFilter)} /></div><button onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="flex min-w-32 items-center gap-1"><Filter size={14} className="text-ink-400" /><BrandSelect label="লেনদেনের ধরন" value={entryFilter} options={[{ value: 'all', label: 'সব' }, { value: 'credit', label: 'জমা' }, { value: 'debit', label: 'খরচ' }]} onChange={(value) => setEntryFilter(value as typeof entryFilter)} /></div><button type="button" onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
           <LedgerThread entries={visibleEntries} />
         </>
       )}
