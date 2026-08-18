@@ -63,15 +63,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     if (input.action === 'wallet') {
-      const [{ data: balance, error: balanceError }, { data: ledger, error: ledgerError }, { data: withdrawalSummary, error: withdrawalError }] = await Promise.all([
+      const [{ data: balance, error: balanceError }, { data: ledger, error: ledgerError }, { data: withdrawalSummary, error: withdrawalError }, { data: withdrawals, error: historyError }] = await Promise.all([
         supabase.rpc('user_wallet_balance', { p_user_id: token.uid }),
         supabase.rpc('user_wallet_ledger', { p_user_id: token.uid, p_limit: 50 }),
         supabase.rpc('user_wallet_withdrawal_summary', { p_user_id: token.uid }),
+        supabase.rpc('user_wallet_withdrawal_history', { p_user_id: token.uid, p_limit: 50 }),
       ])
       if (balanceError) throw balanceError
       if (ledgerError) throw ledgerError
       if (withdrawalError) throw withdrawalError
-      res.status(200).json({ balance, ledger: ledger ?? [], withdrawalSummary: withdrawalSummary?.[0] ?? null })
+      if (historyError) throw historyError
+      res.status(200).json({ balance, ledger: ledger ?? [], withdrawalSummary: withdrawalSummary?.[0] ?? null, withdrawals: withdrawals ?? [] })
       return
     }
     throw new Error('Unsupported order read action')

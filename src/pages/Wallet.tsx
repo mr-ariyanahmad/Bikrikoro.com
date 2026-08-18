@@ -8,7 +8,8 @@ import { BalanceCard } from '@/components/BalanceCard'
 import { LedgerThread } from '@/components/LedgerThread'
 import { BrandSelect } from '@/components/BrandSelect'
 import { WithdrawModal } from '@/components/WithdrawModal'
-import type { WalletBalance, WalletLedgerEntry, WalletWithdrawalSummary } from '@/types/wallet'
+import { formatDateTime, formatTaka } from '@/lib/format'
+import type { WalletBalance, WalletLedgerEntry, WalletWithdrawalSummary, WithdrawalRequest } from '@/types/wallet'
 
 export default function Wallet() {
   const { user } = useAuth()
@@ -17,6 +18,7 @@ export default function Wallet() {
   const [balance, setBalance] = useState<WalletBalance | null>(null)
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([])
   const [withdrawalSummary, setWithdrawalSummary] = useState<WalletWithdrawalSummary | null>(null)
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showWithdraw, setShowWithdraw] = useState(false)
@@ -30,11 +32,12 @@ export default function Wallet() {
       const idToken = await auth.currentUser?.getIdToken()
       if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
-      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null }
+      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null; withdrawals?: WithdrawalRequest[] }
       if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
       setBalance(payload.balance ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
       setEntries(payload.ledger ?? [])
       setWithdrawalSummary(payload.withdrawalSummary ?? null)
+      setWithdrawals(payload.withdrawals ?? [])
     } catch (error) {
       console.error('Wallet load failed:', error)
       setLoadError(error instanceof Error ? error.message : 'ওয়ালেট লোড করা যায়নি।')
@@ -96,6 +99,15 @@ export default function Wallet() {
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">লেনদেনের হিস্ট্রি</h2><div className="flex items-center gap-2"><div className="flex min-w-32 items-center gap-1"><Filter size={14} className="text-ink-400" /><BrandSelect label="লেনদেনের ধরন" value={entryFilter} options={[{ value: 'all', label: 'সব' }, { value: 'credit', label: 'জমা' }, { value: 'debit', label: 'খরচ' }]} onChange={(value) => setEntryFilter(value as typeof entryFilter)} /></div><button type="button" onClick={exportCsv} disabled={visibleEntries.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><Download size={14} />CSV</button></div></div>
           <LedgerThread entries={visibleEntries} />
+
+          <section className="mt-8">
+            <h2 className="text-sm font-semibold tracking-wide text-ink-600 uppercase">উইথড্রয়াল হিস্ট্রি</h2>
+            {withdrawals.length === 0 ? <p className="mt-3 rounded-2xl border border-outline bg-surface p-5 text-sm text-ink-500">এখনো কোনো withdrawal request নেই।</p> : <div className="mt-3 space-y-3">{withdrawals.map((withdrawal) => {
+              const statusLabel = withdrawal.status === 'PENDING' ? 'পর্যালোচনাধীন' : withdrawal.status === 'APPROVED' ? 'অ্যাডমিন অনুমোদন করেছেন' : withdrawal.status === 'REJECTED' ? 'অ্যাডমিন বাতিল করেছেন' : 'পরিশোধিত'
+              const statusClass = withdrawal.status === 'REJECTED' ? 'text-error' : withdrawal.status === 'PAID' ? 'text-brand-700' : 'text-ink-700'
+              return <article key={withdrawal.id} className="rounded-2xl border border-outline bg-surface p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-ink-900">{formatTaka(Number(withdrawal.amount))} · {withdrawal.method}</p><p className="mt-1 text-xs text-ink-400">অনুরোধ: {formatDateTime(withdrawal.requested_at)}</p></div><span className={`text-right text-xs font-semibold ${statusClass}`}>{statusLabel}</span></div>{withdrawal.admin_note && <p className="mt-3 rounded-xl bg-bg p-3 text-sm leading-5 text-ink-600">Admin note: {withdrawal.admin_note}</p>}{withdrawal.processed_at && <p className="mt-2 text-xs text-ink-400">সিদ্ধান্ত: {formatDateTime(withdrawal.processed_at)}</p>}</article>
+            })}</div>}
+          </section>
         </>
       )}
 

@@ -6,6 +6,7 @@ const TYPE_LABEL: Record<WalletLedgerEntry['type'], string> = {
   SELLER_PAYOUT: 'বিক্রয় পেআউট',
   WITHDRAWAL: 'উত্তোলন',
   ADJUSTMENT: 'সমন্বয়',
+  WALLET_ORDER_PAYMENT: 'ওয়ালেট অর্ডার পেমেন্ট',
 }
 
 export function LedgerThread({ entries }: { entries: WalletLedgerEntry[] }) {

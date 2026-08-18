@@ -1,6 +1,6 @@
 /** Mirrors supabase/migrations/008_wallet.sql — keep these two in sync by hand. */
 
-export type WalletLedgerType = 'ORDER_REFUND' | 'SELLER_PAYOUT' | 'WITHDRAWAL' | 'ADJUSTMENT'
+export type WalletLedgerType = 'ORDER_REFUND' | 'SELLER_PAYOUT' | 'WITHDRAWAL' | 'ADJUSTMENT' | 'WALLET_ORDER_PAYMENT'
 
 export type WithdrawalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
 
