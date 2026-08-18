@@ -28,12 +28,28 @@ export default function PublicContentPage({ type }: { type: ContentType }) {
   const meta = COPY[type]
   const [rows, setRows] = useState<ContentRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.rpc('get_published_content', { p_content_type: type, p_slug: null }).then(({ data }) => {
-      setRows((data ?? []) as ContentRow[])
-      setLoading(false)
-    })
+    let active = true
+    setLoading(true)
+    setRows([])
+    setError(null)
+    const load = async () => {
+      try {
+        const { data, error: loadError } = await supabase.rpc('get_published_content', { p_content_type: type, p_slug: null })
+        if (loadError) throw loadError
+        if (!active) return
+        setRows((data ?? []) as ContentRow[])
+      } catch (loadError) {
+        console.error('Public content load failed:', loadError)
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Content লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void load()
+    return () => { active = false }
   }, [type])
 
   const Icon = meta.icon
@@ -60,7 +76,7 @@ export default function PublicContentPage({ type }: { type: ContentType }) {
         <Link to="/settings" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">Settings-এ যান <ChevronRight size={16} /></Link>
       </div>
       <div className="mt-6 space-y-5">
-        {loading ? <div className="h-48 animate-pulse bg-outline/40" /> : rows.length > 0 ? type === 'FAQ' ? <FaqAccordion items={rows} /> : rows.map((row) => <article key={row.id} className="border border-outline bg-surface p-5 sm:p-7">
+        {error ? <article className="border border-error/20 bg-error/5 p-5 sm:p-7"><p className="text-sm leading-7 text-error">এই পেজের content লোড করা যায়নি: {error}</p></article> : loading ? <div className="h-48 animate-pulse bg-outline/40" /> : rows.length > 0 ? type === 'FAQ' ? <FaqAccordion items={rows} /> : rows.map((row) => <article key={row.id} className="border border-outline bg-surface p-5 sm:p-7">
           {row.cover_image_url && <img src={row.cover_image_url} alt="" className="mb-5 aspect-[16/7] w-full object-cover" />}
           <h2 className="text-lg font-bold text-ink-900">{row.title}</h2>
           {row.excerpt && <p className="mt-1 text-sm text-ink-500">{row.excerpt}</p>}

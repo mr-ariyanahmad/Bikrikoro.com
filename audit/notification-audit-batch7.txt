@@ -1,0 +1,916 @@
+
+=== src/pages/Notifications.tsx ===
+import { useCallback, useEffect, useState } from 'react'
+import { Bell, BellRing, CheckCheck, CheckCircle2, Filter, RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Layout } from '@/components/Layout'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
+import { useAuth } from '@/context/AuthContext'
+import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
+import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
+import { supabase } from '@/lib/supabase'
+
+interface NotificationItem {
+  id: string
+  type: string
+  title: string
+  body: string
+  link: string | null
+  is_read: boolean
+  created_at: string
+}
+
+type NotificationFilter = 'all' | 'unread' | 'ORDER' | 'PAYMENT' | 'VERIFICATION' | 'CHAT' | 'WALLET' | 'CAMPAIGN' | 'SYSTEM'
+
+const filterOptions: Array<[NotificationFilter, string]> = [
+  ['all', 'সব'],
+  ['unread', 'Unread'],
+  ['ORDER', 'অর্ডার'],
+  ['PAYMENT', 'পেমেন্ট'],
+  ['VERIFICATION', 'ভেরিফিকেশন'],
+  ['CHAT', 'চ্যাট'],
+  ['WALLET', 'ওয়ালেট'],
+  ['CAMPAIGN', 'ঘোষণা'],
+  ['SYSTEM', 'সিস্টেম'],
+]
+
+function notifyHeader(unreadCount: number) {
+  window.dispatchEvent(new CustomEvent('bikrikoro-notifications-changed', { detail: { unreadCount } }))
+}
+
+export default function Notifications() {
+  const { user } = useAuth()
+  const [items, setItems] = useState<NotificationItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<NotificationFilter>('all')
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default')
+  const [pushState, setPushState] = useState<'idle' | 'loading' | 'registered' | 'denied' | 'unsupported' | 'missing-config' | 'unavailable'>('idle')
+  const [pushMessage, setPushMessage] = useState<string | null>(null)
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setPushPermission('unsupported')
+      setPushState('unsupported')
+      return () => { active = false }
+    }
+    const permission = Notification.permission
+    setPushPermission(permission)
+    if (permission === 'denied') {
+      setPushState('denied')
+      setPushMessage('নোটিফিকেশন আগে বন্ধ করা হয়েছে। আবার চালু করতে browser settings থেকে এই সাইটের notification permission পরিবর্তন করুন।')
+      return () => { active = false }
+    }
+    if (permission === 'granted' && user) {
+      setPushState('loading')
+      void registerPushToken(user.uid).then((result: PushRegistrationResult) => {
+        if (!active) return
+        if (result.status === 'registered') {
+          setPushState('registered')
+          setPushMessage(null)
+        } else {
+          setPushState(result.status)
+        }
+      })
+    } else {
+      setPushState('idle')
+      setPushMessage(null)
+    }
+    return () => { active = false }
+  }, [user])
+
+  const load = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      const data = (await loadNotifications(user.uid)) as NotificationItem[]
+      setItems(data)
+      notifyHeader(data.filter((item) => !item.is_read).length)
+      setError(null)
+    } catch (err) {
+      console.error('notifications load failed:', err)
+      setError(`নোটিফিকেশন লোড করা যায়নি: ${err instanceof Error ? err.message : 'অজানা server সমস্যা'}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    void load()
+    const channel = supabase
+      .channel(`notifications-${user.uid}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, () => {
+        void load()
+      })
+      .subscribe()
+    const onVisible = () => { if (document.visibilityState === 'visible') void load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      void supabase.removeChannel(channel)
+    }
+  }, [load, user])
+
+  const enablePushNotifications = async () => {
+    if (!user || pushState === 'loading') return
+    setPushState('loading')
+    setPushMessage(null)
+    const result = await registerPushToken(user.uid, { requestPermission: true })
+    if (typeof window !== 'undefined' && 'Notification' in window) setPushPermission(Notification.permission)
+    if (result.status === 'registered') {
+      setPushState('registered')
+      setPushMessage('নোটিফিকেশন চালু হয়েছে। নতুন order, payment, chat ও wallet update এখন জানানো হবে।')
+      return
+    }
+    if (result.status === 'denied') {
+      setPushState('denied')
+      setPushMessage('নোটিফিকেশন অনুমতি দেওয়া হয়নি। আবার চালু করতে browser settings থেকে এই সাইটের notification permission পরিবর্তন করুন।')
+      return
+    }
+    setPushState(result.status)
+    setPushMessage(result.status === 'missing-config' ? 'এই সাইটে push notification setup এখনো সম্পূর্ণ হয়নি।' : result.status === 'unsupported' ? 'আপনার browser push notification support করছে না।' : 'নোটিফিকেশন চালু করা যায়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।')
+  }
+
+  const markAll = async () => {
+    if (!user) return
+    try {
+      await markAllNotificationsRead(user.uid)
+      setItems((current) => current.map((item) => ({ ...item, is_read: true })))
+      notifyHeader(0)
+    } catch {
+      setError('সব নোটিফিকেশন read করা যায়নি।')
+    }
+  }
+
+  const read = async (item: NotificationItem) => {
+    if (!user || item.is_read) return
+    try {
+      await markNotificationRead(item.id, user.uid)
+      setItems((current) => {
+        const next = current.map((value) => (value.id === item.id ? { ...value, is_read: true } : value))
+        notifyHeader(next.filter((value) => !value.is_read).length)
+        return next
+      })
+    } catch (err) {
+      console.error('mark notification read failed:', err)
+    }
+  }
+
+  const unreadCount = items.filter((item) => !item.is_read).length
+  const visibleItems = items.filter((item) => filter === 'all' || (filter === 'unread' ? !item.is_read : item.type === filter))
+
+  return (
+    <Layout wide>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><div className="flex items-center gap-2"><Bell size={19} className="text-brand-600" /><h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1></div><p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, verification, chat, wallet ও admin announcement এক জায়গায়।</p></div>
+        <div className="flex items-center gap-2"><button onClick={markAll} disabled={!unreadCount} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"><RefreshCw size={15} />রিফ্রেশ</button></div>
+      </div>
+      {pushPermission !== 'granted' && pushState !== 'registered' && pushState !== 'denied' && pushState !== 'unsupported' && pushState !== 'missing-config' && pushState !== 'unavailable' && (
+        <section className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-sm sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15"><BellRing size={22} /></span>
+            <div className="min-w-0 flex-1"><h2 className="font-bold">সকল তথ্য পেতে নোটিফিকেশন চালু করুন</h2><p className="mt-1 text-sm leading-6 text-brand-50/90">অর্ডার, payment, verification, chat ও wallet update সময়মতো পেতে browser notification চালু করুন।</p><button type="button" onClick={() => setPermissionDialogOpen(true)} disabled={pushState === 'loading'} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:cursor-wait disabled:opacity-70"><Bell size={16} />{pushState === 'loading' ? 'অনুমতি নেওয়া হচ্ছে…' : 'নোটিফিকেশন চালু করুন'}</button></div>
+          </div>
+        </section>
+      )}
+      {pushPermission === 'granted' || pushState === 'registered' ? <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700"><CheckCircle2 size={16} />নোটিফিকেশন চালু আছে</p> : null}
+      {pushState === 'denied' && pushMessage && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">{pushMessage}</p>}
+      {pushState === 'missing-config' && pushMessage && <p className="mt-4 rounded-xl border border-outline bg-bg p-3 text-sm leading-6 text-ink-600">{pushMessage}</p>}
+      {pushMessage && pushState === 'registered' && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm leading-6 text-brand-700">{pushMessage}</p>}
+      <BrandedDialog open={permissionDialogOpen} title="নোটিফিকেশন চালু করবেন?" onClose={() => setPermissionDialogOpen(false)} actions={<><DialogButton variant="outline" onClick={() => setPermissionDialogOpen(false)}>এখন নয়</DialogButton><DialogButton onClick={() => { setPermissionDialogOpen(false); void enablePushNotifications() }}>চালু করুন</DialogButton></>}><p>অর্ডার, payment, seller verification, chat এবং wallet-এর গুরুত্বপূর্ণ update সময়মতো পেতে notification চালু করুন। পরের ধাপে আপনার browser-এর permission window আসবে; সেখানে <strong>Allow</strong> নির্বাচন করলেই setup সম্পূর্ণ হবে।</p></BrandedDialog>
+
+      <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
+
+      {error && <p className="mt-5 rounded-xl bg-error/10 p-4 text-sm text-error">{error}</p>}
+      {loading ? (
+        <div className="mt-6 space-y-3">{[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-outline/40" />)}</div>
+      ) : visibleItems.length === 0 ? (
+        <div className="mt-8 rounded-2xl border border-dashed border-outline bg-surface p-10 text-center text-sm text-ink-600">নতুন কোনো নোটিফিকেশন নেই।</div>
+      ) : (
+        <div className="mt-6 space-y-3">
+          {visibleItems.map((item) => {
+            const content = (
+              <div className={`rounded-xl border p-4 transition ${item.is_read ? 'border-outline bg-surface' : 'border-brand-200 bg-brand-50/60'}`}>
+                <div className="flex gap-3"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.is_read ? 'bg-outline' : 'bg-brand-500'}`} /><div className="min-w-0 flex-1"><p className="font-semibold text-ink-900">{item.title}</p><p className="mt-1 text-sm leading-relaxed text-ink-600">{item.body}</p><p className="mt-2 text-xs text-ink-300">{new Date(item.created_at).toLocaleString('bn-BD')}</p></div></div>
+              </div>
+            )
+            return item.link ? <Link key={item.id} to={item.link} onClick={() => void read(item)}>{content}</Link> : <button key={item.id} onClick={() => void read(item)} className="block w-full text-left">{content}</button>
+          })}
+        </div>
+      )}
+    </Layout>
+  )
+}
+
+=== src/lib/pushNotifications.ts ===
+import { getMessaging, getToken, isSupported } from 'firebase/messaging'
+import { app, auth } from '@/lib/firebase'
+
+export type PushRegistrationResult =
+  | { status: 'registered'; token: string }
+  | { status: 'unsupported' | 'denied' | 'missing-config' | 'unavailable' }
+
+export async function registerPushToken(userId: string, options: { requestPermission?: boolean } = {}): Promise<PushRegistrationResult> {
+  if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
+    return { status: 'unsupported' }
+  }
+
+  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY
+  if (!vapidKey) {
+    console.info('VITE_FIREBASE_VAPID_KEY is not configured; browser push is disabled.')
+    return { status: 'missing-config' }
+  }
+
+  try {
+    if (!(await isSupported())) return { status: 'unsupported' }
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : options.requestPermission
+        ? await Notification.requestPermission()
+        : Notification.permission
+    if (permission !== 'granted') return { status: permission === 'denied' ? 'denied' : 'unavailable' }
+
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    const messaging = getMessaging(app)
+    const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration })
+    if (!token) return { status: 'unavailable' }
+
+    if (auth.currentUser?.uid !== userId) return { status: 'unavailable' }
+    const idToken = await auth.currentUser.getIdToken()
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ action: 'register_token', token, platform: 'WEB', browser: navigator.userAgent.slice(0, 240) }),
+    })
+    if (!response.ok) throw new Error('Push token registration failed')
+    return { status: 'registered', token }
+  } catch (error) {
+    console.warn('Browser push registration skipped:', error)
+    return { status: 'unavailable' }
+  }
+}
+
+=== src/pages/admin/AdminNotifications.tsx ===
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Bell, Megaphone, RefreshCw, Send, Users } from 'lucide-react'
+import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/components/admin/AdminShell'
+import { useAuth } from '@/context/AuthContext'
+import { auth } from '@/lib/firebase'
+import { formatDateTime } from '@/lib/format'
+import { BrandSelect } from '@/components/BrandSelect'
+
+type TargetType = 'ALL' | 'CUSTOMERS' | 'SELLERS' | 'USER_LIST'
+type Campaign = {
+  id: string
+  target_type: TargetType
+  title: string
+  body: string
+  link: string | null
+  send_push: boolean
+  status: string
+  recipient_count: number
+  push_sent_count: number
+  push_failed_count: number
+  created_at: string
+}
+
+async function callNotificationApi(payload: Record<string, unknown>) {
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Admin Firebase session পাওয়া যায়নি।')
+  const response = await fetch('/api/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(payload),
+  })
+  const raw = await response.text()
+  let result: { data?: Campaign[]; campaign?: Campaign & { campaign_id?: string; recipient_count?: number }; error?: string } = {}
+  try {
+    result = raw ? JSON.parse(raw) as typeof result : {}
+  } catch {
+    result = {}
+  }
+  if (!response.ok) {
+    const detail = result.error || raw.trim() || `HTTP ${response.status}`
+    throw new Error(`${detail} (HTTP ${response.status})`)
+  }
+  return result
+}
+
+const targetOptions: Array<{ value: TargetType; label: string; description: string }> = [
+  { value: 'ALL', label: 'সব ব্যবহারকারী', description: 'ব্লক করা account বাদে পুরো marketplace' },
+  { value: 'CUSTOMERS', label: 'কাস্টমার', description: 'যারা seller হিসেবে চিহ্নিত নয়' },
+  { value: 'SELLERS', label: 'সেলার', description: 'listing বা অনুমোদিত seller verification আছে' },
+  { value: 'USER_LIST', label: 'নির্দিষ্ট ব্যবহারকারী', description: 'Firebase UID-এর তালিকা দিয়ে target করুন' },
+]
+
+export default function AdminNotifications() {
+  const { user } = useAuth()
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [form, setForm] = useState({ target_type: 'ALL' as TargetType, user_ids: '', title: '', body: '', link: '', send_push: true })
+
+  const load = useCallback(async () => {
+    if (!user?.uid) return
+    setLoading(true)
+    try {
+      const result = await callNotificationApi({ action: 'admin_campaigns' })
+      setCampaigns(result.data ?? [])
+    } catch (error) {
+      console.error('Campaign history load failed:', error)
+      setMessage(`Campaign history লোড করা যায়নি: ${error instanceof Error ? error.message : 'অজানা server সমস্যা'}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.uid])
+
+  useEffect(() => { void load() }, [load])
+
+  const totals = useMemo(() => ({
+    campaigns: campaigns.length,
+    recipients: campaigns.reduce((sum, item) => sum + Number(item.recipient_count || 0), 0),
+    sent: campaigns.reduce((sum, item) => sum + Number(item.push_sent_count || 0), 0),
+  }), [campaigns])
+
+  const createCampaign = async () => {
+    if (!user?.uid) return
+    if (form.title.trim().length < 2 || form.body.trim().length < 2) {
+      setMessage('Title এবং message দুটোই পূরণ করুন।')
+      return
+    }
+    const userIds = form.target_type === 'USER_LIST' ? form.user_ids.split(/[\s,]+/).map((value) => value.trim()).filter(Boolean) : []
+    if (form.target_type === 'USER_LIST' && userIds.length === 0) {
+      setMessage('নির্দিষ্ট user target করতে অন্তত একটি Firebase UID দিন।')
+      return
+    }
+
+    setSending(true)
+    setMessage(null)
+    let campaign: (Campaign & { campaign_id?: string; recipient_count?: number }) | null = null
+    try {
+      const result = await callNotificationApi({
+        action: 'create_campaign',
+        targetType: form.target_type,
+        targetUserIds: userIds,
+        title: form.title.trim(),
+        body: form.body.trim(),
+        link: form.link.trim() || null,
+        sendPush: form.send_push,
+      })
+      campaign = result.campaign ?? null
+    } catch (error) {
+      setMessage(`Campaign তৈরি হয়নি: ${error instanceof Error ? error.message : 'অজানা সমস্যা'}`)
+      setSending(false)
+      return
+    }
+    let pushMessage = ''
+    if (form.send_push && campaign?.campaign_id) {
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('Admin Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/notification-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ campaignId: campaign.campaign_id, adminId: user.uid, title: form.title.trim(), body: form.body.trim(), link: form.link.trim() || '/' }),
+        })
+        const result = await response.json().catch(() => ({})) as { error?: string; sent?: number; failed?: number }
+        if (!response.ok) throw new Error(result.error || 'Push delivery failed')
+        pushMessage = ` Push পাঠানো হয়েছে: ${result.sent ?? 0}টি, ব্যর্থ: ${result.failed ?? 0}টি।`
+      } catch (pushError) {
+        pushMessage = ` In-app notification গেছে, কিন্তু push delivery সম্পন্ন হয়নি: ${pushError instanceof Error ? pushError.message : 'অজানা সমস্যা'}।`
+      }
+    }
+
+    setMessage(`Campaign পাঠানো হয়েছে। ${campaign?.recipient_count ?? 0}টি account-এ in-app notification গেছে।${pushMessage}`)
+    setForm({ target_type: 'ALL', user_ids: '', title: '', body: '', link: '', send_push: true })
+    await load()
+    setSending(false)
+  }
+
+  return (
+    <AdminShell>
+      <AdminPageHeader title="নোটিফিকেশন ক্যাম্পেইন" description="অর্ডার ও system event-এর পাশাপাশি নির্দিষ্ট audience-কে branded in-app এবং Firebase push বার্তা পাঠান।" actions={<button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"><RefreshCw size={16} />রিফ্রেশ</button>} />
+
+      {message && <div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-relaxed text-brand-700">{message}</div>}
+      <div className="mb-6 grid gap-4 sm:grid-cols-3"><AdminStatCard label="মোট campaign" value={totals.campaigns} helper="সর্বশেষ ১০০টি" tone="blue" /><AdminStatCard label="ইন-অ্যাপ প্রাপক" value={totals.recipients.toLocaleString('bn-BD')} helper="campaign-এর ইতিহাস" tone="green" /><AdminStatCard label="Push পৌঁছেছে" value={totals.sent.toLocaleString('bn-BD')} helper="Firebase delivery" tone="amber" /></div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <AdminTableCard>
+          <div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center gap-2"><Megaphone size={18} className="text-brand-700" /><h2 className="font-semibold text-slate-900">নতুন campaign</h2></div><p className="mt-1 text-xs text-slate-500">একবার পাঠালে in-app inbox-এ সংরক্ষিত হবে।</p></div>
+          <div className="space-y-4 p-5">
+            <BrandSelect label="কাকে পাঠাবেন?" value={form.target_type} options={targetOptions.map((option) => ({ value: option.value, label: `${option.label} — ${option.description}` }))} onChange={(value) => setForm({ ...form, target_type: value as TargetType })} />
+            {form.target_type === 'USER_LIST' && <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">Firebase UID তালিকা</span><textarea value={form.user_ids} onChange={(event) => setForm({ ...form, user_ids: event.target.value })} rows={3} placeholder="প্রতি লাইনে একটি UID বা comma দিয়ে" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-xs outline-none focus:border-brand-500" /></label>}
+            <Field label="শিরোনাম" value={form.title} onChange={(value) => setForm({ ...form, title: value })} placeholder="আজকের marketplace update" />
+            <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">বার্তা</span><textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={4} placeholder="আপনার জন্য নতুন সুবিধা এসেছে…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label>
+            <Field label="অ্যাপ লিংক (ঐচ্ছিক)" value={form.link} onChange={(value) => setForm({ ...form, link: value })} placeholder="/products অথবা /wallet" />
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><input type="checkbox" checked={form.send_push} onChange={(event) => setForm({ ...form, send_push: event.target.checked })} className="mt-0.5 h-4 w-4 accent-blue-600" /><span><span className="font-semibold text-slate-900">Firebase push পাঠান</span><span className="mt-0.5 block text-xs text-slate-500">যে user browser push permission দিয়েছে, শুধু তার device-এ যাবে।</span></span></label>
+            <button onClick={() => void createCampaign()} disabled={sending} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:cursor-wait disabled:opacity-60"><Send size={16} />{sending ? 'পাঠানো হচ্ছে…' : 'Campaign পাঠান'}</button>
+          </div>
+        </AdminTableCard>
+
+        <AdminTableCard>
+          <div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center gap-2"><Bell size={18} className="text-amber-600" /><h2 className="font-semibold text-slate-900">Campaign-এর ইতিহাস</h2></div><p className="mt-1 text-xs text-slate-500">ইন-অ্যাপ প্রাপক, push delivery এবং failure count সহ।</p></div>
+          {loading ? <p className="p-10 text-center text-sm text-slate-500">লোড হচ্ছে…</p> : campaigns.length === 0 ? <div className="p-10 text-center text-sm text-slate-500"><Users size={24} className="mx-auto mb-2 text-slate-300" />এখনো কোনো campaign পাঠানো হয়নি।</div> : <div className="divide-y divide-slate-100">{campaigns.map((campaign) => <div key={campaign.id} className="px-5 py-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-slate-900">{campaign.title}</p><Status status={campaign.status} /></div><p className="mt-1 text-sm leading-relaxed text-slate-600">{campaign.body}</p></div><span className="shrink-0 text-xs text-slate-400">{formatDateTime(campaign.created_at)}</span></div><div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-600"><span className="rounded-full bg-slate-100 px-2.5 py-1">Audience: {targetOptions.find((option) => option.value === campaign.target_type)?.label || campaign.target_type}</span><span className="rounded-full bg-brand-50 px-2.5 py-1 text-brand-700">ইন-অ্যাপ {campaign.recipient_count}</span>{campaign.send_push && <><span className="rounded-full bg-green-50 px-2.5 py-1 text-green-700">Push {campaign.push_sent_count}</span><span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">ব্যর্থ {campaign.push_failed_count}</span></>}</div></div>)}</div>}
+        </AdminTableCard>
+      </div>
+    </AdminShell>
+  )
+}
+
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label>
+}
+
+function Status({ status }: { status: string }) {
+  const tone = status === 'SENT' || status === 'IN_APP_SENT' ? 'bg-green-50 text-green-700' : status === 'PARTIAL' ? 'bg-amber-50 text-amber-700' : status === 'FAILED' ? 'bg-red-50 text-red-700' : 'bg-brand-50 text-brand-700'
+  const label: Record<string, string> = { SENT: 'সম্পন্ন', IN_APP_SENT: 'In-app সম্পন্ন', PARTIAL: 'আংশিক', FAILED: 'ব্যর্থ', PUSH_QUEUED: 'Push queue' }
+  return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${tone}`}>{label[status] || status}</span>
+}
+
+=== src/pages/Blog.tsx ===
+import { useEffect, useState } from 'react'
+import { ArrowRight, BookOpen } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
+import { Link } from 'react-router-dom'
+import { Layout } from '@/components/Layout'
+import { supabase } from '@/lib/supabase'
+import { SITE_URL } from '@/lib/site'
+
+type BlogPost = { id: string; title: string; slug: string; excerpt: string; body: string; cover_image_url: string | null; seo_title: string | null; seo_description: string | null; published_at: string | null; updated_at: string }
+
+export default function Blog() {
+  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: null }).then(({ data }) => {
+      setPosts((data ?? []) as BlogPost[])
+      setLoading(false)
+    })
+  }, [])
+
+  return <Layout wide>
+    <Helmet>
+      <title>ব্লগ ও গাইড | BikriKoro.Com</title>
+      <meta name="description" content="BikriKoro-তে নিরাপদ কেনাকাটা, trusted seller এবং ভালো product listing নিয়ে বাংলা গাইড।" />
+      <link rel="canonical" href={`${SITE_URL}/blog`} />
+    </Helmet>
+    <div className="mx-auto max-w-5xl">
+      <header className="border-b border-outline pb-5">
+        <div className="flex items-center gap-2 text-brand-700"><BookOpen size={18} /><span className="text-sm font-semibold">BikriKoro গাইড</span></div>
+        <h1 className="mt-2 text-2xl font-bold text-ink-900 sm:text-3xl">নিরাপদ কেনাকাটা ও বিক্রির গাইড</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">বাংলাদেশি buyer ও seller-দের জন্য practical marketplace শিক্ষা, নিরাপত্তা এবং listing tips।</p>
+      </header>
+      {loading ? <div className="mt-6 grid gap-4 md:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-64 animate-pulse bg-outline/40" />)}</div> : posts.length === 0 ? <p className="mt-8 border border-outline bg-surface p-6 text-sm text-ink-600">এখনো কোনো blog প্রকাশিত হয়নি।</p> : <div className="mt-6 grid gap-4 md:grid-cols-3">{posts.map((post) => <article key={post.id} className="overflow-hidden border border-outline bg-surface"><Link to={`/blog/${post.slug}`} className="block"><div className="aspect-[16/9] bg-brand-50">{post.cover_image_url && <img src={post.cover_image_url} alt="" className="h-full w-full object-cover" loading="lazy" />}</div><div className="p-4"><h2 className="text-base font-bold leading-6 text-ink-900">{post.title}</h2><p className="mt-2 line-clamp-3 text-sm leading-6 text-ink-600">{post.excerpt}</p><span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">পড়ুন <ArrowRight size={15} /></span></div></Link></article>)}</div>}
+    </div>
+  </Layout>
+}
+
+=== api/notifications.ts ===
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { getServiceSupabase, isAuthError, verifyFirebaseRequest } from './_server-auth.js'
+
+type NotificationRequest = {
+  action?: 'list' | 'count' | 'read' | 'mark_all' | 'register_token' | 'disable_token' | 'admin_campaigns' | 'create_campaign'
+  notificationId?: string
+  token?: string
+  platform?: string
+  browser?: string
+  targetType?: 'ALL' | 'CUSTOMERS' | 'SELLERS' | 'USER_LIST'
+  targetUserIds?: string[]
+  title?: string
+  body?: string
+  link?: string | null
+  sendPush?: boolean
+}
+
+function parseBody(req: VercelRequest): NotificationRequest {
+  if (typeof req.body === 'string') return JSON.parse(req.body) as NotificationRequest
+  return (req.body ?? {}) as NotificationRequest
+}
+
+function writeError(res: VercelResponse, error: unknown) {
+  const message = error instanceof Error ? error.message : 'Notification request failed'
+  if (message === 'AUTH_REQUIRED' || message.includes('Firebase ID token')) {
+    res.status(401).json({ error: 'Authentication is required' })
+    return
+  }
+  res.status(500).json({ error: message })
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST')
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const userId = await verifyFirebaseRequest(req)
+    const input: NotificationRequest = req.method === 'GET'
+      ? { action: typeof req.query.action === 'string' ? req.query.action as NotificationRequest['action'] : 'list' }
+      : parseBody(req)
+    const supabase = getServiceSupabase()
+
+    if (input.action === 'list') {
+      const { data, error } = await supabase.rpc('get_my_notifications', { p_user_id: userId, p_limit: 60 })
+      if (error) throw error
+      res.status(200).json({ data: data ?? [] })
+      return
+    }
+
+    if (input.action === 'count') {
+      const { data, error } = await supabase.rpc('get_my_unread_notification_count', { p_user_id: userId })
+      if (error) throw error
+      res.status(200).json({ count: Number(data ?? 0) })
+      return
+    }
+
+    if (input.action === 'register_token') {
+      if (!input.token) {
+        res.status(400).json({ error: 'token is required' })
+        return
+      }
+      const { error } = await supabase.rpc('register_notification_push_token', { p_user_id: userId, p_token: input.token, p_platform: input.platform || 'WEB', p_browser: input.browser || '' })
+      if (error) throw error
+      res.status(200).json({ ok: true })
+      return
+    }
+
+    if (input.action === 'disable_token') {
+      if (!input.token) {
+        res.status(400).json({ error: 'token is required' })
+        return
+      }
+      const { error } = await supabase.rpc('disable_notification_push_token', { p_user_id: userId, p_token: input.token })
+      if (error) throw error
+      res.status(200).json({ ok: true })
+      return
+    }
+
+    if (input.action === 'read') {
+      if (!input.notificationId) {
+        res.status(400).json({ error: 'notificationId is required' })
+        return
+      }
+      const { error } = await supabase.rpc('mark_notification_read', { p_notification_id: input.notificationId, p_user_id: userId })
+      if (error) throw error
+      res.status(200).json({ ok: true })
+      return
+    }
+
+    if (input.action === 'mark_all') {
+      const { data, error } = await supabase.rpc('mark_all_notifications_read', { p_user_id: userId })
+      if (error) throw error
+      res.status(200).json({ count: Number(data ?? 0) })
+      return
+    }
+
+    if (input.action === 'admin_campaigns') {
+      const { data, error } = await supabase.rpc('admin_list_notification_campaigns', { p_admin_id: userId })
+      if (error) throw error
+      res.status(200).json({ data: data ?? [] })
+      return
+    }
+
+    if (input.action === 'create_campaign') {
+      const targetType = input.targetType
+      const title = input.title?.trim() || ''
+      const body = input.body?.trim() || ''
+      const targetUserIds = Array.isArray(input.targetUserIds) ? input.targetUserIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map((value) => value.trim()) : []
+      if (!targetType || !title || !body) {
+        res.status(400).json({ error: 'Target, title, and body are required' })
+        return
+      }
+      const { data, error } = await supabase.rpc('admin_create_notification_campaign', {
+        p_admin_id: userId,
+        p_target_type: targetType,
+        p_target_user_ids: targetUserIds,
+        p_title: title,
+        p_body: body,
+        p_link: input.link?.trim() || null,
+        p_send_push: Boolean(input.sendPush),
+      })
+      if (error) throw error
+      const campaign = Array.isArray(data) ? data[0] : data
+      res.status(200).json({ campaign })
+      return
+    }
+
+    res.status(400).json({ error: 'Unknown notification action' })
+  } catch (error) {
+    if (isAuthError(error)) {
+      res.status(401).json({ error: 'Authentication is required' })
+      return
+    }
+    console.error('Notification API failed', error)
+    writeError(res, error)
+  }
+}
+
+=== api/notification-push.ts ===
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient } from '@supabase/supabase-js'
+type FirebaseApp = import('firebase-admin/app').App
+
+type PushTarget = { user_id: string; token: string }
+
+type PushRequest = {
+  campaignId?: string
+  adminId?: string
+  title?: string
+  body?: string
+  link?: string
+  tokens?: Array<string | { user_id?: string; userId?: string; token?: string }>
+}
+
+async function getFirebaseApp(): Promise<FirebaseApp> {
+  const { cert, getApps, initializeApp } = await import('firebase-admin/app')
+  const existing = getApps()[0]
+  if (existing) return existing
+
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  if (json) {
+    const parsed = JSON.parse(json) as { project_id?: string; client_email?: string; private_key?: string }
+    return initializeApp({
+      credential: cert({
+        projectId: parsed.project_id,
+        clientEmail: parsed.client_email,
+        privateKey: parsed.private_key?.replace(/\\n/g, '\n'),
+      }),
+    })
+  }
+
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL
+  const privateKey = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n')
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('Firebase service-account configuration is missing')
+  }
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
+}
+
+function jsonBody(req: VercelRequest): PushRequest {
+  if (typeof req.body === 'string') return JSON.parse(req.body) as PushRequest
+  return (req.body ?? {}) as PushRequest
+}
+
+function isInvalidTokenCode(code?: string) {
+  return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token'
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST')
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !serviceRoleKey) throw new Error('Supabase server configuration is missing')
+
+    const authorization = req.headers.authorization || ''
+    const idToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : ''
+    if (!idToken) {
+      res.status(401).json({ error: 'Admin authentication is required' })
+      return
+    }
+
+    const app = await getFirebaseApp()
+    const { getAuth } = await import('firebase-admin/auth')
+    const decoded = await getAuth(app).verifyIdToken(idToken)
+    const input = jsonBody(req)
+    const adminId = decoded.uid
+    if (input.adminId && input.adminId !== adminId) {
+      res.status(403).json({ error: 'Admin identity mismatch' })
+      return
+    }
+    if (!input.campaignId) {
+      res.status(400).json({ error: 'campaignId is required' })
+      return
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    const { data: campaign, error: campaignError } = await supabase
+      .from('notification_campaigns')
+      .select('id, title, body, link, send_push')
+      .eq('id', input.campaignId)
+      .maybeSingle()
+    if (campaignError) throw campaignError
+    if (!campaign) {
+      res.status(404).json({ error: 'Campaign not found' })
+      return
+    }
+    if (!campaign.send_push) {
+      res.status(400).json({ error: 'This campaign is not configured for push delivery' })
+      return
+    }
+
+    const { data: resolvedTargets, error: targetError } = await supabase.rpc('admin_get_campaign_push_targets', {
+      p_admin_id: adminId,
+      p_campaign_id: input.campaignId,
+    })
+    if (targetError) throw targetError
+
+    // Never trust tokens supplied by the browser. The permission-checked RPC
+    // resolves only tokens belonging to this campaign's approved recipients.
+    const targets: PushTarget[] = (resolvedTargets || []).filter((target: PushTarget) => target.token)
+    const uniqueTargets = [...new Map(targets.map((target) => [target.token, target])).values()]
+
+    let sent = 0
+    let failed = 0
+    const { getMessaging } = await import('firebase-admin/messaging')
+    const messaging = getMessaging(app)
+    for (let offset = 0; offset < uniqueTargets.length; offset += 500) {
+      const batch = uniqueTargets.slice(offset, offset + 500)
+      const response = await messaging.sendEachForMulticast({
+        tokens: batch.map((target) => target.token),
+        notification: { title: campaign.title || input.title || 'BikriKoro', body: campaign.body || input.body || '' },
+        data: {
+          campaignId: input.campaignId,
+          link: campaign.link || input.link || '/',
+          title: campaign.title || input.title || 'BikriKoro',
+          body: campaign.body || input.body || '',
+        },
+        webpush: {
+          fcmOptions: { link: campaign.link || input.link || '/' },
+        },
+      })
+
+      await Promise.all(response.responses.map(async (result, index) => {
+        const target = batch[index]
+        const errorCode = result.error?.code
+        const status = result.success ? 'DELIVERED' : isInvalidTokenCode(errorCode) ? 'DISABLED' : 'FAILED'
+        if (result.success) sent += 1
+        else failed += 1
+        if (!target.user_id) return
+        const { error } = await supabase.rpc('admin_record_push_delivery', {
+          p_admin_id: adminId,
+          p_campaign_id: input.campaignId,
+          p_user_id: target.user_id,
+          p_token: target.token,
+          p_status: status,
+          p_provider_message_id: result.messageId || null,
+          p_error_message: result.error?.message || null,
+        })
+        if (error) console.error('Failed to record push delivery', error)
+      }))
+    }
+
+    const { error: finishError } = await supabase.rpc('admin_finish_notification_campaign', {
+      p_admin_id: adminId,
+      p_campaign_id: input.campaignId,
+    })
+    if (finishError) throw finishError
+
+    res.status(200).json({ campaignId: input.campaignId, targeted: uniqueTargets.length, sent, failed })
+  } catch (error) {
+    console.error('Notification push delivery failed', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Push delivery failed' })
+  }
+}
+
+=== notification migrations ===
+supabase/migrations/001_init.sql:4:-- Run this in the Supabase SQL editor (or via `supabase db push` once the
+supabase/migrations/001_init.sql:10:-- as the database/storage/realtime backend. Since Supabase's built-in
+supabase/migrations/001_init.sql:199:alter publication supabase_realtime add table chat_messages;
+supabase/migrations/001_init.sql:200:alter publication supabase_realtime add table chat_threads;
+supabase/migrations/001_init.sql:249:alter publication supabase_realtime add table orders;
+supabase/migrations/004_onesignal_player_id.sql:2:-- BikriKoro — OneSignal push subscription linkage
+supabase/migrations/004_onesignal_player_id.sql:5:-- push subscription id (their "player id"). The app writes this right
+supabase/migrations/004_onesignal_player_id.sql:23:    'OneSignal push subscription id (player id) for the device this user last signed in on. Nullable — absent until the app successfully registers for push.';
+supabase/migrations/007_order_disputes.sql:89:-- way orders' own status changes push live via observeOrder().
+supabase/migrations/007_order_disputes.sql:90:alter publication supabase_realtime add table order_disputes;
+supabase/migrations/008_wallet.sql:185:alter publication supabase_realtime add table wallet_balances;
+supabase/migrations/008_wallet.sql:186:alter publication supabase_realtime add table wallet_ledger;
+supabase/migrations/008_wallet.sql:187:alter publication supabase_realtime add table wallet_withdrawal_requests;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:266:alter publication supabase_realtime add table dispute_messages;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:364:alter publication supabase_realtime add table seller_registrations;
+supabase/migrations/010_uddoktapay_payments.sql:69:alter publication supabase_realtime add table payments;
+supabase/migrations/013_marketplace_features.sql:262:-- In-app notifications
+supabase/migrations/013_marketplace_features.sql:264:create table if not exists notifications (
+supabase/migrations/013_marketplace_features.sql:275:create index if not exists idx_notifications_user on notifications(user_id, created_at desc);
+supabase/migrations/013_marketplace_features.sql:276:alter table notifications enable row level security;
+supabase/migrations/013_marketplace_features.sql:278:create or replace function get_my_notifications(p_user_id text, p_limit integer default 40)
+supabase/migrations/013_marketplace_features.sql:282:    from notifications n where n.user_id = p_user_id order by n.created_at desc limit greatest(1, least(p_limit, 100));
+supabase/migrations/013_marketplace_features.sql:289:    update notifications set is_read = true where id = p_notification_id and user_id = p_user_id;
+supabase/migrations/013_marketplace_features.sql:311:        insert into notifications(user_id, type, title, body, link)
+supabase/migrations/013_marketplace_features.sql:314:            insert into notifications(user_id, type, title, body, link)
+supabase/migrations/014_admin_workspace.sql:258:    insert into notifications(user_id, title, body, link)
+supabase/migrations/015_admin_control_center.sql:258:    insert into notifications(user_id, title, body, link)
+supabase/migrations/017_marketplace_badges.sql:9:comment on column public.products.free_delivery is 'Seller or campaign covers delivery cost for this listing.';
+supabase/migrations/019_notification_tools.sql:1:create or replace function public.mark_all_notifications_read(p_user_id text)
+supabase/migrations/019_notification_tools.sql:5:  update public.notifications set is_read = true where user_id = p_user_id and is_read = false;
+supabase/migrations/024_admin_roles_permissions.sql:29:('SUPPORT_AGENT', 'সাপোর্ট এজেন্ট', '["dashboard.view","sales.customers","sales.disputes","content.support","content.notifications"]', true),
+supabase/migrations/026_admin_customer_controls.sql:27:  v_notifications jsonb;
+supabase/migrations/026_admin_customer_controls.sql:38:  select coalesce(jsonb_agg(to_jsonb(n) order by n.created_at desc), '[]'::jsonb) into v_notifications from public.notifications n where n.user_id = p_customer_id;
+supabase/migrations/026_admin_customer_controls.sql:40:  return jsonb_build_object('profile', v_profile, 'wallet', coalesce(v_wallet, '{}'::jsonb), 'orders', v_orders, 'ledger', v_ledger, 'products', v_products, 'disputes', v_disputes, 'chats', v_chats, 'notifications', v_notifications);
+supabase/migrations/026_admin_customer_controls.sql:80:  perform admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/026_admin_customer_controls.sql:81:  insert into public.notifications(user_id, title, body, link)
+supabase/migrations/028_notifications_push.sql:1:-- BikriKoro — complete in-app + Firebase push notification backend
+supabase/migrations/028_notifications_push.sql:3:alter table public.notifications add column if not exists campaign_id uuid;
+supabase/migrations/028_notifications_push.sql:4:alter table public.notifications add column if not exists metadata jsonb not null default '{}'::jsonb;
+supabase/migrations/028_notifications_push.sql:5:create index if not exists idx_notifications_user_read_created on public.notifications(user_id, is_read, created_at desc);
+supabase/migrations/028_notifications_push.sql:6:create index if not exists idx_notifications_campaign on public.notifications(campaign_id);
+supabase/migrations/028_notifications_push.sql:8:create table if not exists public.notification_push_tokens (
+supabase/migrations/028_notifications_push.sql:18:create index if not exists idx_notification_tokens_user_enabled on public.notification_push_tokens(user_id, enabled, last_seen_at desc);
+supabase/migrations/028_notifications_push.sql:19:alter table public.notification_push_tokens enable row level security;
+supabase/migrations/028_notifications_push.sql:21:create table if not exists public.notification_campaigns (
+supabase/migrations/028_notifications_push.sql:29:  send_push boolean not null default false,
+supabase/migrations/028_notifications_push.sql:32:  push_sent_count integer not null default 0,
+supabase/migrations/028_notifications_push.sql:33:  push_failed_count integer not null default 0,
+supabase/migrations/028_notifications_push.sql:37:create index if not exists idx_notification_campaigns_created on public.notification_campaigns(created_at desc);
+supabase/migrations/028_notifications_push.sql:38:alter table public.notification_campaigns enable row level security;
+supabase/migrations/028_notifications_push.sql:42:  campaign_id uuid references public.notification_campaigns(id) on delete cascade,
+supabase/migrations/028_notifications_push.sql:52:create index if not exists idx_notification_deliveries_campaign on public.notification_deliveries(campaign_id, channel, status);
+supabase/migrations/028_notifications_push.sql:56:create or replace function public.register_notification_push_token(p_user_id text, p_token text, p_platform text default 'WEB', p_browser text default '') returns void as $$
+supabase/migrations/028_notifications_push.sql:58:  if length(trim(coalesce(p_user_id, ''))) < 3 or length(trim(coalesce(p_token, ''))) < 20 then raise exception 'Invalid push token'; end if;
+supabase/migrations/028_notifications_push.sql:59:  insert into public.notification_push_tokens(user_id, token, platform, browser, enabled, last_seen_at)
+supabase/migrations/028_notifications_push.sql:65:create or replace function public.disable_notification_push_token(p_user_id text, p_token text) returns void as $$
+supabase/migrations/028_notifications_push.sql:67:  update public.notification_push_tokens set enabled = false, last_seen_at = now() where user_id = p_user_id and token = p_token;
+supabase/migrations/028_notifications_push.sql:75:  insert into public.notifications(user_id, type, title, body, link, metadata)
+supabase/migrations/028_notifications_push.sql:120:create or replace function public.admin_create_notification_campaign(p_admin_id text, p_target_type text, p_target_user_ids text[], p_title text, p_body text, p_link text default null, p_send_push boolean default false) returns table(campaign_id uuid, recipient_count integer) as $$
+supabase/migrations/028_notifications_push.sql:121:declare v_campaign_id uuid; v_recipient_count integer;
+supabase/migrations/028_notifications_push.sql:123:  perform public.admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/028_notifications_push.sql:126:  insert into public.notification_campaigns(created_by, target_type, target_user_ids, title, body, link, send_push, status)
+supabase/migrations/028_notifications_push.sql:127:  values (p_admin_id, p_target_type, coalesce(p_target_user_ids, '{}'), trim(p_title), trim(p_body), nullif(trim(coalesce(p_link, '')), ''), p_send_push, case when p_send_push then 'PUSH_QUEUED' else 'IN_APP_SENT' end)
+supabase/migrations/028_notifications_push.sql:128:  returning id into v_campaign_id;
+supabase/migrations/028_notifications_push.sql:139:    insert into public.notifications(user_id, type, title, body, link, campaign_id, metadata)
+supabase/migrations/028_notifications_push.sql:140:    select user_id, 'CAMPAIGN', trim(p_title), trim(p_body), nullif(trim(coalesce(p_link, '')), ''), v_campaign_id, jsonb_build_object('target_type', p_target_type)
+supabase/migrations/028_notifications_push.sql:143:  insert into public.notification_deliveries(campaign_id, user_id, channel, status, delivered_at)
+supabase/migrations/028_notifications_push.sql:144:  select v_campaign_id, user_id, 'IN_APP', 'DELIVERED', now() from inserted;
+supabase/migrations/028_notifications_push.sql:146:  select count(*) into v_recipient_count from public.notification_deliveries where campaign_id = v_campaign_id and channel = 'IN_APP';
+supabase/migrations/028_notifications_push.sql:147:  update public.notification_campaigns set recipient_count = v_recipient_count, updated_at = now() where id = v_campaign_id;
+supabase/migrations/028_notifications_push.sql:148:  perform public.admin_log(p_admin_id, 'CREATE_NOTIFICATION_CAMPAIGN', 'NOTIFICATION_CAMPAIGN', v_campaign_id::text, jsonb_build_object('target_type', p_target_type, 'recipient_count', v_recipient_count, 'send_push', p_send_push));
+supabase/migrations/028_notifications_push.sql:149:  return query select v_campaign_id, v_recipient_count;
+supabase/migrations/028_notifications_push.sql:153:create or replace function public.admin_get_campaign_push_targets(p_admin_id text, p_campaign_id uuid) returns table(user_id text, token text) as $$
+supabase/migrations/028_notifications_push.sql:155:  perform public.admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/028_notifications_push.sql:156:  return query select d.user_id, t.token from public.notification_deliveries d join public.notification_push_tokens t on t.user_id = d.user_id and t.enabled = true where d.campaign_id = p_campaign_id and d.channel = 'IN_APP' order by d.user_id, t.last_seen_at desc;
+supabase/migrations/028_notifications_push.sql:160:create or replace function public.admin_record_push_delivery(p_admin_id text, p_campaign_id uuid, p_user_id text, p_token text, p_status text, p_provider_message_id text default null, p_error_message text default null) returns void as $$
+supabase/migrations/028_notifications_push.sql:162:  perform public.admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/028_notifications_push.sql:163:  insert into public.notification_deliveries(campaign_id, user_id, channel, token, status, provider_message_id, error_message, delivered_at)
+supabase/migrations/028_notifications_push.sql:164:  values (p_campaign_id, p_user_id, 'PUSH', p_token, p_status, p_provider_message_id, p_error_message, case when p_status = 'DELIVERED' then now() else null end);
+supabase/migrations/028_notifications_push.sql:165:  if p_status = 'DISABLED' then update public.notification_push_tokens set enabled = false where user_id = p_user_id and token = p_token; end if;
+supabase/migrations/028_notifications_push.sql:169:create or replace function public.admin_finish_notification_campaign(p_admin_id text, p_campaign_id uuid) returns void as $$
+supabase/migrations/028_notifications_push.sql:172:  perform public.admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/028_notifications_push.sql:173:  select count(*) filter (where status = 'DELIVERED'), count(*) filter (where status in ('FAILED', 'DISABLED')) into v_sent, v_failed from public.notification_deliveries where campaign_id = p_campaign_id and channel = 'PUSH';
+supabase/migrations/028_notifications_push.sql:174:  update public.notification_campaigns set push_sent_count = coalesce(v_sent, 0), push_failed_count = coalesce(v_failed, 0), status = case when coalesce(v_failed, 0) = 0 then 'SENT' when coalesce(v_sent, 0) > 0 then 'PARTIAL' else 'FAILED' end, updated_at = now() where id = p_campaign_id;
+supabase/migrations/028_notifications_push.sql:178:create or replace function public.admin_list_notification_campaigns(p_admin_id text) returns setof public.notification_campaigns as $$
+supabase/migrations/028_notifications_push.sql:180:  perform public.admin_assert_permission(p_admin_id, 'content.notifications');
+supabase/migrations/028_notifications_push.sql:181:  return query select * from public.notification_campaigns order by created_at desc limit 100;
+supabase/migrations/028_notifications_push.sql:188:  select count(*) into v_count from public.notifications where user_id = p_user_id and is_read = false;
+supabase/migrations/028_notifications_push.sql:193:create or replace function public.mark_all_notifications_read(p_user_id text) returns integer as $$
+supabase/migrations/028_notifications_push.sql:196:  update public.notifications set is_read = true where user_id = p_user_id and is_read = false;
+supabase/migrations/028_notifications_push.sql:203:  alter publication supabase_realtime add table public.notifications;
+supabase/migrations/029_secure_notification_rpc_execution.sql:6:-- /api/notifications, where the Firebase ID token is verified server-side.
+supabase/migrations/029_secure_notification_rpc_execution.sql:8:revoke all on function public.get_my_notifications(text, integer) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:9:revoke all on function public.get_my_notifications(text, integer) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:10:grant execute on function public.get_my_notifications(text, integer) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:20:revoke all on function public.mark_all_notifications_read(text) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:21:revoke all on function public.mark_all_notifications_read(text) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:22:grant execute on function public.mark_all_notifications_read(text) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:24:revoke all on function public.register_notification_push_token(text, text, text, text) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:25:revoke all on function public.register_notification_push_token(text, text, text, text) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:26:grant execute on function public.register_notification_push_token(text, text, text, text) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:28:revoke all on function public.disable_notification_push_token(text, text) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:29:revoke all on function public.disable_notification_push_token(text, text) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:30:grant execute on function public.disable_notification_push_token(text, text) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:32:revoke all on function public.admin_create_notification_campaign(text, text, text[], text, text, text, boolean) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:33:revoke all on function public.admin_create_notification_campaign(text, text, text[], text, text, text, boolean) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:34:grant execute on function public.admin_create_notification_campaign(text, text, text[], text, text, text, boolean) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:36:revoke all on function public.admin_get_campaign_push_targets(text, uuid) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:37:revoke all on function public.admin_get_campaign_push_targets(text, uuid) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:38:grant execute on function public.admin_get_campaign_push_targets(text, uuid) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:40:revoke all on function public.admin_record_push_delivery(text, uuid, text, text, text, text, text) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:41:revoke all on function public.admin_record_push_delivery(text, uuid, text, text, text, text, text) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:42:grant execute on function public.admin_record_push_delivery(text, uuid, text, text, text, text, text) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:44:revoke all on function public.admin_finish_notification_campaign(text, uuid) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:45:revoke all on function public.admin_finish_notification_campaign(text, uuid) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:46:grant execute on function public.admin_finish_notification_campaign(text, uuid) to service_role;
+supabase/migrations/029_secure_notification_rpc_execution.sql:48:revoke all on function public.admin_list_notification_campaigns(text) from public;
+supabase/migrations/029_secure_notification_rpc_execution.sql:49:revoke all on function public.admin_list_notification_campaigns(text) from anon;
+supabase/migrations/029_secure_notification_rpc_execution.sql:50:grant execute on function public.admin_list_notification_campaigns(text) to service_role;
+supabase/migrations/030_notification_function_hardening.sql:3:alter function public.register_notification_push_token(text, text, text, text) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:4:alter function public.disable_notification_push_token(text, text) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:9:alter function public.admin_create_notification_campaign(text, text, text[], text, text, text, boolean) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:10:alter function public.admin_get_campaign_push_targets(text, uuid) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:11:alter function public.admin_record_push_delivery(text, uuid, text, text, text, text, text) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:12:alter function public.admin_finish_notification_campaign(text, uuid) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:13:alter function public.admin_list_notification_campaigns(text) set search_path = public, pg_temp;
+supabase/migrations/030_notification_function_hardening.sql:15:alter function public.mark_all_notifications_read(text) set search_path = public, pg_temp;
+supabase/migrations/031_admin_manual_approval_workflows.sql:216:    insert into public.notifications(user_id, type, title, body, link) values (new.buyer_id, 'ORDER', v_title, v_body, v_link);
+supabase/migrations/031_admin_manual_approval_workflows.sql:218:      insert into public.notifications(user_id, type, title, body, link) values (new.seller_id, 'ORDER', v_title, v_body, v_link);
+supabase/migrations/031_admin_manual_approval_workflows.sql:352:    insert into public.notifications(user_id, type, title, body, link) values (new.seller_id, 'SYSTEM', v_title, v_body, '/my-listings');
+supabase/migrations/033_order_lifecycle_hardening.sql:360:-- 9) Role-aware notifications for every lifecycle state.
+supabase/migrations/033_order_lifecycle_hardening.sql:391:    insert into public.notifications(user_id, type, title, body, link)
+supabase/migrations/033_order_lifecycle_hardening.sql:395:      insert into public.notifications(user_id, type, title, body, link)
+supabase/migrations/036_faq_content.sql:111:('FAQ', 'Notification কীভাবে চালু করব?', 'faq-notification-enable', 'In-app ও browser push notification।', E'Notifications page-এ গেলে notification permission-এর আগে BikriKoro-এর branded prompt দেখা যাবে। সকল update পেতে Enable notifications চাপুন এবং browser permission Allow করুন। In-app notification inbox account-এর ভিতরে থাকবে; browser permission বন্ধ থাকলেও inbox দেখতে পারবেন।', 'PUBLISHED', 230, 'BikriKoro notification চালু | FAQ', 'BikriKoro in-app notification ও browser push permission চালু করার নিয়ম।', now()),
+supabase/migrations/038_order_lifecycle_type_cast_repair.sql:43:    insert into public.notifications(user_id, type, title, body, link)
+supabase/migrations/038_order_lifecycle_type_cast_repair.sql:47:      insert into public.notifications(user_id, type, title, body, link)
+supabase/migrations/040_product_question_seller_notifications.sql:3:-- This trigger creates a seller-only in-app notification; push delivery remains

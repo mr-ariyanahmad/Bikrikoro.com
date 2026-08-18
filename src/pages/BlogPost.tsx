@@ -12,17 +12,33 @@ export default function BlogPost() {
   const { slug } = useParams<{ slug: string }>()
   const [post, setPost] = useState<BlogPostData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!slug) return
-    supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: slug }).then(({ data }) => {
-      setPost(((data ?? []) as BlogPostData[])[0] ?? null)
-      setLoading(false)
-    })
+    let active = true
+    setLoading(true)
+    setPost(null)
+    setError(null)
+    if (!slug) { setLoading(false); return () => { active = false } }
+    const load = async () => {
+      try {
+        const { data, error: loadError } = await supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: slug })
+        if (loadError) throw loadError
+        if (!active) return
+        setPost(((data ?? []) as BlogPostData[])[0] ?? null)
+      } catch (loadError) {
+        console.error('Blog post load failed:', loadError)
+        if (active) setError(loadError instanceof Error ? loadError.message : 'ব্লগ পোস্ট লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void load()
+    return () => { active = false }
   }, [slug])
 
   if (loading) return <Layout wide><div className="mx-auto h-96 max-w-3xl animate-pulse bg-outline/40" /></Layout>
-  if (!post) return <Layout wide><div className="mx-auto max-w-3xl border border-outline bg-surface p-8 text-center"><BookOpen className="mx-auto text-brand-600" size={28} /><h1 className="mt-3 text-xl font-bold text-ink-900">লেখাটি পাওয়া যায়নি</h1><Link to="/blog" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><ArrowLeft size={15} />ব্লগে ফিরুন</Link></div></Layout>
+  if (!post) return <Layout wide><div className="mx-auto max-w-3xl border border-outline bg-surface p-8 text-center"><BookOpen className="mx-auto text-brand-600" size={28} /><h1 className="mt-3 text-xl font-bold text-ink-900">{error ? 'ব্লগ লোড করা যায়নি' : 'লেখাটি পাওয়া যায়নি'}</h1><p className="mt-2 text-sm text-ink-600">{error ?? 'এই লেখা এখন প্রকাশিত নয় বা লিংকটি সঠিক নয়।'}</p><Link to="/blog" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><ArrowLeft size={15} />ব্লগে ফিরুন</Link></div></Layout>
 
   const title = post.seo_title || `${post.title} | BikriKoro.Com`
   const description = post.seo_description || post.excerpt

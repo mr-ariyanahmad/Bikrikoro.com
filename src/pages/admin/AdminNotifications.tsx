@@ -131,13 +131,16 @@ export default function AdminNotifications() {
 
     setMessage(`Campaign পাঠানো হয়েছে। ${campaign?.recipient_count ?? 0}টি account-এ in-app notification গেছে।${pushMessage}`)
     setForm({ target_type: 'ALL', user_ids: '', title: '', body: '', link: '', send_push: true })
-    await load()
-    setSending(false)
+    try {
+      await load()
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
     <AdminShell>
-      <AdminPageHeader title="নোটিফিকেশন ক্যাম্পেইন" description="অর্ডার ও system event-এর পাশাপাশি নির্দিষ্ট audience-কে branded in-app এবং Firebase push বার্তা পাঠান।" actions={<button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"><RefreshCw size={16} />রিফ্রেশ</button>} />
+      <AdminPageHeader title="নোটিফিকেশন ক্যাম্পেইন" description="অর্ডার ও system event-এর পাশাপাশি নির্দিষ্ট audience-কে branded in-app এবং Firebase push বার্তা পাঠান।" actions={<button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"><RefreshCw size={16} />রিফ্রেশ</button>} />
 
       {message && <div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-relaxed text-brand-700">{message}</div>}
       <div className="mb-6 grid gap-4 sm:grid-cols-3"><AdminStatCard label="মোট campaign" value={totals.campaigns} helper="সর্বশেষ ১০০টি" tone="blue" /><AdminStatCard label="ইন-অ্যাপ প্রাপক" value={totals.recipients.toLocaleString('bn-BD')} helper="campaign-এর ইতিহাস" tone="green" /><AdminStatCard label="Push পৌঁছেছে" value={totals.sent.toLocaleString('bn-BD')} helper="Firebase delivery" tone="amber" /></div>
@@ -152,7 +155,7 @@ export default function AdminNotifications() {
             <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">বার্তা</span><textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={4} placeholder="আপনার জন্য নতুন সুবিধা এসেছে…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label>
             <Field label="অ্যাপ লিংক (ঐচ্ছিক)" value={form.link} onChange={(value) => setForm({ ...form, link: value })} placeholder="/products অথবা /wallet" />
             <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><input type="checkbox" checked={form.send_push} onChange={(event) => setForm({ ...form, send_push: event.target.checked })} className="mt-0.5 h-4 w-4 accent-blue-600" /><span><span className="font-semibold text-slate-900">Firebase push পাঠান</span><span className="mt-0.5 block text-xs text-slate-500">যে user browser push permission দিয়েছে, শুধু তার device-এ যাবে।</span></span></label>
-            <button onClick={() => void createCampaign()} disabled={sending} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:cursor-wait disabled:opacity-60"><Send size={16} />{sending ? 'পাঠানো হচ্ছে…' : 'Campaign পাঠান'}</button>
+            <button type="button" onClick={() => void createCampaign()} disabled={sending} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 disabled:cursor-wait disabled:opacity-60"><Send size={16} />{sending ? 'পাঠানো হচ্ছে…' : 'Campaign পাঠান'}</button>
           </div>
         </AdminTableCard>
 

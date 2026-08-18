@@ -138,8 +138,9 @@ export default function Notifications() {
       await markAllNotificationsRead(user.uid)
       setItems((current) => current.map((item) => ({ ...item, is_read: true })))
       notifyHeader(0)
-    } catch {
-      setError('সব নোটিফিকেশন read করা যায়নি।')
+    } catch (err) {
+      console.error('mark all notifications failed:', err)
+      setError(`সব নোটিফিকেশন read করা যায়নি: ${err instanceof Error ? err.message : 'অজানা server সমস্যা'}`)
     }
   }
 
@@ -154,6 +155,7 @@ export default function Notifications() {
       })
     } catch (err) {
       console.error('mark notification read failed:', err)
+      setError(`নোটিফিকেশন read করা যায়নি: ${err instanceof Error ? err.message : 'অজানা server সমস্যা'}`)
     }
   }
 
@@ -164,7 +166,7 @@ export default function Notifications() {
     <Layout wide>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><div className="flex items-center gap-2"><Bell size={19} className="text-brand-600" /><h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1></div><p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, verification, chat, wallet ও admin announcement এক জায়গায়।</p></div>
-        <div className="flex items-center gap-2"><button onClick={markAll} disabled={!unreadCount} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"><RefreshCw size={15} />রিফ্রেশ</button></div>
+        <div className="flex items-center gap-2"><button type="button" onClick={markAll} disabled={!unreadCount} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"><RefreshCw size={15} />রিফ্রেশ</button></div>
       </div>
       {pushPermission !== 'granted' && pushState !== 'registered' && pushState !== 'denied' && pushState !== 'unsupported' && pushState !== 'missing-config' && pushState !== 'unavailable' && (
         <section className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-sm sm:p-5">
@@ -180,7 +182,7 @@ export default function Notifications() {
       {pushMessage && pushState === 'registered' && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm leading-6 text-brand-700">{pushMessage}</p>}
       <BrandedDialog open={permissionDialogOpen} title="নোটিফিকেশন চালু করবেন?" onClose={() => setPermissionDialogOpen(false)} actions={<><DialogButton variant="outline" onClick={() => setPermissionDialogOpen(false)}>এখন নয়</DialogButton><DialogButton onClick={() => { setPermissionDialogOpen(false); void enablePushNotifications() }}>চালু করুন</DialogButton></>}><p>অর্ডার, payment, seller verification, chat এবং wallet-এর গুরুত্বপূর্ণ update সময়মতো পেতে notification চালু করুন। পরের ধাপে আপনার browser-এর permission window আসবে; সেখানে <strong>Allow</strong> নির্বাচন করলেই setup সম্পূর্ণ হবে।</p></BrandedDialog>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
+      <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button type="button" key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
 
       {error && <p className="mt-5 rounded-xl bg-error/10 p-4 text-sm text-error">{error}</p>}
       {loading ? (
@@ -195,7 +197,7 @@ export default function Notifications() {
                 <div className="flex gap-3"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.is_read ? 'bg-outline' : 'bg-brand-500'}`} /><div className="min-w-0 flex-1"><p className="font-semibold text-ink-900">{item.title}</p><p className="mt-1 text-sm leading-relaxed text-ink-600">{item.body}</p><p className="mt-2 text-xs text-ink-300">{new Date(item.created_at).toLocaleString('bn-BD')}</p></div></div>
               </div>
             )
-            return item.link ? <Link key={item.id} to={item.link} onClick={() => void read(item)}>{content}</Link> : <button key={item.id} onClick={() => void read(item)} className="block w-full text-left">{content}</button>
+            return item.link ? <Link key={item.id} to={item.link} onClick={() => void read(item)}>{content}</Link> : <button type="button" key={item.id} onClick={() => void read(item)} className="block w-full text-left">{content}</button>
           })}
         </div>
       )}

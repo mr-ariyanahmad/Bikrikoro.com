@@ -22,11 +22,26 @@ function parseBody(req: VercelRequest): NotificationRequest {
 
 function writeError(res: VercelResponse, error: unknown) {
   const message = error instanceof Error ? error.message : 'Notification request failed'
+  const normalized = message.toLowerCase()
   if (message === 'AUTH_REQUIRED' || message.includes('Firebase ID token')) {
     res.status(401).json({ error: 'Authentication is required' })
     return
   }
+  if (normalized.includes('not authorized') || normalized.includes('permission') || normalized.includes('admin')) {
+    res.status(403).json({ error: message })
+    return
+  }
+  if (normalized.includes('required') || normalized.includes('invalid') || normalized.includes('too long')) {
+    res.status(400).json({ error: message })
+    return
+  }
   res.status(500).json({ error: message })
+}
+
+function normalizeInternalLink(value: string | null | undefined) {
+  const link = value?.trim() || null
+  if (link && (!link.startsWith('/') || link.startsWith('//'))) throw new Error('Campaign link must be an internal app path')
+  return link
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -109,17 +124,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const title = input.title?.trim() || ''
       const body = input.body?.trim() || ''
       const targetUserIds = Array.isArray(input.targetUserIds) ? input.targetUserIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0).map((value) => value.trim()) : []
-      if (!targetType || !title || !body) {
+      const allowedTargets = new Set<NonNullable<NotificationRequest['targetType']>>(['ALL', 'CUSTOMERS', 'SELLERS', 'USER_LIST'])
+      if (!targetType || !allowedTargets.has(targetType) || !title || !body) {
         res.status(400).json({ error: 'Target, title, and body are required' })
         return
       }
+      if (title.length > 160 || body.length > 4000) {
+        res.status(400).json({ error: 'Campaign title or message is too long' })
+        return
+      }
+      if (targetUserIds.length > 500) {
+        res.status(400).json({ error: 'একটি campaign-এ সর্বোচ্চ ৫০০টি UID দেওয়া যাবে।' })
+        return
+      }
+      const campaignLink = normalizeInternalLink(input.link)
       const { data, error } = await supabase.rpc('admin_create_notification_campaign', {
         p_admin_id: userId,
         p_target_type: targetType,
         p_target_user_ids: targetUserIds,
         p_title: title,
         p_body: body,
-        p_link: input.link?.trim() || null,
+        p_link: campaignLink,
         p_send_push: Boolean(input.sendPush),
       })
       if (error) throw error
