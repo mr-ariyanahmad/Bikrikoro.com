@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from '@/context/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -34,33 +35,34 @@ import SettingsHub from '@/pages/SettingsHub'
 import PublicContentPage from '@/pages/PublicContentPage'
 import Blog from '@/pages/Blog'
 import BlogPost from '@/pages/BlogPost'
-import AdminDashboard from '@/pages/admin/AdminDashboard'
-import AdminOrders from '@/pages/admin/AdminOrders'
-import AdminDeliveries from '@/pages/admin/AdminDeliveries'
-import AdminCustomers from '@/pages/admin/AdminCustomers'
-import AdminCustomerDetail from '@/pages/admin/AdminCustomerDetail'
-import AdminCoupons from '@/pages/admin/AdminCoupons'
-import AdminCatalogue from '@/pages/admin/AdminCatalogue'
-import AdminReviews from '@/pages/admin/AdminReviews'
-import AdminContent from '@/pages/admin/AdminContent'
-import AdminSettings from '@/pages/admin/AdminSettings'
-import AdminSystemStatus from '@/pages/admin/AdminSystemStatus'
-import AdminFinance from '@/pages/admin/AdminFinance'
-import AdminSupport from '@/pages/admin/AdminSupport'
-import AdminNotifications from '@/pages/admin/AdminNotifications'
-
-import AdminDisputes from '@/pages/admin/AdminDisputes'
-import AdminSellerVerifications from '@/pages/admin/AdminSellerVerifications'
-import AdminFeatureControls from '@/pages/admin/AdminFeatureControls'
-import AdminTeam from '@/pages/admin/AdminTeam'
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 import { SiteMeta } from '@/components/SiteMeta'
+
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
+const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'))
+const AdminDeliveries = lazy(() => import('@/pages/admin/AdminDeliveries'))
+const AdminCustomers = lazy(() => import('@/pages/admin/AdminCustomers'))
+const AdminCustomerDetail = lazy(() => import('@/pages/admin/AdminCustomerDetail'))
+const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
+const AdminCatalogue = lazy(() => import('@/pages/admin/AdminCatalogue'))
+const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
+const AdminContent = lazy(() => import('@/pages/admin/AdminContent'))
+const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'))
+const AdminSystemStatus = lazy(() => import('@/pages/admin/AdminSystemStatus'))
+const AdminFinance = lazy(() => import('@/pages/admin/AdminFinance'))
+const AdminSupport = lazy(() => import('@/pages/admin/AdminSupport'))
+const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'))
+const AdminDisputes = lazy(() => import('@/pages/admin/AdminDisputes'))
+const AdminSellerVerifications = lazy(() => import('@/pages/admin/AdminSellerVerifications'))
+const AdminFeatureControls = lazy(() => import('@/pages/admin/AdminFeatureControls'))
+const AdminTeam = lazy(() => import('@/pages/admin/AdminTeam'))
 
 function AppRoutes() {
   useEnsureProfile()
 
   return (
-    <Routes>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-bg"><div className="h-7 w-7 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>}>
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/" element={<Home />} />
@@ -493,8 +495,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
