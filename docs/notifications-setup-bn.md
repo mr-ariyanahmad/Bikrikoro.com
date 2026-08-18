@@ -38,7 +38,7 @@ FCM payload-এ title, body এবং app link দেওয়া হয়। Backgro
 
 ## ৪. Supabase migration চালানোর ক্রম
 
-Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, এবং শেষে `030_notification_function_hardening.sql` চালান। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে এবং 030 security-definer function-এর search path pin করে।
+Supabase SQL Editor বা আপনার migration workflow-এ আগের migration-গুলোর পরে `028_notifications_push.sql`, তারপর `029_secure_notification_rpc_execution.sql`, `030_notification_function_hardening.sql`, এবং repository-এর পরের migrations চালান। সব schema migration-এর শেষে `051_notification_event_push_delivery.sql` চালাতে হবে। Migration 028 চালানোর আগে সাধারণত 013 থেকে 027 পর্যন্ত migration প্রয়োগ থাকা দরকার, কারণ notification table, profiles, seller verification, admin permission, audit log, wallet ledger, chat thread এবং chat message-এর উপর এটি নির্ভর করে। 029 anonymous browser execution বন্ধ করে, 030 security-definer function-এর search path pin করে, এবং 051 event notification-এর push delivery queue ও notification linkage যোগ করে।
 
 Migration 028 এই জিনিসগুলো যোগ করে:
 
@@ -58,7 +58,19 @@ Migration 028 এই জিনিসগুলো যোগ করে:
 
 013 migration-এর existing order trigger order insert বা status change-এর notification চালু রাখে। 028 migration নতুন verification, wallet এবং chat event যুক্ত করে। Admin campaign পাঠানোর সময় `admin_assert_permission(p_admin_id, 'content.notifications')` এবং audit log ব্যবহার করা হয়; তাই permission ছাড়া কোনো admin broadcast পাঠাতে পারবে না।
 
-## ৫. Admin campaign পাঠানোর নিয়ম
+## ৫.১ Chat, order এবং সব event-এর targeted push
+
+নতুন `051_notification_event_push_delivery.sql` migration `notifications` table-এর প্রতিটি non-campaign event-এর সঙ্গে push delivery record link করে। ফলে order status, chat message, wallet ledger, seller verification, product question এবং admin-এর একক notification—প্রতিটিই সংশ্লিষ্ট `user_id`-এর active browser token-এ পাঠানোর জন্য queue হবে। Campaign notification ইচ্ছাকৃতভাবে এই automatic path থেকে বাদ থাকে, কারণ campaign-এর push dedicated campaign sender দিয়ে যায়; এতে একই campaign দুইবার পাঠানোর ঝুঁকি থাকে।
+
+Supabase Database Webhook asynchronousভাবে table event-এর পরে endpoint-এ POST পাঠাতে পারে। [4] [5] Migration 051 চালানোর পরে Dashboard → **Database → Webhooks** থেকে `public.notifications` table-এর **INSERT** event বেছে নিয়ে এই URL দিন:
+
+`https://bikrikoro.com/api/notification-events`
+
+Webhook method **POST** রাখুন এবং header হিসেবে `x-bikrikoro-webhook-secret: <আপনার-দীর্ঘ-random-secret>` যোগ করুন। একই secret Vercel-এর server-only `NOTIFICATION_WEBHOOK_SECRET` variable-এ রাখতে হবে। `SUPABASE_SERVICE_ROLE_KEY` এবং Firebase service-account-এর মতো এই secret কখনো `VITE_` variable বা browser code-এ রাখা যাবে না।
+
+Webhook চালু হলে user browser খোলা না থাকলেও database event থেকে push পাঠানোর চেষ্টা হবে; push permission না দেওয়া, token না থাকা বা invalid token হলে শুধু push delivery ব্যর্থ হবে, in-app notification বন্ধ হবে না। Admin campaign-এর push-ও আগের মতো `/api/notification-push` path দিয়ে চলবে।
+
+## ৬. Admin campaign পাঠানোর নিয়ম
 
 Admin panel-এর **কনটেন্ট → নোটিফিকেশন** page-এ গিয়ে campaign তৈরি করুন। Title, Bengali message এবং optional app link দেওয়ার পর audience বেছে নিন।
 
@@ -71,9 +83,9 @@ Admin panel-এর **কনটেন্ট → নোটিফিকেশন** 
 
 `Firebase push পাঠান` চালু থাকলে দুটি channel-এই notification যাবে: প্রথমে user-এর in-app inbox-এ campaign record হবে, তারপর active browser token-গুলোর মাধ্যমে Firebase push পাঠানোর চেষ্টা হবে। Push permission না দেওয়া user in-app notification অবশ্যই দেখতে পাবে, কিন্তু browser push পাবে না। Campaign history-তে target, recipient count, push sent count, failure count এবং status দেখা যাবে।
 
-## ৬. Test checklist
+## ৭. Test checklist
 
-প্রথমে migration 028, 029 এবং 030 ক্রমানুসারে চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables save করে নতুন deployment দিন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
+প্রথমে সব migration, বিশেষ করে 051, চালিয়ে Supabase-এ tables, functions এবং grants তৈরি হয়েছে কি না দেখুন। এরপর Vercel variables (`FIREBASE_SERVICE_ACCOUNT_JSON`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFICATION_WEBHOOK_SECRET`) save করে নতুন deployment দিন এবং `public.notifications`-এর INSERT Database Webhook তৈরি করুন। Production HTTPS domain-এ একজন test user দিয়ে sign in করুন এবং browser notification permission **Allow** করুন। Browser DevTools-এর Application → Service Workers অংশে `/firebase-messaging-sw.js` active আছে কি না যাচাই করুন।
 
 Admin account দিয়ে **কনটেন্ট → নোটিফিকেশন** খুলে একটি ছোট **নির্দিষ্ট user** campaign পাঠান। In-app inbox-এ notification দেখা, header bell-এর unread badge বাড়া, এবং browser background অবস্থায় push আসা—এই তিনটি আলাদাভাবে পরীক্ষা করুন। Push tap করলে campaign-এর app link খুলছে কি না দেখুন।
 
@@ -81,7 +93,7 @@ Admin account দিয়ে **কনটেন্ট → নোটিফিকে�
 
 যদি push না আসে, প্রথমে browser permission, HTTPS, service worker scope, VAPID key, Firebase project match এবং Vercel service-account variables যাচাই করুন। Firebase Admin delivery endpoint error করলে Admin campaign history-তে in-app delivery থাকবে, কিন্তু push status queued বা failed হিসেবে দেখা যেতে পারে; এটি ইচ্ছাকৃতভাবে in-app channel-কে push failure থেকে আলাদা রাখে।
 
-## ৭. নিরাপত্তা ও অপারেশনাল নোট
+## ৮. নিরাপত্তা ও অপারেশনাল নোট
 
 Firebase service-account JSON, Supabase service-role key এবং private VAPID key কখনো Git commit বা frontend bundle-এ রাখা যাবে না। Client-side-এ শুধু public VAPID key থাকবে। Server endpoint Firebase ID token verify করে, তারপর Supabase permission-scoped RPC-এর মাধ্যমে campaign target এবং delivery record পরিচালনা করে। Firebase Admin SDK delivery result-এর response order target list-এর সঙ্গে মিলে যায়, তাই প্রতিটি token-এর success বা failure আলাদাভাবে record করা সম্ভব। [2] [3]
 
@@ -92,3 +104,5 @@ Firebase service-account JSON, Supabase service-role key এবং private VAPID
 [1]: https://firebase.google.com/docs/cloud-messaging/web/get-started "Firebase — Get started with Firebase Cloud Messaging in Web apps"
 [2]: https://firebase.google.com/docs/cloud-messaging/send/admin-sdk "Firebase — Send a message using the Firebase Admin SDK"
 [3]: https://firebase.google.com/docs/reference/admin/node/firebase-admin.messaging.messaging "Firebase Admin Node.js Messaging reference"
+[4]: https://supabase.com/docs/guides/database/webhooks "Supabase — Database Webhooks"
+[5]: https://supabase.com/docs/guides/database/extensions/pg_net "Supabase — pg_net async networking"

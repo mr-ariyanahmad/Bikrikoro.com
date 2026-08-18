@@ -11,13 +11,13 @@ self.addEventListener('push', (event) => {
   const notification = payload.notification || payload.data || {}
   const title = notification.title || 'BikriKoro'
   const body = notification.body || 'আপনার জন্য নতুন আপডেট আছে।'
-  const link = notification.click_action || notification.link || payload.fcmOptions?.link || '/notifications'
+  const link = notification.click_action || notification.link || payload.data?.link || payload.fcmOptions?.link || '/notifications'
   const options = {
     body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: notification.icon || '/icon-192.png',
+    badge: notification.badge || '/notification-badge.png',
     data: { link },
-    tag: payload.data?.campaignId || 'bikrikoro-notification',
+    tag: payload.data?.notificationId || payload.data?.campaignId || 'bikrikoro-notification',
   }
 
   event.waitUntil(self.registration.showNotification(title, options))

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import adminRpc from '../server/api/admin-rpc.js'
 import adminSellerVerifications from '../server/api/admin-seller-verifications.js'
 import agentRouter from '../server/api/agent-router.js'
+import notificationEvents from '../server/api/notification-events.js'
 import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
 import orderAction from '../server/api/order-action.js'
@@ -20,6 +21,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'admin-rpc': adminRpc,
   'admin-seller-verifications': adminSellerVerifications,
   'agent-router': agentRouter,
+  'notification-events': notificationEvents,
   'notification-push': notificationPush,
   notifications,
   'order-action': orderAction,

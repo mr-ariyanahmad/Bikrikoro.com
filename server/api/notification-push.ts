@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-type FirebaseApp = import('firebase-admin/app').App
+import { getFirebaseApp, isInvalidTokenCode, sendWebPushBatch } from '../lib/firebasePush.js'
 
 type PushTarget = { user_id: string; token: string }
 
@@ -13,39 +13,9 @@ type PushRequest = {
   tokens?: Array<string | { user_id?: string; userId?: string; token?: string }>
 }
 
-async function getFirebaseApp(): Promise<FirebaseApp> {
-  const { cert, getApps, initializeApp } = await import('firebase-admin/app')
-  const existing = getApps()[0]
-  if (existing) return existing
-
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-  if (json) {
-    const parsed = JSON.parse(json) as { project_id?: string; client_email?: string; private_key?: string }
-    return initializeApp({
-      credential: cert({
-        projectId: parsed.project_id,
-        clientEmail: parsed.client_email,
-        privateKey: parsed.private_key?.replace(/\\n/g, '\n'),
-      }),
-    })
-  }
-
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL
-  const privateKey = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n')
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error('Firebase service-account configuration is missing')
-  }
-  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
-}
-
 function jsonBody(req: VercelRequest): PushRequest {
   if (typeof req.body === 'string') return JSON.parse(req.body) as PushRequest
   return (req.body ?? {}) as PushRequest
-}
-
-function isInvalidTokenCode(code?: string) {
-  return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token'
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -110,22 +80,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let sent = 0
     let failed = 0
-    const { getMessaging } = await import('firebase-admin/messaging')
-    const messaging = getMessaging(app)
     for (let offset = 0; offset < uniqueTargets.length; offset += 500) {
       const batch = uniqueTargets.slice(offset, offset + 500)
-      const response = await messaging.sendEachForMulticast({
-        tokens: batch.map((target) => target.token),
-        notification: { title: campaign.title || input.title || 'BikriKoro', body: campaign.body || input.body || '' },
-        data: {
-          campaignId: input.campaignId,
-          link: campaign.link || input.link || '/',
-          title: campaign.title || input.title || 'BikriKoro',
-          body: campaign.body || input.body || '',
-        },
-        webpush: {
-          fcmOptions: { link: campaign.link || input.link || '/' },
-        },
+      const title = campaign.title || input.title || 'BikriKoro'
+      const body = campaign.body || input.body || ''
+      const link = campaign.link || input.link || '/'
+      const response = await sendWebPushBatch(app, batch.map((target) => target.token), {
+        title,
+        body,
+        link,
+        data: { campaignId: input.campaignId },
       })
 
       await Promise.all(response.responses.map(async (result, index) => {
