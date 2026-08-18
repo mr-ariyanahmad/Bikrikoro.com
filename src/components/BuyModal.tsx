@@ -39,6 +39,7 @@ export function BuyModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('ONLINE')
   const [walletSpendable, setWalletSpendable] = useState<number | null>(null)
   const [walletLoading, setWalletLoading] = useState(true)
+  const [walletLoadError, setWalletLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -66,6 +67,7 @@ export function BuyModal({
   useEffect(() => {
     let active = true
     setWalletLoading(true)
+    setWalletLoadError(null)
     const loadWalletSpendable = async () => {
       try {
         const idToken = await auth.currentUser?.getIdToken()
@@ -77,12 +79,17 @@ export function BuyModal({
         })
         const payload = await response.json().catch(() => ({})) as WalletCheckoutPayload
         if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
+        if (!payload.balance) throw new Error('Wallet balance পাওয়া যায়নি।')
         if (!active) return
-        const spendable = payload.withdrawalSummary?.spendable_balance ?? payload.balance?.available_balance ?? 0
+        const spendable = payload.withdrawalSummary?.spendable_balance ?? payload.balance.available_balance
         setWalletSpendable(Number(spendable))
+        setWalletLoadError(null)
       } catch (walletError) {
         console.error('Checkout wallet load failed:', walletError)
-        if (active) setWalletSpendable(0)
+        if (active) {
+          setWalletSpendable(null)
+          setWalletLoadError(walletError instanceof Error ? walletError.message : 'Wallet balance লোড করা যায়নি।')
+        }
       } finally {
         if (active) setWalletLoading(false)
       }
@@ -94,7 +101,7 @@ export function BuyModal({
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
   const escrowFee = Math.max(discountedPrice * 0.01, 10)
   const total = discountedPrice + escrowFee
-  const walletInsufficient = walletSpendable !== null && walletSpendable < total
+  const walletInsufficient = walletSpendable === null || walletSpendable < total
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -195,14 +202,14 @@ export function BuyModal({
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setPaymentMethod('WALLET')} className={`rounded-xl border px-3 py-3 text-left text-sm transition ${paymentMethod === 'WALLET' ? 'border-brand-500 bg-brand-50 text-brand-800' : 'border-outline text-ink-600'}`}>
                   <span className="block font-semibold">Wallet balance</span>
-                  <span className="mt-1 block text-xs">{walletLoading ? 'লোড হচ্ছে…' : `উপলব্ধ ${formatTaka(walletSpendable ?? 0)}`}</span>
+                  <span className="mt-1 block text-xs">{walletLoading ? 'লোড হচ্ছে…' : walletLoadError ? 'Balance লোড হয়নি' : `উপলব্ধ ${formatTaka(walletSpendable ?? 0)}`}</span>
                 </button>
                 <button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`rounded-xl border px-3 py-3 text-left text-sm transition ${paymentMethod === 'ONLINE' ? 'border-brand-500 bg-brand-50 text-brand-800' : 'border-outline text-ink-600'}`}>
                   <span className="block font-semibold">Online payment</span>
                   <span className="mt-1 block text-xs">বিকাশ / নগদ</span>
                 </button>
               </div>
-              {paymentMethod === 'WALLET' && walletInsufficient && <p className="mt-2 text-xs text-error">Wallet spendable balance এই order-এর মোট টাকার চেয়ে কম। Online payment বেছে নিন।</p>}
+              {paymentMethod === 'WALLET' && walletInsufficient && <p className="mt-2 text-xs text-error">{walletLoadError ? 'Wallet balance এখনো লোড হয়নি। Online payment বেছে নিন বা আবার চেষ্টা করুন।' : 'Wallet spendable balance এই order-এর মোট টাকার চেয়ে কম। Online payment বেছে নিন।'}</p>}
             </div>
 
             <div className="flex items-start gap-2 rounded-xl border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input id="order-policy-consent" type="checkbox" checked={acceptedPolicy} onChange={(e) => setAcceptedPolicy(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-outline text-brand-500 focus:ring-brand-500" /><label htmlFor="order-policy-consent">আমি BikriKoro-এর <Link to="/privacy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>প্রাইভেসি পলিসি</Link> এবং <Link to="/return-policy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>রিটার্ন ও রিফান্ড নীতি</Link> পড়েছি এবং অর্ডারের পণ্যের ধরন অনুযায়ী প্রযোজ্য নিয়ম মেনে নিচ্ছি।</label></div>

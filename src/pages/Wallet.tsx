@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { Download, Filter } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { BalanceCard } from '@/components/BalanceCard'
 import { LedgerThread } from '@/components/LedgerThread'
@@ -12,69 +11,74 @@ import { formatDateTime, formatTaka } from '@/lib/format'
 import type { WalletBalance, WalletLedgerEntry, WalletWithdrawalSummary, WithdrawalRequest } from '@/types/wallet'
 
 export default function Wallet() {
-  const { user } = useAuth()
-  const uid = user!.uid
+  const { user, loading: authLoading } = useAuth()
+  const uid = user?.uid ?? ''
 
   const [balance, setBalance] = useState<WalletBalance | null>(null)
   const [entries, setEntries] = useState<WalletLedgerEntry[]>([])
   const [withdrawalSummary, setWithdrawalSummary] = useState<WalletWithdrawalSummary | null>(null)
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [entryFilter, setEntryFilter] = useState<'all' | 'credit' | 'debit'>('all')
 
   const loadWallet = useCallback(async () => {
+    if (!user?.uid) return
     setLoading(true)
     setLoadError(null)
     try {
-      const idToken = await auth.currentUser?.getIdToken()
-      if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
+      const idToken = await user.getIdToken()
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
-      const payload = await response.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null; withdrawals?: WithdrawalRequest[] }
+      const payload = await response.json().catch(() => ({})) as { error?: string; warning?: string | null; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null; withdrawals?: WithdrawalRequest[] }
       if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
-      setBalance(payload.balance ?? { user_id: uid, available_balance: 0, updated_at: new Date().toISOString() })
+      if (!payload.balance) throw new Error('Wallet balance পাওয়া যায়নি।')
+      setBalance(payload.balance)
       setEntries(payload.ledger ?? [])
       setWithdrawalSummary(payload.withdrawalSummary ?? null)
       setWithdrawals(payload.withdrawals ?? [])
+      setLoadError(payload.warning ?? null)
+      setHasLoaded(true)
     } catch (error) {
       console.error('Wallet load failed:', error)
       setLoadError(error instanceof Error ? error.message : 'ওয়ালেট লোড করা যায়নি।')
     } finally {
       setLoading(false)
     }
-  }, [uid])
+  }, [user])
 
   useEffect(() => {
-    loadWallet()
+    if (authLoading || !user?.uid) return
+    void loadWallet()
 
     // Balance, ledger, and withdrawal requests update the moment a seller-
     // cancelled order refunds the buyer, a sale completes, or a payout is
     // requested/rejected/paid — all server-side, this just reflects it live.
     const channel = supabase
-      .channel(`wallet-${uid}`)
+      .channel(`wallet-${user.uid}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_balances', filter: `user_id=eq.${uid}` },
-        loadWallet
+        { event: '*', schema: 'public', table: 'wallet_balances', filter: `user_id=eq.${user.uid}` },
+        () => { void loadWallet() }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${uid}` },
-        loadWallet
+        { event: '*', schema: 'public', table: 'wallet_ledger', filter: `user_id=eq.${user.uid}` },
+        () => { void loadWallet() }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'wallet_withdrawal_requests', filter: `user_id=eq.${uid}` },
-        loadWallet
+        { event: '*', schema: 'public', table: 'wallet_withdrawal_requests', filter: `user_id=eq.${user.uid}` },
+        () => { void loadWallet() }
       )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [uid, loadWallet])
+  }, [authLoading, user, loadWallet])
 
   const visibleEntries = entries.filter((entry) => entryFilter === 'all' || (entryFilter === 'credit' ? entry.amount >= 0 : entry.amount < 0))
   const exportCsv = () => {
@@ -86,13 +90,16 @@ export default function Wallet() {
 
   return (
     <Layout wide>
-      {loading ? (
+      {authLoading || !user ? (
+        <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
+      ) : !hasLoaded && loading ? (
         <div className="h-40 animate-pulse rounded-2xl bg-outline/40" />
       ) : (
         <>
-          {loadError && <p className="mb-4 border border-error/20 bg-error/5 p-3 text-sm text-error">ওয়ালেট লোড করা যায়নি: {loadError}</p>}
+          {loading && <p className="mb-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">Wallet data আপডেট হচ্ছে...</p>}
+          {loadError && <p className="mb-4 border border-error/20 bg-error/5 p-3 text-sm text-error">{hasLoaded && balance ? `Wallet-এর কিছু data লোড হয়নি: ${loadError}` : `ওয়ালেট লোড করা যায়নি: ${loadError}`}</p>}
           <BalanceCard
-            balance={balance?.available_balance ?? 0}
+            balance={balance?.available_balance ?? null}
             reservedAmount={withdrawalSummary?.reserved_amount ?? 0}
             onWithdrawClick={() => setShowWithdraw(true)}
           />
@@ -114,7 +121,7 @@ export default function Wallet() {
       {showWithdraw && balance && (
         <WithdrawModal
           userId={uid}
-          availableBalance={withdrawalSummary?.spendable_balance ?? balance.available_balance}
+          availableBalance={withdrawalSummary?.spendable_balance ?? balance?.available_balance ?? 0}
           onClose={() => setShowWithdraw(false)}
           onSuccess={() => {
             setShowWithdraw(false)

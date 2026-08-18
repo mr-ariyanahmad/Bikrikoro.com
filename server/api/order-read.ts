@@ -70,10 +70,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supabase.rpc('user_wallet_withdrawal_history', { p_user_id: token.uid, p_limit: 50 }),
       ])
       if (balanceError) throw balanceError
-      if (ledgerError) throw ledgerError
-      if (withdrawalError) throw withdrawalError
-      if (historyError) throw historyError
-      res.status(200).json({ balance, ledger: ledger ?? [], withdrawalSummary: withdrawalSummary?.[0] ?? null, withdrawals: withdrawals ?? [] })
+      const warnings = [
+        ledgerError ? 'লেনদেনের হিস্ট্রি' : '',
+        withdrawalError || historyError ? 'উইথড্রয়াল হিস্ট্রি' : '',
+      ].filter(Boolean)
+      res.status(200).json({
+        balance,
+        ledger: ledgerError ? [] : ledger ?? [],
+        withdrawalSummary: withdrawalError ? null : withdrawalSummary?.[0] ?? null,
+        withdrawals: historyError ? [] : withdrawals ?? [],
+        warning: warnings.length > 0 ? `${warnings.join(' ও ')} এখন দেখানো যাচ্ছে না। Balance ঠিকভাবে লোড হয়েছে।` : null,
+      })
       return
     }
     throw new Error('Unsupported order read action')
