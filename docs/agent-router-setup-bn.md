@@ -10,7 +10,7 @@
 
 | তথ্য | উদাহরণ | কোথায় ব্যবহার হবে |
 |---|---|---|
-| Base URL | `https://router.example.com` | Agent Router server host |
+| Base URL | `https://agentrouter.org` | Agent Router server host; keep `/v1` out of this value because the path is configured separately |
 | API key | `sk-...` বা provider-এর secret | শুধু Vercel server-side |
 | Model name | `router-default` বা `gpt-4o-mini` | AI উত্তর তৈরির model |
 | Chat endpoint path | `/v1/chat/completions` | Base URL-এর পরে যুক্ত হবে |
@@ -22,9 +22,9 @@ Base URL-এর শেষে `/` থাকলে proxy নিজে সেটি
 Vercel dashboard-এ BikriKoro project খুলে **Settings → Environment Variables → Add New** নির্বাচন করুন। প্রতিটি variable-এর জন্য Production, Preview এবং Development environment প্রয়োজন অনুযায়ী select করুন।
 
 ```text
-AGENT_ROUTER_BASE_URL=https://আপনার-agent-router-host
-AGENT_ROUTER_API_KEY=আপনার-গোপন-api-key
-AGENT_ROUTER_MODEL=আপনার-default-model
+AGENT_ROUTER_BASE_URL=https://agentrouter.org
+AGENT_ROUTER_API_KEY=আপনার-তৈরি-করা-token
+AGENT_ROUTER_MODEL=Agent Router model catalog থেকে exact model ID
 AGENT_ROUTER_CHAT_PATH=/v1/chat/completions
 ```
 
@@ -85,6 +85,8 @@ order না পেলে কী করব?
 Configuration না থাকলে `/api/agent-router` HTTP `503` দিতে পারে। এর অর্থ provider-এর Base URL বা API key Vercel-এ নেই; এটি frontend code ভেঙে যাওয়ার অর্থ নয়।
 
 ## Provider OpenAI-compatible না হলে
+
+Agent Router-এর জন্য এই exact combination ব্যবহার করুন: `AGENT_ROUTER_BASE_URL=https://agentrouter.org` এবং `AGENT_ROUTER_CHAT_PATH=/v1/chat/completions`। Base URL-এ `/v1` লিখে আবার path-এ `/v1/chat/completions` দিলে URL দ্বিগুণ হয়ে যাবে এবং request ব্যর্থ হবে।
 
 যদি provider OpenAI-compatible না হয়, তাহলে সাধারণত দুইটি mapping বদলাতে হবে:
 
