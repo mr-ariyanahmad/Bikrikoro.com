@@ -14,6 +14,8 @@ type DocumentRow = {
   reviewed_at: string | null
 }
 
+type ProfileRow = { id: string; name: string | null; photo_url: string | null }
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET')
@@ -40,7 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .range(0, 49)
     if (registrationError) throw registrationError
 
-    const registrationIds = (registrations ?? []).map((registration) => registration.id)
+    const registrationRows = registrations ?? []
+    const registrationIds = registrationRows.map((registration) => registration.id)
+    const profileIds = registrationRows.map((registration) => registration.user_id)
+    const { data: profiles, error: profileError } = profileIds.length
+      ? await supabase.from('profiles').select('id, name, photo_url').in('id', profileIds)
+      : { data: [], error: null }
+    if (profileError) throw profileError
+    const profilesById = Object.fromEntries(((profiles ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]))
     const { data: documents, error: documentError } = registrationIds.length
       ? await supabase.from('seller_verification_documents').select('*').in('registration_id', registrationIds)
       : { data: [], error: null }
@@ -57,8 +66,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Cache-Control', 'private, no-store')
     res.status(200).json({
-      registrations: (registrations ?? []).map((registration) => ({
+      registrations: registrationRows.map((registration) => ({
         ...registration,
+        seller_profile: profilesById[registration.user_id] ?? null,
         documents: ((documents ?? []) as DocumentRow[]).filter((document) => document.registration_id === registration.id).map((document) => ({
           ...document,
           document_url: urls[document.id] ?? null,

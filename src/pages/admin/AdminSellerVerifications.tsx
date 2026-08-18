@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Link as LinkIcon, X, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, X, XCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { auth } from '@/lib/firebase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
@@ -11,7 +11,8 @@ import type { SellerRegistration, SellerVerificationDocument } from '@/types/cha
 import { adminRpc } from '@/lib/adminRpc'
 
 type RegistrationDocument = SellerVerificationDocument & { document_url?: string | null }
-type RegistrationWithDocuments = SellerRegistration & { documents: RegistrationDocument[] }
+type SellerProfileSummary = { id: string; name: string | null; photo_url: string | null }
+type RegistrationWithDocuments = SellerRegistration & { documents: RegistrationDocument[]; seller_profile?: SellerProfileSummary | null }
 type SellerReviewHistory = { registration_id: string; applicant_name: string; applicant_user_id: string; admin_uid: string; admin_email: string; admin_name: string; action: string; document_type: string | null; note: string; created_at: string }
 
 type ReviewStatus = SellerVerificationDocument['status']
@@ -25,6 +26,7 @@ export default function AdminSellerVerifications() {
   const [noteById, setNoteById] = useState<Record<string, string>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [previewDocument, setPreviewDocument] = useState<RegistrationDocument | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -63,7 +65,7 @@ export default function AdminSellerVerifications() {
     setProcessingId(documentId)
     const { error } = await adminRpc('admin_review_verification_document', { p_admin_id: adminId, p_document_id: documentId, p_status: status, p_admin_note: noteById[documentId]?.trim() || '' })
     if (error) setNotice(formatAdminRpcError(error, 'Verification document review', '031 admin approval migration'))
-    else await load()
+    else setRegistrations((current) => current.map((registration) => ({ ...registration, documents: registration.documents.map((document) => document.id === documentId ? { ...document, status, admin_note: noteById[documentId]?.trim() || '', reviewed_by: adminId, reviewed_at: new Date().toISOString() } : document) })))
     setProcessingId(null)
   }
 
@@ -71,7 +73,10 @@ export default function AdminSellerVerifications() {
     setProcessingId(registrationId)
     const { error } = await adminRpc('admin_finalize_seller_verification', { p_admin_id: adminId, p_registration_id: registrationId, p_status: status, p_admin_note: noteById[registrationId]?.trim() || '' })
     if (error) setNotice(error.message.includes('required documents') ? 'সব required document আগে approve করুন।' : formatAdminRpcError(error, 'Seller application review', '031 admin approval migration'))
-    else await load()
+    else {
+      setRegistrations((current) => current.filter((registration) => registration.id !== registrationId))
+      setExpandedId((current) => current === registrationId ? null : current)
+    }
     setProcessingId(null)
   }
 
@@ -118,6 +123,10 @@ export default function AdminSellerVerifications() {
                     <Info label="ঠিকানা" value={registration.address} />
                   </div>
 
+                  <div className="px-4 pb-4 sm:px-5">
+                    <SellerShopImageCard profile={registration.seller_profile} onPreview={(url, name) => setPreviewImage({ url, name })} />
+                  </div>
+
                   <div className="border-t border-slate-200 px-4 py-4 sm:px-5">
                     <div className="flex flex-wrap items-end justify-between gap-2">
                       <div>
@@ -156,9 +165,22 @@ export default function AdminSellerVerifications() {
 
       <Link to="/admin" className="mt-5 inline-flex text-sm font-semibold text-brand-700">← Admin dashboard</Link>
       {previewDocument && <DocumentPreviewDialog reviewDocument={previewDocument} documentUrl={docUrls[previewDocument.id]} onClose={() => setPreviewDocument(null)} />}
+      {previewImage && <ImagePreviewDialog image={previewImage} onClose={() => setPreviewImage(null)} />}
       <BrandedDialog open={Boolean(notice)} title="Verification update" onClose={() => setNotice(null)} actions={<DialogButton onClick={() => setNotice(null)}>ঠিক আছে</DialogButton>}><p>{notice}</p></BrandedDialog>
     </AdminShell>
   )
+}
+
+function SellerShopImageCard({ profile, onPreview }: { profile?: SellerProfileSummary | null; onPreview: (url: string, name: string) => void }) {
+  const photoUrl = profile?.photo_url ?? ''
+  const sellerName = profile?.name || 'এই সেলার'
+  return <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-100 text-brand-700">
+      {photoUrl ? <img src={photoUrl} alt={`${sellerName}-এর shop image`} className="h-full w-full object-cover" /> : <ImageIcon size={22} />}
+    </div>
+    <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-slate-800">Seller / shop image</p><p className="mt-1 text-xs text-slate-500">{photoUrl ? 'প্রোফাইল থেকে পাওয়া image' : 'এই সেলার এখনো কোনো shop image দেননি।'}</p></div>
+    {photoUrl ? <button type="button" onClick={() => onPreview(photoUrl, `${sellerName}-এর shop image`)} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-brand-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-brand-50"><Eye size={13} />ছবি দেখুন</button> : <span className="shrink-0 text-[11px] text-slate-400">ছবি নেই</span>}
+  </div>
 }
 
 function DocumentReviewCard({ document, documentUrl, note, processing, onNoteChange, onPreview, onReview }: { document: RegistrationDocument; documentUrl?: string; note: string; processing: boolean; onNoteChange: (value: string) => void; onPreview: () => void; onReview: (status: ReviewAction) => void }) {
@@ -205,6 +227,21 @@ function DocumentPreviewDialog({ reviewDocument, documentUrl, onClose }: { revie
       <div className="min-h-0 flex-1 overflow-auto bg-ink-900/5 p-3 sm:p-5">
         {isPdf ? <iframe title={`${formatDocumentType(reviewDocument.document_type)} PDF`} src={documentUrl} className="h-[72vh] min-h-[420px] w-full rounded-xl border border-outline bg-white" /> : isImage ? <img src={documentUrl} alt={`${formatDocumentType(reviewDocument.document_type)} document`} className="mx-auto max-h-[75vh] max-w-full rounded-xl object-contain shadow-sm" /> : <iframe title={`${formatDocumentType(reviewDocument.document_type)} file`} src={documentUrl} className="h-[72vh] min-h-[420px] w-full rounded-xl border border-outline bg-white" />}
       </div>
+    </div>
+  </div>
+}
+
+function ImagePreviewDialog({ image, onClose }: { image: { url: string; name: string }; onClose: () => void }) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  return <div className="fixed inset-0 z-[75] flex items-center justify-center bg-ink-900/70 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={image.name} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-surface shadow-2xl">
+      <div className="flex items-center justify-between gap-3 border-b border-outline px-4 py-3 sm:px-5"><h2 className="truncate font-semibold text-ink-900">{image.name}</h2><button type="button" onClick={onClose} className="rounded-xl p-2 text-ink-400 transition hover:bg-bg hover:text-ink-700" aria-label="বন্ধ করুন"><X size={20} /></button></div>
+      <div className="overflow-auto bg-ink-900/5 p-3 sm:p-5"><img src={image.url} alt={image.name} className="mx-auto max-h-[78vh] max-w-full rounded-xl object-contain shadow-sm" /></div>
     </div>
   </div>
 }
