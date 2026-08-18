@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/components/admin/AdminShell'
 
@@ -24,16 +25,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     let cancelled = false
     async function load() {
+      const adminId = auth.currentUser?.uid
+      if (!adminId) throw new Error('Admin Firebase session পাওয়া যায়নি।')
       const [orders, customers, products, pending, disputes, sellers, revenue, recent] = await Promise.all([
         supabase.from('orders').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('products').select('id', { count: 'exact', head: true }),
         supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['PENDING_PAYMENT', 'ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED']),
         supabase.from('order_disputes').select('id', { count: 'exact', head: true }).in('status', ['REPORTED', 'UNDER_REVIEW']),
-        supabase.from('seller_registrations').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
+        supabase.rpc('admin_count_pending_seller_verifications', { p_admin_id: adminId }),
         supabase.from('orders').select('price').in('status', ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED']),
         supabase.from('orders').select('id, product_title, price, status, created_at').order('created_at', { ascending: false }).limit(7),
       ])
+      if (sellers.error) throw sellers.error
       if (cancelled) return
       setStats({
         orders: orders.count ?? 0,
@@ -41,7 +45,7 @@ export default function AdminDashboard() {
         products: products.count ?? 0,
         pending: pending.count ?? 0,
         disputes: disputes.count ?? 0,
-        sellers: sellers.count ?? 0,
+        sellers: Number(sellers.data ?? 0),
         revenue: (revenue.data ?? []).reduce((sum, row) => sum + Number(row.price || 0), 0),
       })
       setRecentOrders((recent.data ?? []) as RecentOrder[])

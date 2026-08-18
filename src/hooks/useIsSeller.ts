@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { supabase, supabaseConfigured } from '@/lib/supabase'
+import { supabaseConfigured } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 
 export function useIsSeller() {
   const { user } = useAuth()
@@ -24,12 +25,13 @@ export function useIsSeller() {
     setLoading(true)
     const loadSellerStatus = async () => {
       try {
-        const [profileResult, registrationResult] = await Promise.all([
-          supabase.from('profiles').select('is_verified').eq('id', user.uid).maybeSingle(),
-          supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('status', 'APPROVED').limit(1),
-        ])
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
+        const payload = await response.json().catch(() => ({})) as { error?: string; isSeller?: boolean }
+        if (!response.ok) throw new Error(payload.error || `Seller access check failed (HTTP ${response.status})`)
         if (!active) return
-        setIsSeller(Boolean(profileResult.data?.is_verified || registrationResult.data?.length))
+        setIsSeller(payload.isSeller === true)
       } catch (error) {
         console.error('Seller access check failed:', error)
         if (active) setIsSeller(false)

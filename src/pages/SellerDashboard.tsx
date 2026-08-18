@@ -9,7 +9,7 @@ import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
 
-interface SellerProductMetrics { view_count: number | null; price: number | null }
+interface SellerProductMetrics { view_count: number | null; price: number | null; is_hidden?: boolean }
 
 interface Stats {
   listingCount: number
@@ -30,6 +30,7 @@ export default function SellerDashboard() {
   const { isSeller, loading: sellerAccessLoading } = useIsSeller()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [unreadNotifications, setUnreadNotifications] = useState(0)
 
@@ -38,33 +39,50 @@ export default function SellerDashboard() {
       if (!sellerAccessLoading && !isSeller) setLoading(false)
       return
     }
+    let active = true
+    setLoading(true)
+    setLoadError(null)
     async function load() {
-      const [productsRes, ordersRes, ledgerRes, profileRes] = await Promise.all([
-        supabase.rpc('seller_list_products', { p_seller_id: uid }),
-        supabase.from('orders').select('status, price').eq('seller_id', uid),
-        supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
-        supabase.from('profiles').select('is_verified, rating, review_count').eq('id', uid).maybeSingle(),
-      ])
+      try {
+        const [productsRes, ordersRes, ledgerRes, profileRes] = await Promise.all([
+          supabase.rpc('seller_list_products', { p_seller_id: uid }),
+          supabase.from('orders').select('status, price').eq('seller_id', uid),
+          supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
+          supabase.from('profiles').select('is_verified, rating, review_count').eq('id', uid).maybeSingle(),
+        ])
+        if (productsRes.error) throw productsRes.error
+        if (ordersRes.error) throw ordersRes.error
+        if (ledgerRes.error) throw ledgerRes.error
+        if (profileRes.error) throw profileRes.error
+        if (!active) return
 
-      const products = (productsRes.data ?? []) as SellerProductMetrics[]
-      const orders = ordersRes.data ?? []
-      const ledger = ledgerRes.data ?? []
+        const products = (productsRes.data ?? []) as SellerProductMetrics[]
+        const orders = ordersRes.data ?? []
+        const ledger = ledgerRes.data ?? []
+        const totalViews = products.reduce((sum, p) => sum + (p.view_count ?? 0), 0)
+        const completedOrders = orders.filter((o) => o.status === 'COMPLETED')
 
-      setStats({
-        listingCount: products.length,
-        totalViews: products.reduce((sum, p) => sum + (p.view_count ?? 0), 0),
-        activeOrders: orders.filter((o) => ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED'].includes(o.status)).length,
-        completedSales: orders.filter((o) => o.status === 'COMPLETED').length,
-        totalEarnings: ledger.reduce((sum, l) => sum + Number(l.amount), 0),
-        isVerified: profileRes.data?.is_verified ?? false,
-        rating: profileRes.data?.rating ?? 0,
-        reviewCount: profileRes.data?.review_count ?? 0,
-        conversionRate: products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0) > 0 ? (orders.filter((order) => order.status === 'COMPLETED').length / products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0)) * 100 : 0,
-        averageSale: orders.filter((order) => order.status === 'COMPLETED').length > 0 ? orders.filter((order) => order.status === 'COMPLETED').reduce((sum, order) => sum + Number(order.price ?? 0), 0) / orders.filter((order) => order.status === 'COMPLETED').length : 0,
-      })
-      setLoading(false)
+        setStats({
+          listingCount: products.filter((product) => product.is_hidden !== true).length,
+          totalViews,
+          activeOrders: orders.filter((o) => ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED'].includes(o.status)).length,
+          completedSales: completedOrders.length,
+          totalEarnings: ledger.reduce((sum, l) => sum + Number(l.amount), 0),
+          isVerified: profileRes.data?.is_verified ?? false,
+          rating: profileRes.data?.rating ?? 0,
+          reviewCount: profileRes.data?.review_count ?? 0,
+          conversionRate: totalViews > 0 ? (completedOrders.length / totalViews) * 100 : 0,
+          averageSale: completedOrders.length > 0 ? completedOrders.reduce((sum, order) => sum + Number(order.price ?? 0), 0) / completedOrders.length : 0,
+        })
+      } catch (error) {
+        console.error('Seller dashboard load failed:', error)
+        if (active) setLoadError(error instanceof Error ? error.message : 'সেলার ড্যাশবোর্ড লোড করা যায়নি।')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-    load()
+    void load()
+    return () => { active = false }
   }, [isSeller, sellerAccessLoading, uid])
 
   useEffect(() => {
@@ -92,7 +110,7 @@ export default function SellerDashboard() {
         <title>সেলার ড্যাশবোর্ড | BikriKoro.Com</title>
       </Helmet>
 
-      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold text-ink-900">সেলার ড্যাশবোর্ড</h1><div className="flex items-center gap-2">{stats && <button onClick={exportPerformance} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600"><Download size={14} />রিপোর্ট</button>}{stats && !stats.isVerified && (
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold text-ink-900">সেলার ড্যাশবোর্ড</h1><div className="flex items-center gap-2">{stats && <button type="button" onClick={exportPerformance} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600"><Download size={14} />রিপোর্ট</button>}{stats && !stats.isVerified && (
           <Link
             to="/become-seller/verify"
             className="rounded-lg border border-brand-500 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50"
@@ -101,6 +119,7 @@ export default function SellerDashboard() {
           </Link>
         )}</div></div>
       {notice && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{notice}</p>}
+      {loadError && <p className="mt-3 border border-error/20 bg-error/5 p-3 text-sm text-error">ড্যাশবোর্ড লোড করা যায়নি: {loadError}</p>}
 
       {loading || !stats ? (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

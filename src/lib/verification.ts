@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import type { BusinessType, ListingMode, SellerType } from '@/types/chat'
 
 const BUCKET = 'seller-verification-docs'
@@ -12,10 +13,16 @@ export async function uploadVerificationDocument(file: File, userId: string): Pr
   return path
 }
 
-/** Short-lived signed URL — this bucket is private, unlike product-images/dispute-evidence. */
+/** Short-lived signed URL issued only by the server after Firebase owner/admin authorization. */
 export async function getVerificationDocUrl(path: string): Promise<string | null> {
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 10)
-  return data?.signedUrl ?? null
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) return null
+  const response = await fetch(`/api/verification-document?path=${encodeURIComponent(path)}`, {
+    headers: { Authorization: `Bearer ${idToken}` },
+  })
+  if (!response.ok) return null
+  const result = await response.json() as { signedUrl?: string }
+  return result.signedUrl ?? null
 }
 
 export async function uploadVerificationDocuments(files: Array<{ documentType: string; file: File }>, userId: string) {

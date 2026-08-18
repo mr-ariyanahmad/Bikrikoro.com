@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FileCheck2, Package, ShieldCheck } from 'lucide-react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { BrandSelect } from '@/components/BrandSelect'
@@ -69,11 +70,22 @@ export default function Sell() {
       return
     }
     let active = true
-    supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('listing_mode', 'DIGITAL').eq('status', 'APPROVED').maybeSingle().then(({ data }) => {
-      if (!active) return
-      setDigitalVerified(Boolean(data))
-      setDigitalVerificationLoading(false)
-    })
+    const loadDigitalStatus = async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+        const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
+        const payload = await response.json().catch(() => ({})) as { digitalVerified?: boolean }
+        if (!response.ok) throw new Error('Seller verification status লোড করা যায়নি।')
+        if (active) setDigitalVerified(payload.digitalVerified === true)
+      } catch (error) {
+        console.error('Digital seller eligibility check failed:', error)
+        if (active) setDigitalVerified(false)
+      } finally {
+        if (active) setDigitalVerificationLoading(false)
+      }
+    }
+    void loadDigitalStatus()
     return () => { active = false }
   }, [user])
 
@@ -177,16 +189,10 @@ export default function Sell() {
 
     try {
       const urls = await uploadProductImages(files, user.uid)
-      setImages((prev) => {
-        const next = [...prev]
-        // replace the trailing placeholders (in order) with their uploaded URLs
-        let uploadedIndex = 0
-        for (let i = next.length - placeholders.length; i < next.length; i++) {
-          next[i] = { url: urls[uploadedIndex] }
-          uploadedIndex++
-        }
-        return next
-      })
+      setImages((prev) => prev.map((image) => {
+        const placeholderIndex = placeholders.findIndex((placeholder) => placeholder.url === image.url)
+        return placeholderIndex >= 0 ? { url: urls[placeholderIndex] } : image
+      }))
       placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
     } catch (err) {
       console.error('Image upload failed:', err)
@@ -228,76 +234,67 @@ export default function Sell() {
     if (!user || !isValid || digitalVerificationLoading) return
     setSubmitting(true)
     setError(null)
+    try {
+      if (isDigital && !digitalVerified) throw new Error('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।')
+      if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) throw new Error('শুধু valid YouTube video link দেওয়া যাবে।')
 
-    if (isDigital && !digitalVerified) {
-      setError('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।')
-      setSubmitting(false)
-      return
-    }
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        price: Number(price),
+        original_price: originalPrice ? Number(originalPrice) : null,
+        category_id: categoryId,
+        condition,
+        is_digital: isDigital,
+        supports_cod: !isDigital && supportsCod,
+        free_delivery: !isDigital && freeDelivery,
+        fast_delivery: !isDigital && fastDelivery,
+        free_return: !isDigital && freeReturn,
+        location: isDigital ? '' : location.trim(),
+        images: images.map((img) => img.url),
+        video_url: videoUrl.trim() || null,
+      }
 
-    if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) {
-      setError('শুধু valid YouTube video link দেওয়া যাবে।')
-      setSubmitting(false)
-      return
-    }
+      const result = isEditing
+        ? await supabase.rpc('seller_update_product', {
+            p_seller_id: user.uid,
+            p_product_id: id,
+            p_title: payload.title,
+            p_description: payload.description,
+            p_price: payload.price,
+            p_original_price: payload.original_price,
+            p_category_id: payload.category_id,
+            p_condition: payload.condition,
+            p_location: payload.location,
+            p_images: payload.images,
+            p_is_digital: payload.is_digital,
+            p_supports_cod: payload.supports_cod,
+            p_free_delivery: payload.free_delivery,
+            p_fast_delivery: payload.fast_delivery,
+            p_free_return: payload.free_return,
+            p_video_url: payload.video_url,
+          })
+        : await supabase.rpc('seller_create_product', {
+            p_seller_id: user.uid,
+            p_title: payload.title,
+            p_description: payload.description,
+            p_price: payload.price,
+            p_original_price: payload.original_price,
+            p_category_id: payload.category_id,
+            p_condition: payload.condition,
+            p_location: payload.location,
+            p_images: payload.images,
+            p_is_digital: payload.is_digital,
+            p_supports_cod: payload.supports_cod,
+            p_free_delivery: payload.free_delivery,
+            p_fast_delivery: payload.fast_delivery,
+            p_free_return: payload.free_return,
+            p_video_url: payload.video_url,
+          })
+      if (result.error) throw result.error
 
-    const payload = {
-      title: title.trim(),
-      description: description.trim(),
-      price: Number(price),
-      original_price: originalPrice ? Number(originalPrice) : null,
-      category_id: categoryId,
-      condition,
-      is_digital:       isDigital,
-      supports_cod: !isDigital && supportsCod,
-      free_delivery: !isDigital && freeDelivery,
-      fast_delivery: !isDigital && fastDelivery,
-      free_return: !isDigital && freeReturn,
-      location: isDigital ? '' : location.trim(),
-      images: images.map((img) => img.url),
-      video_url: videoUrl.trim() || null,
-      seller_id: user.uid,
-    }
-
-    const result = isEditing
-      ? await supabase.rpc('seller_update_product', {
-          p_seller_id: user.uid,
-          p_product_id: id,
-          p_title: payload.title,
-          p_description: payload.description,
-          p_price: payload.price,
-          p_original_price: payload.original_price,
-          p_category_id: payload.category_id,
-          p_condition: payload.condition,
-          p_location: payload.location,
-          p_images: payload.images,
-          p_is_digital: payload.is_digital,
-          p_supports_cod: payload.supports_cod,
-          p_free_delivery: payload.free_delivery,
-          p_fast_delivery: payload.fast_delivery,
-          p_free_return: payload.free_return,
-          p_video_url: payload.video_url,
-        })
-      : await supabase.rpc('seller_create_product', {
-          p_seller_id: user.uid,
-          p_title: payload.title,
-          p_description: payload.description,
-          p_price: payload.price,
-          p_original_price: payload.original_price,
-          p_category_id: payload.category_id,
-          p_condition: payload.condition,
-          p_location: payload.location,
-          p_images: payload.images,
-          p_is_digital: payload.is_digital,
-          p_supports_cod: payload.supports_cod,
-          p_free_delivery: payload.free_delivery,
-          p_fast_delivery: payload.fast_delivery,
-          p_free_return: payload.free_return,
-          p_video_url: payload.video_url,
-        })
-
-    const savedProductId = id ?? result.data
-    if (!result.error && savedProductId) {
+      const savedProductId = id ?? result.data
+      if (!savedProductId) throw new Error('সেভ হওয়া পণ্যের ID পাওয়া যায়নি।')
       const deliveryResult = isDigital
         ? await supabase.from('digital_product_contents').upsert({
             product_id: savedProductId,
@@ -306,23 +303,16 @@ export default function Sell() {
             delivery_text: digitalDeliveryText.trim(),
           })
         : await supabase.from('digital_product_contents').delete().eq('product_id', savedProductId)
-      if (deliveryResult.error && isDigital) {
-        console.error('Digital delivery details could not be saved:', deliveryResult.error)
-        setError('পণ্য সেভ হয়েছে, কিন্তু ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি। migration প্রয়োগ করা হয়েছে কি না দেখুন।')
-        setSubmitting(false)
-        return
-      }
-    }
+      if (deliveryResult.error) throw new Error(isDigital ? `ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি: ${deliveryResult.error.message}` : deliveryResult.error.message)
 
-    setSubmitting(false)
-    if (result.error) {
-      console.error('Product save failed:', result.error)
-      setError(`সেভ করা যায়নি — ${result.error.message}`)
-      return
+      clearListingDraft()
+      navigate('/my-listings')
+    } catch (submitError) {
+      console.error('Product save failed:', submitError)
+      setError(submitError instanceof Error ? `সেভ করা যায়নি — ${submitError.message}` : 'পণ্য সেভ করা যায়নি।')
+    } finally {
+      setSubmitting(false)
     }
-
-    clearListingDraft()
-    navigate('/my-listings')
   }
 
   if (loadingExisting) {

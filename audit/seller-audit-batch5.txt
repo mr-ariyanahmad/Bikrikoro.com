@@ -1,0 +1,798 @@
+
+=== src/pages/BecomeSeller.tsx ===
+import { useEffect } from 'react'
+import { ArrowRight, FileCheck2, Package, ShieldCheck, Store } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { useIsSeller } from '@/hooks/useIsSeller'
+
+export default function BecomeSeller() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { isSeller, loading: sellerStatusLoading } = useIsSeller()
+
+  useEffect(() => {
+    if (user && !sellerStatusLoading && isSeller) navigate('/seller/dashboard', { replace: true })
+  }, [isSeller, navigate, sellerStatusLoading, user])
+
+  if (!user) {
+    return <Layout wide><div className="mx-auto max-w-5xl"><section className="rounded-3xl bg-ink-900 p-6 text-white sm:p-10"><p className="text-sm font-semibold text-brand-300">BikriKoro seller</p><h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">বাংলাদেশে সহজে বিক্রি শুরু করুন</h1><p className="mt-3 max-w-xl text-sm leading-6 text-white/70">আগে লগইন করুন। তারপর আপনি ফিজিক্যাল বা ডিজিটাল—কোন ধরনের পণ্য বিক্রি করবেন তা বেছে নিতে পারবেন।</p><Link to="/login" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-brand-700">লগইন করে শুরু করুন <ArrowRight size={16} /></Link></section></div></Layout>
+  }
+
+  if (sellerStatusLoading || isSeller) return <Layout wide><div className="mx-auto max-w-3xl py-16 text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" /><p className="mt-4 text-sm font-medium text-ink-600">সেলার অ্যাকাউন্ট প্রস্তুত করা হচ্ছে…</p></div></Layout>
+
+  return <Layout wide><div className="mx-auto max-w-5xl"><section className="rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-sm sm:p-10"><div className="max-w-2xl"><p className="text-sm font-semibold text-brand-100">Seller setup</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">আপনি কী বিক্রি করবেন?</h1><p className="mt-3 text-sm leading-6 text-brand-50/85">প্রথমে পণ্যের ধরন বেছে নিন। ফিজিক্যাল পণ্যের listing form সরাসরি খুলবে, আর ডিজিটাল পণ্যের জন্য আগে seller verification সম্পন্ন করতে হবে।</p></div></section><section className="mt-6 grid gap-4 md:grid-cols-2"><button onClick={() => navigate('/sell?mode=PHYSICAL')} className="group rounded-3xl border border-outline bg-surface p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-400 hover:shadow-md sm:p-7"><div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Package size={27} /></span><ArrowRight className="text-ink-300 transition group-hover:translate-x-1 group-hover:text-brand-600" size={21} /></div><h2 className="mt-6 text-xl font-bold text-ink-900">ফিজিক্যাল পণ্য</h2><p className="mt-2 text-sm leading-6 text-ink-600">মোবাইল, পোশাক, electronics, ঘরের জিনিস বা courier-এ পাঠানো যায় এমন পণ্য।</p><span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white">Listing form খুলুন <ArrowRight size={15} /></span></button><button onClick={() => navigate('/become-seller/verify?mode=DIGITAL')} className="group rounded-3xl border border-brand-200 bg-brand-50/60 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-md sm:p-7"><div className="flex items-start justify-between gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-white"><FileCheck2 size={27} /></span><ArrowRight className="text-brand-300 transition group-hover:translate-x-1 group-hover:text-brand-700" size={21} /></div><h2 className="mt-6 text-xl font-bold text-ink-900">ডিজিটাল পণ্য</h2><p className="mt-2 text-sm leading-6 text-ink-700">Software, license key, course, file, design, service বা download link।</p><span className="mt-5 inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-white px-4 py-2.5 text-sm font-bold text-brand-700">আগে verification করুন <ArrowRight size={15} /></span></button></section><section className="mt-6 grid gap-3 sm:grid-cols-3"><Info icon={ShieldCheck} title="নিরাপদ review" body="Digital seller-এর identity ও ownership যাচাই হবে।" /><Info icon={Store} title="বিশ্বাসযোগ্য profile" body="Approval-এর পর sector অনুযায়ী badge দেখা যাবে।" /><Info icon={Package} title="সহজ listing" body="Physical seller সরাসরি listing form-এ যেতে পারবেন।" /></section></div></Layout>
+}
+
+function Info({ icon: Icon, title, body }: { icon: typeof ShieldCheck; title: string; body: string }) { return <div className="rounded-2xl border border-outline bg-surface p-4"><Icon size={19} className="text-brand-600" /><p className="mt-3 text-sm font-bold text-ink-900">{title}</p><p className="mt-1 text-xs leading-5 text-ink-500">{body}</p></div> }
+
+=== src/pages/SellerVerification.tsx ===
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Eye, FileCheck2, ShieldCheck, Upload, X } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
+import { supabase } from '@/lib/supabase'
+import { getSellerDocumentRequirements, getVerificationDocUrl, submitSellerRegistrationV2, uploadVerificationDocuments } from '@/lib/verification'
+import type { BusinessType, ListingMode, SellerRegistration } from '@/types/chat'
+import { validateVerificationFile } from '@/lib/fileValidation'
+
+type Requirement = { document_type: string; document_label: string; help_text: string; required: boolean; sort_order: number }
+const SECTORS = [['SOFTWARE', 'Software / SaaS'], ['EDUCATION', 'Education / Course'], ['CREATIVE', 'Creative / Media'], ['RETAIL', 'Retail / Reseller'], ['SERVICES', 'Professional Services'], ['OTHER', 'অন্যান্য']] as const
+const commonNidRequirements: Requirement[] = [
+  { document_type: 'NID_FRONT', document_label: 'NID-এর সামনের অংশ', help_text: 'কার্ডের চার কোণা, নাম ও ছবি পরিষ্কার দেখা যাবে।', required: true, sort_order: 10 },
+  { document_type: 'NID_BACK', document_label: 'NID-এর পেছনের অংশ', help_text: 'লেখা, QR/barcode এবং চার কোণা পরিষ্কার দেখা যাবে।', required: true, sort_order: 20 },
+]
+const FALLBACK_REQUIREMENTS_BY_TYPE: Record<BusinessType, Requirement[]> = {
+  PERSONAL: [...commonNidRequirements, { document_type: 'SELFIE', document_label: 'NID হাতে selfie', help_text: 'মুখ খোলা এবং হাতে ধরা NID একই ছবিতে পরিষ্কার দেখা যাবে।', required: true, sort_order: 30 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'নিজের তৈরি কাজ, license বা source ownership-এর প্রমাণ দিন।', required: true, sort_order: 40 }],
+  BUSINESS: [...commonNidRequirements, { document_type: 'TRADE_LICENSE', document_label: 'Trade License', help_text: 'ব্যবসার নাম, ঠিকানা ও validity-সহ বর্তমান কপি দিন।', required: true, sort_order: 30 }, { document_type: 'TIN_CERTIFICATE', document_label: 'e-TIN Certificate', help_text: 'ব্যবসার tax identity-এর বর্তমান কপি দিন।', required: true, sort_order: 40 }, { document_type: 'AUTHORIZATION_LETTER', document_label: 'ব্যবসার authorization letter', help_text: 'আপনি মালিক নন, প্রতিনিধি হলে signed authorization দিন।', required: false, sort_order: 50 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'নিজের তৈরি কাজ, license বা source ownership-এর প্রমাণ দিন।', required: true, sort_order: 60 }],
+  COMPANY: [...commonNidRequirements, { document_type: 'TRADE_LICENSE', document_label: 'Company Trade License', help_text: 'কোম্পানির নাম, ঠিকানা ও validity-সহ বর্তমান কপি দিন।', required: true, sort_order: 30 }, { document_type: 'TIN_CERTIFICATE', document_label: 'Company e-TIN Certificate', help_text: 'কোম্পানির tax identity-এর বর্তমান কপি দিন।', required: true, sort_order: 40 }, { document_type: 'BIN_VAT', document_label: 'BIN/VAT Certificate', help_text: 'প্রযোজ্য হলে কোম্পানির বর্তমান BIN/VAT কপি দিন।', required: true, sort_order: 50 }, { document_type: 'INCORPORATION_CERTIFICATE', document_label: 'Company Registration Certificate', help_text: 'কোম্পানি registration/incorporation-এর প্রমাণ দিন।', required: true, sort_order: 60 }, { document_type: 'AUTHORIZATION_LETTER', document_label: 'Authorized representative letter', help_text: 'কোম্পানির পক্ষে আবেদন করলে signed authorization দিন।', required: true, sort_order: 70 }, { document_type: 'OWNERSHIP_PROOF', document_label: 'ডিজিটাল পণ্যের মালিকানার প্রমাণ', help_text: 'কোম্পানি কীভাবে পণ্যের মালিক তা প্রমাণ দিন।', required: true, sort_order: 80 }],
+}
+
+export default function SellerVerification() {
+  const { user } = useAuth()
+  const uid = user!.uid
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const modeFromUrl = searchParams.get('mode') === 'PHYSICAL' ? 'PHYSICAL' : 'DIGITAL'
+  const businessTypeFromUrl = searchParams.get('businessType') as BusinessType | null
+  const [existing, setExisting] = useState<SellerRegistration | null>(null)
+  const [previousRejectionNote, setPreviousRejectionNote] = useState<string | null>(null)
+  const [docPreviewUrl, setDocPreviewUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingRequirements, setLoadingRequirements] = useState(false)
+  const [requirementsError, setRequirementsError] = useState<string | null>(null)
+  const [requirements, setRequirements] = useState<Requirement[]>(FALLBACK_REQUIREMENTS_BY_TYPE.PERSONAL)
+  const [listingMode] = useState<ListingMode>(modeFromUrl)
+  const [businessType, setBusinessType] = useState<BusinessType | null>(businessTypeFromUrl && ['PERSONAL', 'BUSINESS', 'COMPANY'].includes(businessTypeFromUrl) ? businessTypeFromUrl : null)
+  const [sector, setSector] = useState('OTHER')
+  const [fullName, setFullName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [idNumber, setIdNumber] = useState('')
+  const [businessName, setBusinessName] = useState('')
+  const [address, setAddress] = useState('')
+  const [files, setFiles] = useState<Record<string, File | null>>({})
+  const [previewDocument, setPreviewDocument] = useState<Requirement | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const loadRegistration = async () => {
+      try {
+        const { data } = await supabase.from('seller_registrations').select('*').eq('user_id', uid).order('submitted_at', { ascending: false }).limit(1).maybeSingle()
+        if (!active) return
+        const registration = data as SellerRegistration | null
+        setExisting(registration?.status === 'REJECTED' ? null : registration)
+        setPreviousRejectionNote(registration?.status === 'REJECTED' ? registration.admin_note || 'Admin review থেকে পরিবর্তন চাওয়া হয়েছে।' : null)
+        if (registration?.status !== 'REJECTED' && registration?.document_path) setDocPreviewUrl(await getVerificationDocUrl(registration.document_path))
+      } catch (loadError) {
+        console.error('Seller verification load failed:', loadError)
+        if (active) setError('আগের verification status লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void loadRegistration()
+    return () => { active = false }
+  }, [uid])
+
+  useEffect(() => {
+    if (!businessType) return
+    setLoadingRequirements(true); setRequirementsError(null); setFiles({})
+    const fallback = FALLBACK_REQUIREMENTS_BY_TYPE[businessType]
+    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : fallback)).catch(() => { setRequirementsError('এই seller type-এর checklist server থেকে আসেনি। Migration 027 না চলা পর্যন্ত local type-specific checklist দেখানো হচ্ছে।'); setRequirements(fallback) }).finally(() => setLoadingRequirements(false))
+  }, [businessType, listingMode, sector])
+
+  const requiredRequirements = useMemo(() => requirements.filter((item) => item.required), [requirements])
+  const isValid = Boolean(businessType) && fullName.trim().length >= 3 && phone.replace(/\D/g, '').length >= 11 && idNumber.trim().length >= 5 && address.trim().length >= 5 && (businessType === 'PERSONAL' || businessName.trim().length >= 2) && requiredRequirements.every((item) => files[item.document_type])
+
+  const chooseBusinessType = (value: BusinessType) => {
+    setBusinessType(value)
+    navigate(`/become-seller/verify?mode=DIGITAL&businessType=${value}`, { replace: true })
+  }
+
+  const handleSubmit = async () => {
+    if (!isValid || submitting || !businessType) return
+    setSubmitting(true); setError(null)
+    try {
+      const uploaded = await uploadVerificationDocuments(requiredRequirements.map((item) => ({ documentType: item.document_type, file: files[item.document_type]! })), uid)
+      await submitSellerRegistrationV2({ userId: uid, listingMode, businessType, sector, fullName: fullName.trim(), phone: phone.trim(), nidOrBusinessNumber: idNumber.trim(), businessName: businessType === 'PERSONAL' ? null : businessName.trim(), address: address.trim(), documents: uploaded })
+      window.location.reload()
+    } catch (err) { console.error('Seller verification submit failed:', err); setError(err instanceof Error ? err.message : 'আবেদন জমা দেওয়া যায়নি। সব তথ্য ও document পরীক্ষা করুন।'); setSubmitting(false) }
+  }
+
+  if (loading) return <Layout wide><div className="mx-auto max-w-4xl"><div className="h-96 animate-pulse rounded-3xl bg-outline/40" /></div></Layout>
+  if (existing) return <Layout wide><div className="mx-auto max-w-4xl"><Link to="/become-seller" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft size={16} />Seller page-এ ফিরুন</Link><div className="mt-5 rounded-3xl border border-outline bg-surface p-5 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-ink-500">Verification application</p><h1 className="mt-1 text-2xl font-bold text-ink-900">আপনার আবেদন জমা হয়েছে</h1></div><StatusBadge status={existing.status} /></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><Info label="Listing mode" value={existing.listing_mode === 'DIGITAL' ? 'ডিজিটাল' : 'ফিজিক্যাল'} /><Info label="Seller type" value={existing.business_type === 'COMPANY' ? 'কোম্পানি' : existing.business_type === 'BUSINESS' ? 'ব্যবসায়িক' : 'পারসোনাল'} /><Info label="নাম" value={existing.full_name} /><Info label="Sector" value={existing.sector || 'OTHER'} /></div>{docPreviewUrl && <img src={docPreviewUrl} alt="জমা দেওয়া document" className="mt-5 max-h-52 rounded-xl border border-outline" />}{existing.status === 'REJECTED' && <p className="mt-5 rounded-xl bg-error/10 p-3 text-sm text-error">{existing.admin_note || 'Admin review থেকে পরিবর্তন চাওয়া হয়েছে।'}</p>}<p className="mt-5 text-xs leading-5 text-ink-500">প্রতিটি document আলাদাভাবে review করা হয়। অনুমোদনের পর profile-এ sector অনুযায়ী trust badge দেখা যাবে।</p></div></div></Layout>
+
+  return <Layout wide><div className="mx-auto max-w-4xl"><Link to="/become-seller" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft size={16} />Seller type বাছাইয়ে ফিরুন</Link>{previousRejectionNote && <p className="mt-4 rounded-xl bg-error/10 p-3 text-sm leading-6 text-error"><b>আগের আবেদনে পরিবর্তন দরকার ছিল:</b> {previousRejectionNote} এবার সংশোধিত document দিয়ে আবার submit করুন।</p>}<section className="mt-4 rounded-3xl bg-ink-900 p-5 text-white sm:p-7"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 shrink-0 text-brand-300" size={25} /><div><p className="text-sm font-semibold text-brand-300">ডিজিটাল seller verification</p><h1 className="mt-1 text-2xl font-bold">ধাপে ধাপে আবেদন সম্পন্ন করুন</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে seller type নির্বাচন করুন। তারপর আপনার type অনুযায়ী ঠিক যতগুলো document দরকার, কেবল সেগুলোই দেখানো হবে।</p></div></div></section><div className="mt-5 flex items-center gap-2 text-xs font-semibold text-ink-500"><span className={`rounded-full px-3 py-1 ${businessType ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-700'}`}>১ Seller type</span><span className="h-px flex-1 bg-outline" /><span className={`rounded-full px-3 py-1 ${businessType ? 'bg-brand-500 text-white' : 'bg-bg text-ink-400'}`}>২ আপনার documents</span><span className="h-px flex-1 bg-outline" /><span className="rounded-full bg-bg px-3 py-1 text-ink-400">৩ Submit</span></div>{!businessType ? <section className="mt-5 rounded-2xl border border-outline bg-surface p-5 sm:p-7"><h2 className="text-xl font-bold text-ink-900">আপনার seller type নির্বাচন করুন</h2><p className="mt-2 text-sm leading-6 text-ink-600">আপনি কোন পরিচয়ে ডিজিটাল পণ্য বিক্রি করবেন? আপনার selection অনুযায়ী পরের ধাপে required documents দেখানো হবে।</p><div className="mt-5 grid gap-3 md:grid-cols-3">{([['PERSONAL', 'পারসোনাল', 'নিজের নামে বিক্রি করবেন', 'NID, selfie, address'], ['BUSINESS', 'ব্যবসায়িক', 'Trade license-সহ ব্যবসা', 'NID, trade license, e-TIN'], ['COMPANY', 'কোম্পানি', 'Registered company', 'NID, trade license, BIN/VAT, registration']] as const).map(([value, title, body, docs]) => <button key={value} onClick={() => chooseBusinessType(value)} className="group rounded-2xl border border-outline p-4 text-left transition hover:-translate-y-0.5 hover:border-brand-500 hover:bg-brand-50"><span className="flex items-center justify-between"><span className="text-lg font-bold text-ink-900">{title}</span><ArrowRight size={17} className="text-ink-300 group-hover:text-brand-600" /></span><span className="mt-2 block text-sm text-ink-600">{body}</span><span className="mt-4 inline-flex rounded-full bg-bg px-2.5 py-1 text-xs font-semibold text-brand-700">প্রয়োজন: {docs}</span></button>)}</div></section> : <div className="mt-5 space-y-5"><section className="rounded-2xl border border-outline bg-surface p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-bold text-ink-900">আপনার নির্বাচিত seller type</h2><p className="mt-1 text-sm text-ink-500">{businessType === 'PERSONAL' ? 'পারসোনাল' : businessType === 'BUSINESS' ? 'ব্যবসায়িক' : 'কোম্পানি'}</p></div><button onClick={() => { setBusinessType(null); navigate('/become-seller/verify?mode=DIGITAL', { replace: true }) }} className="text-xs font-semibold text-brand-700">পরিবর্তন করুন</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><BrandSelect label="Sector" value={sector} options={SECTORS.map(([value, label]) => ({ value, label }))} onChange={setSector} /><Field label="পূর্ণ নাম" value={fullName} onChange={setFullName} placeholder="NID অনুযায়ী নাম" /><Field label="মোবাইল নম্বর" value={phone} onChange={setPhone} placeholder="০১XXXXXXXXX" type="tel" /><Field label={businessType === 'PERSONAL' ? 'NID নম্বর' : 'Trade license / business number'} value={idNumber} onChange={setIdNumber} /><Field label="ব্যবসা/কোম্পানির নাম" value={businessName} onChange={setBusinessName} placeholder={businessType === 'PERSONAL' ? 'পারসোনাল হলে প্রয়োজন নেই' : 'রেজিস্টার্ড নাম'} /><div className="sm:col-span-2"><Field label="পূর্ণ ঠিকানা" value={address} onChange={setAddress} placeholder="বাড়ি, রোড, এলাকা, জেলা" /></div></div></section><section className="rounded-2xl border border-brand-200 bg-brand-50/60 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><h2 className="font-bold text-ink-900">আপনার জন্য প্রয়োজনীয় documents</h2><p className="mt-1 text-xs leading-5 text-ink-600">{businessType === 'PERSONAL' ? 'পারসোনাল digital seller হিসেবে identity ও ownership যাচাই হবে।' : 'আপনার seller type ও sector অনুযায়ী documents review হবে।'} ভুল, edited বা অন্যের document দিলে আবেদন বাতিল হতে পারে।</p></div><FileCheck2 className="shrink-0 text-brand-600" size={22} /></div>{requirementsError && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{requirementsError}</p>}{loadingRequirements ? <div className="mt-4 h-24 animate-pulse rounded-xl bg-white/70" /> : <div className="mt-4 grid gap-3 sm:grid-cols-2">{requiredRequirements.map((item) => <div key={item.document_type} className="rounded-xl border border-brand-100 bg-white p-3"><span className="flex items-center justify-between gap-2 text-sm font-semibold text-ink-900"><span>{item.document_label}<b className="ml-1 text-error">*</b></span>{files[item.document_type] ? <CheckCircle2 size={17} className="text-brand-600" /> : <Upload size={17} className="text-ink-300" />}</span><span className="mt-1 block text-xs leading-5 text-ink-500">{item.help_text}</span><button type="button" onClick={() => setPreviewDocument(item)} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-100"><Eye size={14} />সহজভাবে দেখুন</button><label className="mt-3 block"><span className="sr-only">{item.document_label} আপলোড</span><input type="file" accept="image/*,.pdf" onChange={(e) => { const file = e.target.files?.[0] ?? null; const fileError = file ? validateVerificationFile(file) : null; if (fileError) { setError(fileError); e.target.value = ''; return }; setError(null); setFiles((current) => ({ ...current, [item.document_type]: file })) }} className="mt-2 w-full text-xs text-ink-600" />{files[item.document_type] && <span className="mt-1 block truncate text-xs text-brand-700">{files[item.document_type]?.name}</span>}</label></div>)}</div>}</section>{error && <p className="rounded-xl bg-error/10 p-3 text-sm text-error">{error}</p>}<button onClick={handleSubmit} disabled={!isValid || submitting} className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'Documents secure upload হচ্ছে...' : 'Verification application জমা দিন'}</button><p className="text-center text-xs leading-5 text-ink-400">আপনার documents private থাকবে এবং কেবল authorized admin review করতে পারবেন।</p></div>}</div>{previewDocument && <DocumentPreview requirement={previewDocument} onClose={() => setPreviewDocument(null)} />}</Layout>
+}
+
+function Field({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) { return <label className="block text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{label}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-outline px-3 py-2.5 outline-none focus:border-brand-500" /></label> }
+function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-bg p-3"><p className="text-xs text-ink-500">{label}</p><p className="mt-1 text-sm font-semibold text-ink-900">{value}</p></div> }
+function StatusBadge({ status }: { status: SellerRegistration['status'] }) { const config = { PENDING: ['পর্যালোচনাধীন', 'bg-warning/10 text-warning'], APPROVED: ['অনুমোদিত ✓', 'bg-brand-100 text-brand-700'], REJECTED: ['পরিবর্তন প্রয়োজন', 'bg-error/10 text-error'] }[status]; return <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">{status === 'APPROVED' ? <CheckCircle2 size={14} /> : <ShieldCheck size={14} />}{config[0]}</span> }
+
+function DocumentPreview({ requirement, onClose }: { requirement: Requirement; onClose: () => void }) {
+  const guide = getDocumentGuide(requirement.document_type)
+  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/55 p-0 sm:items-center sm:p-5"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-2xl sm:rounded-3xl sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold text-brand-700">সহজ নির্দেশনা</p><h2 className="mt-1 text-xl font-bold text-ink-900">{requirement.document_label}</h2></div><button type="button" onClick={onClose} className="rounded-xl p-2 text-ink-500 hover:bg-bg" aria-label="বন্ধ করুন"><X size={20} /></button></div><div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4"><div className="flex items-center justify-between"><p className="text-sm font-bold text-brand-900">এভাবে ছবি তুলুন</p><span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-brand-700">নমুনা</span></div><div className="mt-3 flex min-h-36 items-center justify-center rounded-2xl border-2 border-dashed border-brand-300 bg-white p-4">{guide.preview}</div></div><p className="mt-4 text-sm leading-6 text-ink-700">{guide.summary}</p><div className="mt-4 grid gap-2 sm:grid-cols-2">{guide.tips.map((tip) => <div key={tip} className="rounded-xl bg-bg p-3 text-xs leading-5 text-ink-700"><span className="mr-1 font-bold text-brand-700">✓</span>{tip}</div>)}</div><div className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800"><b>মনে রাখবেন:</b> এটি শুধু বোঝানোর নমুনা। এখানে কোনো আসল NID বা ব্যক্তিগত তথ্য দেবেন না। নিজের document-এর ছবি পরিষ্কার, সম্পূর্ণ এবং ঝাপসা ছাড়া আপলোড করুন।</div><button type="button" onClick={onClose} className="mt-5 w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white hover:bg-brand-600">বুঝেছি, ছবি আপলোড করব</button></div></div>
+}
+
+function getDocumentGuide(documentType: string): { summary: string; tips: string[]; preview: React.ReactNode } {
+  if (documentType === 'NID_FRONT') return { summary: 'NID কার্ডের সামনের দিকটি পুরোটা এক ফ্রেমে রাখুন। চার কোণা দেখা যাবে এবং কোনো অংশ কাটা যাবে না।', tips: ['আলো সামনে থেকে দিন, glare যেন না থাকে।', 'নাম, ছবি ও নম্বর পরিষ্কার দেখা যেতে হবে।', 'ক্যামেরা সোজা রাখুন; খুব কাছে বা দূরে নয়।'], preview: <div className="w-full max-w-xs rounded-xl border-2 border-blue-200 bg-blue-50 p-4"><div className="flex items-center gap-3"><div className="h-12 w-10 rounded bg-blue-200" /><div className="space-y-2"><span className="block h-2 w-28 rounded bg-blue-200" /><span className="block h-2 w-20 rounded bg-blue-200" /></div></div><span className="mt-4 block h-2 w-full rounded bg-blue-100" /><span className="mt-2 block h-2 w-3/4 rounded bg-blue-100" /></div> }
+  if (documentType === 'NID_BACK') return { summary: 'NID কার্ড উল্টে পেছনের দিকের লেখা, QR বা barcode-সহ পুরো অংশটি তুলুন।', tips: ['QR/barcode ঢাকা বা কাটা যাবে না।', 'ছবিতে ছায়া ও reflection এড়ান।', 'কোনো filter বা edit ব্যবহার করবেন না।'], preview: <div className="w-full max-w-xs rounded-xl border-2 border-blue-200 bg-blue-50 p-4"><div className="space-y-2"><span className="block h-2 w-full rounded bg-blue-200" /><span className="block h-2 w-5/6 rounded bg-blue-100" /><span className="block h-2 w-2/3 rounded bg-blue-100" /></div><div className="mt-5 flex items-center justify-between"><div className="grid grid-cols-4 gap-1">{Array.from({ length: 16 }).map((_, i) => <span key={i} className="h-3 w-3 rounded-sm bg-blue-300" />)}</div><span className="h-10 w-10 rounded bg-blue-200" /></div></div> }
+  if (documentType === 'SELFIE') return { summary: 'নিজের মুখ এবং হাতে ধরা NID একই ছবিতে পরিষ্কার দেখা যেতে হবে।', tips: ['মুখ পুরোপুরি খোলা রাখুন; mask বা sunglasses নয়।', 'NID মুখের সামনে ধরে রাখবেন না।', 'অন্য কাউকে দিয়ে ছবি তুলুন বা timer ব্যবহার করুন।'], preview: <div className="flex items-center gap-5"><div className="flex h-24 w-20 flex-col items-center justify-end rounded-full bg-amber-100 pb-3"><span className="h-10 w-10 rounded-full bg-amber-200" /><span className="mt-1 h-8 w-14 rounded-t-full bg-brand-200" /></div><div className="w-28 rounded-lg border-2 border-blue-200 bg-blue-50 p-2"><span className="block h-2 w-full rounded bg-blue-200" /><span className="mt-2 block h-2 w-3/4 rounded bg-blue-100" /><span className="mt-4 block h-8 w-full rounded bg-blue-100" /></div></div> }
+  return { summary: 'এই document-এর সব লেখা ও registration তথ্য যেন একসাথে পরিষ্কার দেখা যায়, এমনভাবে ছবি বা PDF দিন।', tips: ['পুরো document-এর চার কোণা দেখা যাবে।', 'নাম, registration number ও তারিখ পড়া যাবে।', 'পাসওয়ার্ড, OTP বা অপ্রয়োজনীয় গোপন তথ্য upload করবেন না।'], preview: <div className="w-full max-w-xs rounded-lg border border-slate-300 bg-white p-4"><div className="flex items-center justify-between"><span className="h-3 w-28 rounded bg-slate-300" /><span className="h-8 w-8 rounded bg-slate-200" /></div><span className="mt-5 block h-2 w-full rounded bg-slate-200" /><span className="mt-2 block h-2 w-5/6 rounded bg-slate-200" /><span className="mt-2 block h-2 w-2/3 rounded bg-slate-200" /><div className="mt-5 h-8 w-24 rounded bg-brand-100" /></div> }
+}
+
+=== src/pages/Sell.tsx ===
+import { useEffect, useState } from 'react'
+import { FileCheck2, Package, ShieldCheck } from 'lucide-react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { BrandSelect } from '@/components/BrandSelect'
+import { ImageUploader } from '@/components/ImageUploader'
+import { uploadProductImages } from '@/lib/storage'
+import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
+import type { Category } from '@/types/product'
+import { isYouTubeUrl } from '@/lib/youtube'
+
+interface LocalImage {
+  url: string
+  file?: File
+  uploading?: boolean
+}
+
+export default function Sell() {
+  const { id } = useParams<{ id: string }>()
+  const isEditing = Boolean(id)
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { user } = useAuth()
+  const requestedMode = searchParams.get('mode')
+  const modeLocked = requestedMode === 'DIGITAL' || requestedMode === 'PHYSICAL'
+
+  const [categories, setCategories] = useState<Category[]>([])
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
+  const [originalPrice, setOriginalPrice] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
+  const [isDigital, setIsDigital] = useState(requestedMode === 'DIGITAL')
+  const [modeSelected, setModeSelected] = useState(isEditing || modeLocked)
+  const [supportsCod, setSupportsCod] = useState(false)
+  const [freeDelivery, setFreeDelivery] = useState(false)
+  const [fastDelivery, setFastDelivery] = useState(false)
+  const [freeReturn, setFreeReturn] = useState(false)
+  const [digitalDeliveryType, setDigitalDeliveryType] = useState<'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'>('INSTRUCTIONS')
+  const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
+  const [location, setLocation] = useState('')
+  const [images, setImages] = useState<LocalImage[]>([])
+  const [videoUrl, setVideoUrl] = useState('')
+  const [loadingExisting, setLoadingExisting] = useState(isEditing)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [draftMessage, setDraftMessage] = useState<string | null>(null)
+  const [digitalVerified, setDigitalVerified] = useState(false)
+  const [digitalVerificationLoading, setDigitalVerificationLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('categories')
+      .select('*')
+      .order('sort_order')
+      .then(({ data }) => {
+        setCategories(data ?? [])
+        if (data && data.length > 0 && !categoryId) setCategoryId(data[0].id)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setDigitalVerificationLoading(false)
+      return
+    }
+    let active = true
+    supabase.from('seller_registrations').select('id').eq('user_id', user.uid).eq('listing_mode', 'DIGITAL').eq('status', 'APPROVED').maybeSingle().then(({ data }) => {
+      if (!active) return
+      setDigitalVerified(Boolean(data))
+      setDigitalVerificationLoading(false)
+    })
+    return () => { active = false }
+  }, [user])
+
+  useEffect(() => {
+    if (isEditing) return
+    const draft = loadListingDraft()
+    if (!draft) return
+    setTitle(draft.title)
+    setDescription(draft.description)
+    setPrice(draft.price)
+    setOriginalPrice(draft.originalPrice)
+    setCategoryId(draft.categoryId)
+    setCondition(draft.condition)
+    if (!modeLocked) setIsDigital(draft.isDigital)
+    setSupportsCod(draft.supportsCod)
+    setFreeDelivery(draft.freeDelivery)
+    setFastDelivery(draft.fastDelivery)
+    setFreeReturn(draft.freeReturn)
+    setDigitalDeliveryType(draft.digitalDeliveryType)
+    setDigitalDeliveryText(draft.digitalDeliveryText)
+    setLocation(draft.location)
+    setImages(draft.images.map((url) => ({ url })))
+    setVideoUrl(draft.videoUrl)
+    setModeSelected(true)
+    setDraftMessage('আগের অসম্পূর্ণ ড্রাফট লোড হয়েছে।')
+  }, [isEditing, modeLocked])
+
+  useEffect(() => {
+    if (!id || !user) return
+
+    supabase
+      .rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: id })
+      .then(async ({ data, error: fetchError }) => {
+        if (fetchError || !data || data.seller_id !== user.uid) {
+          setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')
+          setLoadingExisting(false)
+          return
+        }
+        setTitle(data.title)
+        setDescription(data.description)
+        setPrice(String(data.price))
+        setOriginalPrice(data.original_price ? String(data.original_price) : '')
+        setCategoryId(data.category_id)
+        setCondition(data.condition)
+        setIsDigital(Boolean(data.is_digital))
+        setSupportsCod(Boolean(data.supports_cod))
+        setFreeDelivery(Boolean(data.free_delivery))
+        setFastDelivery(Boolean(data.fast_delivery))
+        setFreeReturn(Boolean(data.free_return))
+        setLocation(data.location || '')
+        setImages(data.images.map((url: string) => ({ url })))
+        setVideoUrl(data.video_url || '')
+        const { data: delivery } = await supabase
+          .from('digital_product_contents')
+          .select('delivery_type, delivery_text')
+          .eq('product_id', id)
+          .maybeSingle()
+        if (delivery) {
+          setDigitalDeliveryType(delivery.delivery_type)
+          setDigitalDeliveryText(delivery.delivery_text || '')
+        }
+        setLoadingExisting(false)
+      })
+  }, [id, user])
+
+  const handleSaveDraft = () => {
+    saveListingDraft({
+      title,
+      description,
+      price,
+      originalPrice,
+      categoryId,
+      condition,
+      isDigital,
+      supportsCod,
+      freeDelivery,
+      fastDelivery,
+      freeReturn,
+      digitalDeliveryType,
+      digitalDeliveryText,
+      location,
+      images: images.filter((image) => !image.uploading).map((image) => image.url),
+      videoUrl,
+    })
+    setDraftMessage('ড্রাফট সেভ হয়েছে। পরে আবার এলে এখান থেকেই শুরু করতে পারবেন।')
+  }
+
+  const handleClearDraft = () => {
+    clearListingDraft()
+    setDraftMessage('ড্রাফট মুছে ফেলা হয়েছে।')
+  }
+
+  const handleAddImages = async (files: File[]) => {
+    if (!user) return
+    const placeholders: LocalImage[] = files.map((file) => ({
+      url: URL.createObjectURL(file),
+      file,
+      uploading: true,
+    }))
+    setImages((prev) => [...prev, ...placeholders])
+
+    try {
+      const urls = await uploadProductImages(files, user.uid)
+      setImages((prev) => {
+        const next = [...prev]
+        // replace the trailing placeholders (in order) with their uploaded URLs
+        let uploadedIndex = 0
+        for (let i = next.length - placeholders.length; i < next.length; i++) {
+          next[i] = { url: urls[uploadedIndex] }
+          uploadedIndex++
+        }
+        return next
+      })
+      placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
+    } catch (err) {
+      console.error('Image upload failed:', err)
+      setError(err instanceof Error ? err.message : 'ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
+      placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
+      setImages((prev) => prev.filter((img) => !placeholders.some((p) => p.url === img.url)))
+    }
+  }
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => {
+      const target = prev[index]
+      if (target?.url.startsWith('blob:')) URL.revokeObjectURL(target.url)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const isValid =
+    title.trim().length >= 5 &&
+    Number(price) > 0 &&
+    categoryId &&
+    (isDigital || location.trim().length >= 2) &&
+    (!isDigital || digitalVerified) &&
+    (!isDigital || digitalDeliveryText.trim().length >= 3) &&
+    images.length > 0 &&
+    !images.some((img) => img.uploading) &&
+    (!videoUrl.trim() || isYouTubeUrl(videoUrl))
+  const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
+  const qualityScore = Math.round((qualityChecks.filter(Boolean).length / qualityChecks.length) * 100)
+
+  useEffect(() => {
+    if (!isEditing && !digitalVerificationLoading && !digitalVerified && isDigital) {
+      setIsDigital(false)
+      setModeSelected(requestedMode !== 'DIGITAL')
+    }
+  }, [digitalVerificationLoading, digitalVerified, isDigital, isEditing, requestedMode])
+
+  const handleSubmit = async () => {
+    if (!user || !isValid || digitalVerificationLoading) return
+    setSubmitting(true)
+    setError(null)
+
+    if (isDigital && !digitalVerified) {
+      setError('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।')
+      setSubmitting(false)
+      return
+    }
+
+    if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) {
+      setError('শুধু valid YouTube video link দেওয়া যাবে।')
+      setSubmitting(false)
+      return
+    }
+
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      price: Number(price),
+      original_price: originalPrice ? Number(originalPrice) : null,
+      category_id: categoryId,
+      condition,
+      is_digital:       isDigital,
+      supports_cod: !isDigital && supportsCod,
+      free_delivery: !isDigital && freeDelivery,
+      fast_delivery: !isDigital && fastDelivery,
+      free_return: !isDigital && freeReturn,
+      location: isDigital ? '' : location.trim(),
+      images: images.map((img) => img.url),
+      video_url: videoUrl.trim() || null,
+      seller_id: user.uid,
+    }
+
+    const result = isEditing
+      ? await supabase.rpc('seller_update_product', {
+          p_seller_id: user.uid,
+          p_product_id: id,
+          p_title: payload.title,
+          p_description: payload.description,
+          p_price: payload.price,
+          p_original_price: payload.original_price,
+          p_category_id: payload.category_id,
+          p_condition: payload.condition,
+          p_location: payload.location,
+          p_images: payload.images,
+          p_is_digital: payload.is_digital,
+          p_supports_cod: payload.supports_cod,
+          p_free_delivery: payload.free_delivery,
+          p_fast_delivery: payload.fast_delivery,
+          p_free_return: payload.free_return,
+          p_video_url: payload.video_url,
+        })
+      : await supabase.rpc('seller_create_product', {
+          p_seller_id: user.uid,
+          p_title: payload.title,
+          p_description: payload.description,
+          p_price: payload.price,
+          p_original_price: payload.original_price,
+          p_category_id: payload.category_id,
+          p_condition: payload.condition,
+          p_location: payload.location,
+          p_images: payload.images,
+          p_is_digital: payload.is_digital,
+          p_supports_cod: payload.supports_cod,
+          p_free_delivery: payload.free_delivery,
+          p_fast_delivery: payload.fast_delivery,
+          p_free_return: payload.free_return,
+          p_video_url: payload.video_url,
+        })
+
+    const savedProductId = id ?? result.data
+    if (!result.error && savedProductId) {
+      const deliveryResult = isDigital
+        ? await supabase.from('digital_product_contents').upsert({
+            product_id: savedProductId,
+            seller_id: user.uid,
+            delivery_type: digitalDeliveryType,
+            delivery_text: digitalDeliveryText.trim(),
+          })
+        : await supabase.from('digital_product_contents').delete().eq('product_id', savedProductId)
+      if (deliveryResult.error && isDigital) {
+        console.error('Digital delivery details could not be saved:', deliveryResult.error)
+        setError('পণ্য সেভ হয়েছে, কিন্তু ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি। migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+        setSubmitting(false)
+        return
+      }
+    }
+
+    setSubmitting(false)
+    if (result.error) {
+      console.error('Product save failed:', result.error)
+      setError(`সেভ করা যায়নি — ${result.error.message}`)
+      return
+    }
+
+    clearListingDraft()
+    navigate('/my-listings')
+  }
+
+  if (loadingExisting) {
+    return (
+      <Layout>
+        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      </Layout>
+    )
+  }
+
+  if (isDigital && digitalVerificationLoading) {
+    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-brand-100 bg-brand-50 p-6 text-center"><ShieldCheck className="mx-auto text-brand-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification যাচাই হচ্ছে</h1><p className="mt-2 text-sm leading-6 text-ink-600">আপনার account-এ ডিজিটাল পণ্য বিক্রির অনুমোদন আছে কি না যাচাই করছি।</p></div></Layout>
+  }
+
+  if (isEditing && isDigital && !digitalVerificationLoading && !digitalVerified) {
+    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center"><ShieldCheck className="mx-auto text-amber-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল listing edit করা যাচ্ছে না</h1><p className="mt-2 text-sm leading-6 text-ink-700">ডিজিটাল পণ্য edit করতে Digital Seller Verification আবার অনুমোদিত হতে হবে।</p><button type="button" onClick={() => navigate('/my-listings')} className="mt-4 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white">My Listings-এ ফিরুন</button></div></Layout>
+  }
+
+  if (!isEditing && !modeSelected) {
+    return <Layout wide><div className="mx-auto max-w-3xl"><div className="rounded-3xl bg-ink-900 p-6 text-white sm:p-8"><p className="text-sm font-semibold text-brand-300">Seller setup</p><h1 className="mt-2 text-2xl font-bold">আপনি কী বিক্রি করবেন?</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে listing-এর ধরন নির্বাচন করুন। Digital product seller হলে publish করার আগে শক্ত verification লাগবে।</p></div><div className={`mt-5 grid gap-3 ${digitalVerified ? 'sm:grid-cols-2' : ''}`}>{digitalVerified && <button type="button" onClick={() => { setIsDigital(true); setModeSelected(true) }} className="rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white"><FileCheck2 size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ডিজিটাল</span><span className="mt-1 block text-xs text-ink-500">আপনার verification অনুমোদিত — কোড, ফাইল, course বা service</span></span></div><p className="mt-4 text-sm font-semibold text-brand-700">Digital listing তৈরি করুন →</p></button>}<button type="button" onClick={() => { setIsDigital(false); setModeSelected(true) }} className="rounded-2xl border border-outline bg-surface p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg text-brand-600"><Package size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ফিজিক্যাল</span><span className="mt-1 block text-xs text-ink-500">Courier-এ পাঠানো যাবে এমন পণ্য</span></span></div><p className="mt-4 text-sm font-semibold text-ink-600">Physical listing তৈরি করুন →</p></button></div>{!digitalVerified && <div className="mt-4 rounded-xl border border-outline bg-bg p-3 text-xs leading-5 text-ink-600"><ShieldCheck size={15} className="mr-1 inline text-brand-600" /> Digital product option verification approve হওয়ার পরে চালু হবে। এখন আপনি শুধু physical product list করতে পারবেন।</div>}<div className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Admin approval, document verification এবং sector badge ক্রেতার trust বাড়াতে সাহায্য করবে।</div></div></Layout>
+  }
+
+  return (
+    <Layout wide>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন পণ্য বিক্রি করুন'}</h1>
+        {!isEditing && (
+          <div className="flex gap-2">
+            <button onClick={handleSaveDraft} className="rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600">
+              ড্রাফট সেভ করুন
+            </button>
+            <button onClick={handleClearDraft} className="rounded-lg px-3 py-2 text-xs font-medium text-error hover:bg-error/5">
+              ড্রাফট মুছুন
+            </button>
+          </div>
+
+=== src/pages/SellerDashboard.tsx ===
+import { useEffect, useState } from 'react'
+import { Bell, Download, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import { Layout } from '@/components/Layout'
+import { useIsSeller } from '@/hooks/useIsSeller'
+import { formatTaka } from '@/lib/format'
+import { loadUnreadNotificationCount } from '@/lib/marketplace'
+
+interface SellerProductMetrics { view_count: number | null; price: number | null }
+
+interface Stats {
+  listingCount: number
+  totalViews: number
+  activeOrders: number
+  completedSales: number
+  totalEarnings: number
+  isVerified: boolean
+  rating: number
+  reviewCount: number
+  conversionRate: number
+  averageSale: number
+}
+
+export default function SellerDashboard() {
+  const { user } = useAuth()
+  const uid = user?.uid ?? ''
+  const { isSeller, loading: sellerAccessLoading } = useIsSeller()
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+
+  useEffect(() => {
+    if (!uid || sellerAccessLoading || !isSeller) {
+      if (!sellerAccessLoading && !isSeller) setLoading(false)
+      return
+    }
+    async function load() {
+      const [productsRes, ordersRes, ledgerRes, profileRes] = await Promise.all([
+        supabase.rpc('seller_list_products', { p_seller_id: uid }),
+        supabase.from('orders').select('status, price').eq('seller_id', uid),
+        supabase.from('wallet_ledger').select('amount').eq('user_id', uid).eq('type', 'SELLER_PAYOUT'),
+        supabase.from('profiles').select('is_verified, rating, review_count').eq('id', uid).maybeSingle(),
+      ])
+
+      const products = (productsRes.data ?? []) as SellerProductMetrics[]
+      const orders = ordersRes.data ?? []
+      const ledger = ledgerRes.data ?? []
+
+      setStats({
+        listingCount: products.length,
+        totalViews: products.reduce((sum, p) => sum + (p.view_count ?? 0), 0),
+        activeOrders: orders.filter((o) => ['ESCROW_HELD', 'PREPARING', 'SHIPPED', 'DELIVERED'].includes(o.status)).length,
+        completedSales: orders.filter((o) => o.status === 'COMPLETED').length,
+        totalEarnings: ledger.reduce((sum, l) => sum + Number(l.amount), 0),
+        isVerified: profileRes.data?.is_verified ?? false,
+        rating: profileRes.data?.rating ?? 0,
+        reviewCount: profileRes.data?.review_count ?? 0,
+        conversionRate: products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0) > 0 ? (orders.filter((order) => order.status === 'COMPLETED').length / products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0)) * 100 : 0,
+        averageSale: orders.filter((order) => order.status === 'COMPLETED').length > 0 ? orders.filter((order) => order.status === 'COMPLETED').reduce((sum, order) => sum + Number(order.price ?? 0), 0) / orders.filter((order) => order.status === 'COMPLETED').length : 0,
+      })
+      setLoading(false)
+    }
+    load()
+  }, [isSeller, sellerAccessLoading, uid])
+
+  useEffect(() => {
+    if (!uid || !isSeller) return
+    void loadUnreadNotificationCount(uid).then(setUnreadNotifications).catch(() => setUnreadNotifications(0))
+  }, [isSeller, uid])
+
+  const exportPerformance = () => {
+    if (!stats) return
+    const csv = [['মেট্রিক', 'মান'], ['সক্রিয় লিস্টিং', stats.listingCount], ['মোট ভিউ', stats.totalViews], ['চলমান অর্ডার', stats.activeOrders], ['সম্পন্ন বিক্রয়', stats.completedSales], ['Conversion rate (%)', stats.conversionRate.toFixed(2)], ['Average sale (BDT)', stats.averageSale.toFixed(2)], ['মোট আয় (BDT)', stats.totalEarnings]].map((row) => row.join(',')).join('\\n')
+    const url = URL.createObjectURL(new Blob([`\\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'bikrikoro-seller-performance.csv'; anchor.click(); URL.revokeObjectURL(url); setNotice('Seller report download হয়েছে।')
+  }
+
+  if (sellerAccessLoading) {
+    return <Layout wide><div className="h-72 animate-pulse rounded-2xl bg-outline/40" /></Layout>
+  }
+
+  if (!isSeller) {
+    return <Layout wide><div className="mx-auto max-w-xl rounded-3xl border border-outline bg-surface p-8 text-center"><h1 className="text-xl font-bold text-ink-900">সেলার অ্যাকাউন্ট অনুমোদিত নয়</h1><p className="mt-2 text-sm leading-6 text-ink-600">সেলার ড্যাশবোর্ড ব্যবহার করতে আগে seller verification সম্পন্ন ও অনুমোদিত হতে হবে।</p><Link to="/become-seller" className="mt-5 inline-flex rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-600">সেলার হওয়ার আবেদন করুন</Link></div></Layout>
+  }
+
+  return (
+    <Layout wide>
+      <Helmet>
+        <title>সেলার ড্যাশবোর্ড | BikriKoro.Com</title>
+      </Helmet>
+
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold text-ink-900">সেলার ড্যাশবোর্ড</h1><div className="flex items-center gap-2">{stats && <button onClick={exportPerformance} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600"><Download size={14} />রিপোর্ট</button>}{stats && !stats.isVerified && (
+          <Link
+            to="/become-seller/verify"
+            className="rounded-lg border border-brand-500 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-50"
+          >
+            ভেরিফাই করুন
+          </Link>
+        )}</div></div>
+      {notice && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{notice}</p>}
+
+      {loading || !stats ? (
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-outline/40" />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="সক্রিয় লিস্টিং" value={stats.listingCount.toString()} />
+            <StatCard label="মোট ভিউ" value={stats.totalViews.toString()} />
+            <StatCard label="চলমান অর্ডার" value={stats.activeOrders.toString()} />
+            <StatCard label="সম্পন্ন বিক্রয়" value={stats.completedSales.toString()} />
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-xl border border-outline bg-surface p-5"><div className="flex items-center justify-between"><p className="text-sm text-ink-600">Conversion rate</p><TrendingUp size={18} className="text-brand-600" /></div><p className="mt-1 text-2xl font-bold text-brand-600">{stats.conversionRate.toFixed(2)}%</p><p className="mt-1 text-xs text-ink-300">মোট ভিউ থেকে completed sale</p></div><div className="rounded-xl border border-outline bg-surface p-5"><p className="text-sm text-ink-600">Average sale</p><p className="tabular-amount mt-1 text-2xl font-bold text-ink-900">{formatTaka(stats.averageSale)}</p><p className="mt-1 text-xs text-ink-300">সম্পন্ন অর্ডারের গড়</p></div>
+            <div className="rounded-xl border border-outline bg-surface p-5">
+              <p className="text-sm text-ink-600">মোট আয় (ওয়ালেটে)</p>
+              <p className="tabular-amount mt-1 text-2xl font-bold text-brand-600">
+                {formatTaka(stats.totalEarnings)}
+              </p>
+              <Link to="/wallet" className="mt-2 inline-block text-xs font-medium text-brand-600">
+                ওয়ালেট দেখুন →
+              </Link>
+            </div>
+            <div className="rounded-xl border border-outline bg-surface p-5">
+              <p className="text-sm text-ink-600">রেটিং</p>
+              <p className="mt-1 text-2xl font-bold text-ink-900">
+                {stats.reviewCount > 0 ? `★ ${stats.rating.toFixed(1)}` : '—'}
+              </p>
+              <p className="mt-1 text-xs text-ink-300">{stats.reviewCount}টি রিভিউ</p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+              <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600"><Bell size={18} /></span><div><p className="font-semibold text-brand-900">নতুন নোটিফিকেশন</p><p className="mt-1 text-sm text-brand-800/80">Customer question, order ও payment update এখানে পাবেন।</p><p className="mt-2 text-2xl font-bold text-brand-700">{unreadNotifications}</p></div></div>
+              <Link to="/notifications" className="mt-3 inline-flex text-sm font-semibold text-brand-700">সব নোটিফিকেশন দেখুন →</Link>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/sell" className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">+ নতুন পণ্য পোস্ট করুন</Link>
+              <Link to="/my-listings" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">আমার লিস্টিং</Link>
+              <Link to="/orders" className="rounded-lg border border-outline px-4 py-2 text-sm font-medium text-ink-600 hover:border-brand-500">অর্ডার ম্যানেজ করুন</Link>
+            </div>
+          </div>
+        </>
+      )}
+    </Layout>
+  )
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-outline bg-surface p-4">
+      <p className="tabular-amount text-2xl font-bold text-ink-900">{value}</p>
+      <p className="mt-1 text-xs text-ink-600">{label}</p>
+    </div>
+  )
+}
+
+=== src/lib/sellerEligibility.ts ===
+
+=== seller migrations ===
+supabase/migrations/001_init.sql:245:create policy "Buyer or seller can update order status"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:2:-- BikriKoro — Tier 1: atomic order actions, dispute threads, seller verification
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:69:    where id = p_order_id and seller_id = p_seller_id and status = 'ESCROW_HELD';
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:83:    where id = p_order_id and seller_id = p_seller_id and status in ('ESCROW_HELD', 'SHIPPED');
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:168:drop policy if exists "Buyer or seller can update order status" on orders;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:269:-- 7) seller_registrations — become-a-verified-seller flow
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:271:create table if not exists seller_registrations (
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:280:    document_path text not null,               -- storage path in the private seller-verification-docs bucket
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:287:create index if not exists idx_seller_registrations_user on seller_registrations(user_id);
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:291:create unique index if not exists idx_seller_registrations_one_active
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:292:    on seller_registrations(user_id) where status in ('PENDING', 'APPROVED');
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:294:alter table seller_registrations enable row level security;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:297:    on seller_registrations for select
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:300:create policy "Registrations are submitted via submit_seller_registration()"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:301:    on seller_registrations for insert
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:305:    on seller_registrations for update
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:308:create or replace function submit_seller_registration(
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:322:        select 1 from seller_registrations
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:328:    insert into seller_registrations (
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:343:create or replace function apply_seller_registration_review() returns trigger as $$
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:359:drop trigger if exists trg_apply_seller_registration_review on seller_registrations;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:360:create trigger trg_apply_seller_registration_review
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:361:    before update on seller_registrations
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:362:    for each row execute function apply_seller_registration_review();
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:364:alter publication supabase_realtime add table seller_registrations;
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:369:-- document (see src/lib/verification.ts) rather than a public URL.
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:371:values ('seller-verification-docs', 'seller-verification-docs', false)
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:374:create policy "Anyone can upload their own verification document"
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:376:    with check (bucket_id = 'seller-verification-docs');
+supabase/migrations/009_tier1_order_actions_disputes_verification.sql:380:    using (bucket_id = 'seller-verification-docs'); -- app scopes the file path to the uploader's own uid folder; tightened once Supabase Auth lands
+supabase/migrations/011_admin.sql:6:-- dispute resolution and seller verification. Not a full admin/staff
+supabase/migrations/011_admin.sql:98:-- admin_review_seller_registration — approve/reject a verification application
+supabase/migrations/011_admin.sql:100:create or replace function admin_review_seller_registration(
+supabase/migrations/011_admin.sql:114:    -- trg_apply_seller_registration_review (009_tier1_...sql) sets
+supabase/migrations/011_admin.sql:116:    update seller_registrations
+supabase/migrations/011_admin.sql:130:drop policy if exists "Users can read their own registration" on seller_registrations;
+supabase/migrations/011_admin.sql:132:    on seller_registrations for select
+supabase/migrations/013_marketplace_features.sql:245:        seller_id, buyer_id, delivery_address, payment_method, status, escrow_fee
+supabase/migrations/023_seller_verification_v2.sql:1:-- Strong seller verification for digital products. Existing registrations remain compatible.
+supabase/migrations/023_seller_verification_v2.sql:2:alter table public.seller_registrations add column if not exists listing_mode text not null default 'PHYSICAL' check (listing_mode in ('DIGITAL', 'PHYSICAL'));
+supabase/migrations/023_seller_verification_v2.sql:3:alter table public.seller_registrations add column if not exists business_type text not null default 'PERSONAL' check (business_type in ('PERSONAL', 'BUSINESS', 'COMPANY'));
+supabase/migrations/023_seller_verification_v2.sql:4:alter table public.seller_registrations add column if not exists sector text not null default 'OTHER';
+supabase/migrations/023_seller_verification_v2.sql:20:create table if not exists public.seller_verification_documents (
+supabase/migrations/023_seller_verification_v2.sql:22:  registration_id uuid not null references public.seller_registrations(id) on delete cascade,
+supabase/migrations/023_seller_verification_v2.sql:33:create table if not exists public.seller_verification_reviews (
+supabase/migrations/023_seller_verification_v2.sql:35:  registration_id uuid not null references public.seller_registrations(id) on delete cascade,
+supabase/migrations/023_seller_verification_v2.sql:43:create table if not exists public.seller_verification_badges (
+supabase/migrations/023_seller_verification_v2.sql:52:create index if not exists idx_seller_docs_registration_status on public.seller_verification_documents(registration_id, status);
+supabase/migrations/023_seller_verification_v2.sql:53:create index if not exists idx_seller_reviews_registration_created on public.seller_verification_reviews(registration_id, created_at desc);
+supabase/migrations/023_seller_verification_v2.sql:54:create index if not exists idx_seller_badges_user on public.seller_verification_badges(user_id);
+supabase/migrations/023_seller_verification_v2.sql:57:alter table public.seller_verification_documents enable row level security;
+supabase/migrations/023_seller_verification_v2.sql:58:alter table public.seller_verification_reviews enable row level security;
+supabase/migrations/023_seller_verification_v2.sql:59:alter table public.seller_verification_badges enable row level security;
+supabase/migrations/023_seller_verification_v2.sql:63:drop policy if exists "Users can read their verification documents" on public.seller_verification_documents;
+supabase/migrations/023_seller_verification_v2.sql:64:create policy "Users can read their verification documents" on public.seller_verification_documents for select using (true);
+supabase/migrations/023_seller_verification_v2.sql:65:drop policy if exists "Users can read their verification badges" on public.seller_verification_badges;
+supabase/migrations/023_seller_verification_v2.sql:66:create policy "Users can read their verification badges" on public.seller_verification_badges for select using (true);
+supabase/migrations/023_seller_verification_v2.sql:99:create or replace function public.submit_seller_registration_v2(
+supabase/migrations/023_seller_verification_v2.sql:120:  if exists (select 1 from public.seller_registrations where user_id = p_user_id and status in ('PENDING', 'APPROVED')) then raise exception 'You already have a pending or approved registration'; end if;
+supabase/migrations/023_seller_verification_v2.sql:127:  insert into public.seller_registrations (user_id, seller_type, full_name, phone, nid_or_business_number, business_name, address, document_path, listing_mode, business_type, sector)
+supabase/migrations/023_seller_verification_v2.sql:131:  insert into public.seller_verification_documents (registration_id, document_type, document_path)
+supabase/migrations/023_seller_verification_v2.sql:133:  insert into public.seller_verification_reviews (registration_id, admin_id, action, note) values (v_registration_id, p_user_id, 'SUBMITTED', 'Application submitted');
+supabase/migrations/025_verification_review_workflow.sql:1:create or replace function public.admin_review_verification_document(p_admin_id text, p_document_id uuid, p_status text, p_admin_note text default '') returns void as $$
+supabase/migrations/025_verification_review_workflow.sql:7:  update public.seller_verification_documents set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_by = p_admin_id, reviewed_at = now() where id = p_document_id returning registration_id into v_registration_id;
+supabase/migrations/025_verification_review_workflow.sql:9:  insert into public.seller_verification_reviews(registration_id, admin_id, action, document_type, note)
+supabase/migrations/025_verification_review_workflow.sql:10:  select v_registration_id, p_admin_id, case when p_status = 'APPROVED' then 'DOCUMENT_APPROVED' else 'DOCUMENT_REJECTED' end, document_type, coalesce(p_admin_note, '') from public.seller_verification_documents where id = p_document_id;
+supabase/migrations/025_verification_review_workflow.sql:14:create or replace function public.admin_finalize_seller_verification(p_admin_id text, p_registration_id uuid, p_status text, p_admin_note text default '') returns void as $$
+supabase/migrations/025_verification_review_workflow.sql:26:  select user_id, listing_mode, sector, business_type into v_user_id, v_mode, v_sector, v_business_type from public.seller_registrations where id = p_registration_id and status = 'PENDING';
+supabase/migrations/025_verification_review_workflow.sql:31:      left join public.seller_verification_documents d on d.registration_id = p_registration_id and d.document_type = r.document_type
+supabase/migrations/025_verification_review_workflow.sql:37:  update public.seller_registrations set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_at = now() where id = p_registration_id;
+supabase/migrations/025_verification_review_workflow.sql:38:  insert into public.seller_verification_reviews(registration_id, admin_id, action, note) values (p_registration_id, p_admin_id, p_status, coalesce(p_admin_note, ''));
+supabase/migrations/025_verification_review_workflow.sql:42:    insert into public.seller_verification_badges(user_id, badge_key, badge_label) values (v_user_id, v_badge_key, v_badge_label) on conflict (user_id, badge_key) do update set verified_at = now();
+supabase/migrations/027_type_specific_document_requirements.sql:1:-- BikriKoro — type-specific seller verification requirements
+supabase/migrations/028_notifications_push.sql:82:create or replace function public.notify_seller_verification_event() returns trigger as $$
+supabase/migrations/028_notifications_push.sql:85:    perform public.notify_user_event(new.user_id, 'VERIFICATION', 'সেলার verification আবেদন জমা হয়েছে', 'আপনার seller verification আবেদন admin review-এর জন্য পাঠানো হয়েছে।', '/become-seller/verify?mode=' || coalesce(new.listing_mode, 'DIGITAL'), jsonb_build_object('registration_id', new.id));
+supabase/migrations/028_notifications_push.sql:87:    perform public.notify_user_event(new.user_id, 'VERIFICATION', case when new.status = 'APPROVED' then 'সেলার verification অনুমোদিত' when new.status = 'REJECTED' then 'সেলার verification-এ পরিবর্তন দরকার' else 'সেলার verification status আপডেট' end, coalesce(new.admin_note, 'আপনার verification আবেদন সম্পর্কে নতুন আপডেট আছে।'), '/become-seller/verify?mode=' || coalesce(new.listing_mode, 'DIGITAL'), jsonb_build_object('registration_id', new.id, 'status', new.status));
+supabase/migrations/028_notifications_push.sql:93:drop trigger if exists trg_notify_seller_verification_event on public.seller_registrations;
+supabase/migrations/028_notifications_push.sql:94:create trigger trg_notify_seller_verification_event after insert or update of status on public.seller_registrations for each row execute function public.notify_seller_verification_event();
+supabase/migrations/028_notifications_push.sql:133:    select p.id from public.profiles p where p.is_blocked = false and p_target_type = 'CUSTOMERS' and not exists (select 1 from public.products pr where pr.seller_id = p.id) and not exists (select 1 from public.seller_registrations sr where sr.user_id = p.id and sr.status = 'APPROVED')
+supabase/migrations/028_notifications_push.sql:135:    select p.id from public.profiles p where p.is_blocked = false and p_target_type = 'SELLERS' and (exists (select 1 from public.products pr where pr.seller_id = p.id) or exists (select 1 from public.seller_registrations sr where sr.user_id = p.id and sr.status = 'APPROVED'))
+supabase/migrations/030_notification_function_hardening.sql:6:alter function public.notify_seller_verification_event() set search_path = public, pg_temp;
+supabase/migrations/031_admin_manual_approval_workflows.sql:234:  where id = p_order_id and seller_id = p_seller_id and status = 'ESCROW_HELD' and admin_review_status = 'APPROVED';
+supabase/migrations/031_admin_manual_approval_workflows.sql:242:alter table public.seller_verification_reviews add column if not exists admin_email text not null default '';
+supabase/migrations/031_admin_manual_approval_workflows.sql:244:create or replace function public.admin_review_verification_document(p_admin_id text, p_document_id uuid, p_status text, p_admin_note text default '') returns void as $$
+supabase/migrations/031_admin_manual_approval_workflows.sql:252:  update public.seller_verification_documents set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_by = p_admin_id, reviewed_at = now() where id = p_document_id returning registration_id into v_registration_id;
+supabase/migrations/031_admin_manual_approval_workflows.sql:254:  insert into public.seller_verification_reviews(registration_id, admin_id, admin_email, action, document_type, note)
+supabase/migrations/031_admin_manual_approval_workflows.sql:255:  select v_registration_id, p_admin_id, coalesce(v_email, ''), case when p_status = 'APPROVED' then 'DOCUMENT_APPROVED' else 'DOCUMENT_REJECTED' end, document_type, coalesce(p_admin_note, '') from public.seller_verification_documents where id = p_document_id;
+supabase/migrations/031_admin_manual_approval_workflows.sql:259:create or replace function public.admin_finalize_seller_verification(p_admin_id text, p_registration_id uuid, p_status text, p_admin_note text default '') returns void as $$
+supabase/migrations/031_admin_manual_approval_workflows.sql:272:  select user_id, listing_mode, sector, business_type into v_user_id, v_mode, v_sector, v_business_type from public.seller_registrations where id = p_registration_id and status = 'PENDING';
+supabase/migrations/031_admin_manual_approval_workflows.sql:275:    select exists (select 1 from public.seller_document_requirements r left join public.seller_verification_documents d on d.registration_id = p_registration_id and d.document_type = r.document_type where r.active and r.required and r.listing_mode = v_mode and r.business_type = v_business_type and r.sector in (v_sector, 'OTHER') and (d.id is null or d.status <> 'APPROVED')) into v_missing;
+supabase/migrations/031_admin_manual_approval_workflows.sql:279:  update public.seller_registrations set status = p_status, admin_note = coalesce(p_admin_note, ''), reviewed_at = now() where id = p_registration_id;
+supabase/migrations/031_admin_manual_approval_workflows.sql:280:  insert into public.seller_verification_reviews(registration_id, admin_id, admin_email, action, note) values (p_registration_id, p_admin_id, coalesce(v_email, ''), p_status, coalesce(p_admin_note, ''));
+supabase/migrations/031_admin_manual_approval_workflows.sql:284:    insert into public.seller_verification_badges(user_id, badge_key, badge_label) values (v_user_id, v_badge_key, v_badge_label) on conflict (user_id, badge_key) do update set verified_at = now();
+supabase/migrations/031_admin_manual_approval_workflows.sql:289:create or replace function public.admin_list_recent_seller_verification_history(p_admin_id text, p_limit integer default 50)
+supabase/migrations/031_admin_manual_approval_workflows.sql:306:  from public.seller_verification_reviews r
+supabase/migrations/031_admin_manual_approval_workflows.sql:307:  join public.seller_registrations sr on sr.id = r.registration_id
+supabase/migrations/033_order_lifecycle_hardening.sql:286:drop policy if exists "Buyer or seller can update order status" on public.orders;
+supabase/migrations/033_order_lifecycle_hardening.sql:380:    v_seller_title := case new.status
+supabase/migrations/035_content_seo_blog.sql:107:  E'অনলাইনে কেনাকাটা সহজ, কিন্তু নিরাপদ সিদ্ধান্তের জন্য কয়েকটি বিষয় খেয়াল করা জরুরি। প্রথমে seller profile, verification badge, rating ও পুরোনো review দেখুন।\n\nপণ্যের description, ছবি, condition, delivery সময় এবং return/dispute নীতি ভালোভাবে পড়ুন। OTP, password বা payment তথ্য কখনো chat-এ পাঠাবেন না।\n\nBikriKoro-তে payment escrow flow অনুসরণ করুন এবং পণ্য হাতে পাওয়ার আগে অযাচাইকৃত নম্বরে আলাদা করে টাকা পাঠাবেন না। সমস্যা হলে Order Detail থেকে evidence-সহ report করুন।',
+supabase/migrations/035_content_seo_blog.sql:118:  'Seller verification, badge, review এবং order behavior দেখে কীভাবে ভালো seller বেছে নেবেন।',
+supabase/migrations/035_content_seo_blog.sql:119:  E'একজন বিশ্বস্ত seller শুধু ভালো ছবি বা কম দাম দেন না; তিনি সঠিক description, বাস্তব condition এবং পরিষ্কার delivery information দেন।\n\nSeller profile-এ verification status, rating, review count, পুরোনো product এবং response behavior দেখুন। অতিরিক্ত তাড়াহুড়ো, অস্বাভাবিক কম দাম বা platform-এর বাইরে payment চাওয়া সতর্কতার সংকেত।\n\nকেনার আগে seller-কে product প্রশ্ন করুন এবং chat-এর কথোপকথন platform-এর ভিতরেই রাখুন।',
+supabase/migrations/035_content_seo_blog.sql:123:  'BikriKoro marketplace-এ trusted seller বাছাইয়ের জন্য verification, review, price ও communication guide।',
+supabase/migrations/036_faq_content.sql:89:('FAQ', 'BikriKoro কী?', 'faq-bikrikoro-ki', 'BikriKoro কীভাবে কাজ করে?', E'BikriKoro বাংলাদেশের buyer ও seller-দের জন্য একটি digital marketplace। এখানে product খোঁজা, seller-এর সঙ্গে যোগাযোগ, order করা, payment status দেখা এবং order সম্পন্ন হওয়ার পর review দেওয়ার সুবিধা আছে।', 'PUBLISHED', 10, 'BikriKoro কী? | FAQ', 'BikriKoro marketplace কী এবং কীভাবে ব্যবহার করবেন—সাধারণ প্রশ্নের উত্তর।', now()),
+supabase/migrations/036_faq_content.sql:93:('FAQ', 'কীভাবে কোনো product কিনব?', 'faq-product-kenar-niyom', 'Product দেখুন, seller যাচাই করুন এবং নিরাপদে order করুন।', E'Products বা search থেকে product খুলে ছবি, description, price, condition, seller profile, verification badge এবং review দেখুন। এরপর Buy বা Order button চাপুন, delivery address ও payment method যাচাই করুন এবং order তৈরি করুন। Payment সম্পন্ন না হলে order escrow flow-এ যাবে না।', 'PUBLISHED', 50, 'BikriKoro-তে product কেনার নিয়ম | FAQ', 'Product খোঁজা, seller যাচাই এবং BikriKoro-তে নিরাপদ order করার নিয়ম।', now()),
+supabase/migrations/036_faq_content.sql:95:('FAQ', 'Escrow payment কীভাবে buyer-কে সুরক্ষা দেয়?', 'faq-escrow-payment', 'Payment ও seller payout-এর মাঝের নিরাপত্তা ব্যবস্থা।', E'Payment verify হওয়ার পরে টাকা order-এর escrow flow-এ থাকে। Seller preparation, shipment ও delivery status update করেন। Buyer পণ্য পেয়ে confirm করলে order completed হয় এবং system অনুযায়ী seller payout হয়। সমস্যা থাকলে dispute খোলা যায়; order-এর বাইরে আলাদা payment এড়িয়ে চলুন।', 'PUBLISHED', 70, 'Escrow payment কী | BikriKoro FAQ', 'BikriKoro escrow payment flow কীভাবে buyer ও seller-কে সুরক্ষা দেয়।', now()),
+supabase/migrations/036_faq_content.sql:96:('FAQ', 'Order status-এর ধাপগুলো কী?', 'faq-order-status-steps', 'Place, preparation, delivery এবং completion-এর পুরো flow।', E'সাধারণ physical order flow হলো: order place, payment verified, escrow held, seller preparation, shipped, delivered, buyer received confirmation এবং completed। কোনো সমস্যা হলে shipped বা delivered অবস্থায় dispute report করা যায়। Digital product-এর delivery type অনুযায়ী library বা order detail-এ access দেওয়া হয়।', 'PUBLISHED', 80, 'BikriKoro order status ধাপ | FAQ', 'BikriKoro order place থেকে completed পর্যন্ত status flow-এর ব্যাখ্যা।', now()),
+supabase/migrations/036_faq_content.sql:98:('FAQ', 'Seller কীভাবে order shipped বা delivered করবেন?', 'faq-seller-shipped-delivered', 'Seller-side fulfillment update কীভাবে কাজ করে।', E'Preparation শেষ হলে seller shipment mark করবেন এবং প্রয়োজনীয় courier বা delivery information রাখবেন। পণ্য বাস্তবে buyer-এর কাছে পৌঁছানোর পরে delivered mark করবেন। ভুল status আগে থেকে দেওয়া যাবে না, কারণ buyer confirmation, dispute এবং payout status-এর সঙ্গে এগুলো যুক্ত।', 'PUBLISHED', 100, 'Seller shipped delivered flow | BikriKoro FAQ', 'BikriKoro seller shipment ও delivery status update করার সঠিক ধাপ।', now()),
+supabase/migrations/036_faq_content.sql:102:('FAQ', 'Dispute resolve হতে কত সময় লাগে?', 'faq-dispute-resolution', 'Admin evidence দেখে সিদ্ধান্ত নেন।', E'Dispute-এর সময় evidence, buyer-seller message, delivery status এবং payment/order record-এর উপর নির্ভর করে। Admin সিদ্ধান্ত নেওয়ার পরে buyer ও seller notification পান। Claim approve হলে policy অনুযায়ী refund বা order resolution হতে পারে; deny হলে order-এর পরের valid step চালু থাকে।', 'PUBLISHED', 140, 'Dispute resolution | BikriKoro FAQ', 'BikriKoro dispute claim review, refund ও resolution process।', now()),
+supabase/migrations/036_faq_content.sql:104:('FAQ', 'Order cancel করা যাবে কি?', 'faq-order-cancel', 'Order status অনুযায়ী cancellation সম্ভব হতে পারে।', E'Order cancel করার সুযোগ status, payment এবং dispute অবস্থার উপর নির্ভর করে। Payment না হলে unpaid order cancel করা যেতে পারে। Payment verify হওয়ার পরে seller fulfillment শুরু করলে cancellation-এর বদলে Order Detail থেকে dispute বা support path ব্যবহার করতে হতে পারে। Cancel করার আগে order policy ও notification দেখে নিন।', 'PUBLISHED', 160, 'BikriKoro order cancel | FAQ', 'BikriKoro order cancellation, payment ও fulfillment status-এর নিয়ম।', now()),
+supabase/migrations/036_faq_content.sql:105:('FAQ', 'Digital product কীভাবে পাব?', 'faq-digital-product-delivery', 'Payment ও completion-এর পরে digital delivery access।', E'Digital product কিনলে seller-এর delivery type অনুযায়ী instructions, license key বা download link দেওয়া হতে পারে। Payment verify এবং order flow সম্পন্ন হওয়ার পরে Order Detail বা Digital Library থেকে access দেখুন। Public chat বা review-এ license key বা private download link প্রকাশ করবেন না।', 'PUBLISHED', 170, 'Digital product delivery | BikriKoro FAQ', 'BikriKoro digital product payment, delivery এবং library access-এর নিয়ম।', now()),
+supabase/migrations/036_faq_content.sql:106:('FAQ', 'কীভাবে seller হব?', 'faq-become-seller', 'Physical বা digital seller হওয়ার শুরু।', E'Become Seller page-এ গিয়ে আগে Physical বা Digital option বেছে নিন। Physical listing দিয়ে শুরু করা যায়। Digital product বিক্রি করতে হলে seller type নির্বাচন করে প্রয়োজনীয় identity, address এবং business documents জমা দিতে হবে। Admin review ও approval না হওয়া পর্যন্ত restricted seller সুবিধা চালু হবে না।', 'PUBLISHED', 180, 'BikriKoro seller হওয়ার নিয়ম | FAQ', 'BikriKoro physical ও digital seller onboarding এবং approval process।', now()),
+supabase/migrations/036_faq_content.sql:107:('FAQ', 'Digital seller verification কেন দরকার?', 'faq-digital-seller-verification', 'Digital seller-এর শক্ত verification process।', E'Digital product-এ delivery, license বা download access থাকে, তাই buyer trust ও marketplace safety-এর জন্য অতিরিক্ত verification দরকার। Personal, business বা company type অনুযায়ী NID, selfie, address, trade license বা company information চাওয়া হতে পারে। Admin approve করার পরে digital listing permission দেওয়া হয়।', 'PUBLISHED', 190, 'Digital seller verification | BikriKoro FAQ', 'BikriKoro digital seller verification documents ও admin approval সম্পর্কে তথ্য।', now()),
+supabase/migrations/036_faq_content.sql:109:('FAQ', 'Seller approval history কোথায় দেখা যায়?', 'faq-seller-approval-history', 'Admin decision audit trail।', E'Seller verification approve বা reject হলে decision history admin panel-এ সংরক্ষিত থাকে। সেখানে decision নেওয়া admin-এর Gmail বা UID, সময় এবং note দেখা যায়। Seller-side status থেকে বুঝতে পারবেন verification pending, approved না rejected।', 'PUBLISHED', 210, 'Seller approval history | BikriKoro FAQ', 'BikriKoro seller verification decision history ও admin audit information।', now()),
+supabase/migrations/036_faq_content.sql:113:('FAQ', 'Free delivery বা COD badge-এর অর্থ কী?', 'faq-free-delivery-cod-badge', 'Product সুবিধাগুলো product card-এ দেখুন।', E'Product card বা detail page-এ দেখানো Free delivery, Fast delivery, COD বা Free return badge seller-এর listing configuration থেকে আসে। Order করার আগে delivery location, eligibility, cost এবং seller-এর description যাচাই করুন। সব product বা সব location-এ একই সুবিধা প্রযোজ্য নাও হতে পারে।', 'PUBLISHED', 250, 'Free delivery COD badge | BikriKoro FAQ', 'BikriKoro product delivery, COD ও listing benefit badge-এর অর্থ।', now()),
+supabase/migrations/036_faq_content.sql:116:('FAQ', 'আমার personal information কীভাবে ব্যবহৃত হয়?', 'faq-privacy-information', 'Privacy ও account safety সম্পর্কে জানুন।', E'Account, order, chat, payment এবং verification information marketplace service, fraud prevention, support এবং notification-এর জন্য ব্যবহার করা হতে পারে। Verification documents public product page-এ দেখানো হয় না। বিস্তারিত জানতে Privacy Policy পড়ুন এবং password, OTP বা payment PIN কারও সঙ্গে share করবেন না।', 'PUBLISHED', 280, 'BikriKoro privacy FAQ', 'BikriKoro personal information, verification document ও account privacy নীতি।', now()),
+supabase/migrations/038_order_lifecycle_type_cast_repair.sql:32:    v_seller_title := case new.status
+supabase/migrations/038_order_lifecycle_type_cast_repair.sql:63:-- Optional verification:
+supabase/migrations/040_product_question_seller_notifications.sql:3:-- This trigger creates a seller-only in-app notification; push delivery remains
+supabase/migrations/042_seller_listing_mutations.sql:85:  insert into public.digital_product_contents (product_id, seller_id, delivery_type, delivery_text)
+supabase/migrations/042_seller_listing_mutations.sql:95:create or replace function public.seller_clear_digital_content(p_seller_id text, p_product_id uuid)
