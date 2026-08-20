@@ -129,3 +129,34 @@ Remote repository move notice এসেছে: canonical repository এখন `h
 | `src/pages/admin/AdminDeliveries.tsx` | Digital-only admin delivery queue |
 
 **উপসংহার:** BikriKoro এখন নতুন physical listing বা shipping order-এর উপর নির্ভর করে না। Approved digital seller, escrow-held payment, protected delivery, buyer confirmation, dispute review এবং wallet settlement—এই contract-ই নতুন marketplace-এর active operating model।
+
+
+## ১১. Live Supabase execution result — ২১ আগস্ট ২০২৬
+
+আপনার সংযুক্ত Supabase project **Bikrikoro** (`lrwvbwkkapmwehvxkqlt`, region `ap-southeast-1`) সরাসরি যাচাই করে migration চালানো হয়েছে। প্রথমবার migration 048-এ `orders.admin_review_status` index-এর একটি incompatible reference ধরা পড়ে। Supabase transaction partial state রেখে যায়নি; read-only check-এ নতুন columns অনুপস্থিত ছিল। তাই local migration থেকে সেই index সরিয়ে commit `da0df54` push করা হয় এবং migration 048 আবার চালিয়ে সফলভাবে apply করা হয়।
+
+এর পরে routine privilege audit-এ দেখা যায় যে পুরনো migration-গুলো কিছু security-definer RPC-তে `anon` ও `authenticated` execute grant রেখে গিয়েছিল। Seller product, digital content, digital delivery, digital library, buyer confirmation এবং admin order RPC-এর জন্য follow-up migration 049 তৈরি ও apply করা হয়েছে। এর পরে audit-এ sensitive routines-এর জন্য কেবল `postgres` ও `service_role` execute privilege দেখা গেছে; `anon` এবং `authenticated` grant আর নেই।
+
+| Live check | ফলাফল |
+|---|---|
+| Migration 048 | সফলভাবে apply হয়েছে |
+| Migration 049 | সফলভাবে apply হয়েছে |
+| Public catalogue | ১টি visible, approved digital product পাওয়া গেছে |
+| Physical archive | Public catalogue-এ কোনো physical row নেই; historical physical rows hidden/archive policy-এর বাইরে public নয় |
+| Digital delivery | ১টি `READY` delivery record আছে |
+| Orders | `ESCROW_HELD` ১টি এবং পুরনো/পরীক্ষামূলক `CANCELLED` ৩টি record আছে |
+| Wallet settlement | Smoke query-তে নতুন `SELLER_PAYOUT` বা `ORDER_REFUND` ledger row তৈরি হয়নি; migration নিজে কোনো payout/refund চালায়নি |
+| Delivery trigger | `trg_sync_digital_delivery` live আছে |
+| Wallet trigger | `trg_apply_order_wallet_effects` live আছে |
+| Performance indexes | Catalogue, order lifecycle, license inventory এবং delivery indexes live আছে |
+| Sensitive RPC grants | `anon`/`authenticated` সরানো হয়েছে; server role-only রাখা হয়েছে |
+
+### Supabase Advisor ফলাফল
+
+Supabase security advisor কিছু **pre-existing INFO/WARN** notice দেখিয়েছে। এগুলোর মধ্যে RLS enabled কিন্তু policy নেই এমন admin/audit/notification tables এবং mutable `search_path` থাকা পুরনো functions আছে। এগুলো migration 048/049-এর failure নয় এবং নতুন digital secret tables-এর policy verification সফল হয়েছে। Advisor remediation links হলো [RLS policy guidance](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) এবং [mutable search_path guidance](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable)। Performance advisor মূলত পুরনো unindexed foreign key এবং unused-index INFO দেখিয়েছে; নতুন digital catalogue/delivery indexes live আছে।
+
+### এখনকার বাস্তব অবস্থা
+
+এখন database-side digital-only contract live। Seller product create/update browser থেকে সরাসরি Supabase RPC call না করে Firebase-verified `/api/seller-product` gateway ব্যবহার করে; server-side service role validated seller UID দিয়ে RPC চালায়। Vercel deployment-এর জন্য commit `9f0c169`-এ gateway change এবং commit `379c788`-এ migration 049 push করা আছে। Migration schema compatibility fix commit `da0df54`-এ আছে।
+
+এখন কেবল Vercel deployment শেষ হওয়া এবং একটি বাস্তব test transaction চালানো বাকি। Test transaction-এ কোনো real high-value payment না দিয়ে, low-price approved digital product দিয়ে online checkout বা existing wallet sandbox path, `ESCROW_HELD`, `DIGITAL_DELIVERED`, buyer confirmation এবং seller wallet ledger যাচাই করবেন। Live database-এ আমি কোনো test purchase, payout বা refund চালাইনি, তাই বিদ্যমান wallet ও order data অপরিবর্তিত আছে।
