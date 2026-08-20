@@ -1,30 +1,100 @@
-import { useEffect, useRef, useState } from 'react'
-import { Clock3, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowRight, Clock3, Flame, Search, Sparkles, Tag, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { formatTaka } from '@/lib/format'
+import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
+import type { Category } from '@/types/product'
 
-interface Suggestion { id: string; title: string; price: number; image: string }
+interface Suggestion {
+  id: string
+  title: string
+  price: number
+  image: string
+  categoryId: string
+  categoryLabel: string
+}
+
 const RECENT_KEY = 'bikrikoro:recent-searches'
 
 export function SearchBar({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [trendingSearches, setTrendingSearches] = useState<string[]>([])
   const [recentSearches, setRecentSearches] = useState<string[]>([])
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { try { setRecentSearches(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')) } catch { setRecentSearches([]) } }, [])
+  useEffect(() => {
+    try { setRecentSearches(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')) } catch { setRecentSearches([]) }
+    void loadPublicSettings().then((settings) => setTrendingSearches(getTrendingSearches(settings)))
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadCategories() {
+      const [{ data: templates }, { data: legacyCategories }] = await Promise.all([
+        supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order').limit(24),
+        supabase.from('categories').select('id, name, icon_url, sort_order').order('sort_order').limit(24),
+      ])
+      if (cancelled) return
+      const categoryRows = (legacyCategories ?? []) as Category[]
+      if (!templates || templates.length === 0) {
+        setCategories(categoryRows)
+        return
+      }
+      const categoryMap = new Map(categoryRows.map((category) => [category.id, category]))
+      setCategories(templates.map((template) => categoryMap.get(template.category_id)).filter((category): category is Category => Boolean(category)))
+    }
+    void loadCategories()
+    return () => { cancelled = true }
+  }, [])
+
+  const categoryNames = useMemo(() => new Map(categories.map((category) => [category.id, category.name])), [categories])
+  const groupedSuggestions = useMemo(() => suggestions.reduce<Record<string, Suggestion[]>>((groups, suggestion) => {
+    const key = suggestion.categoryLabel || 'অন্যান্য ডিজিটাল পণ্য'
+    groups[key] = [...(groups[key] ?? []), suggestion]
+    return groups
+  }, {}), [suggestions])
+
   useEffect(() => {
     const term = query.trim()
-    if (term.length < 2) { setSuggestions([]); return }
-    const timer = setTimeout(async () => {
-      const { data } = await supabase.from('products').select('id, title, price, images').ilike('title', `%${term}%`).limit(6)
-      setSuggestions((data ?? []).map((p) => ({ id: p.id, title: p.title, price: p.price, image: p.images[0] ?? '' })))
+    if (term.length < 2) {
+      setSuggestions([])
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, title, price, images, category_id')
+        .eq('is_digital', true)
+        .eq('is_hidden', false)
+        .eq('approval_status', 'APPROVED')
+        .ilike('title', `%${term}%`)
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (!cancelled) {
+        if (error) console.warn('Search suggestions failed:', error)
+        setSuggestions((data ?? []).map((product) => ({
+          id: product.id,
+          title: product.title,
+          price: product.price,
+          image: product.images?.[0] ?? '',
+          categoryId: product.category_id,
+          categoryLabel: categoryNames.get(product.category_id) ?? 'ডিজিটাল পণ্য',
+        })))
+        setLoading(false)
+      }
     }, 250)
-    return () => clearTimeout(timer)
-  }, [query])
+    return () => { window.clearTimeout(timer); cancelled = true }
+  }, [categoryNames, query])
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => { if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', handleClickOutside)
@@ -36,15 +106,69 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     setRecentSearches(next)
     localStorage.setItem(RECENT_KEY, JSON.stringify(next))
   }
-  const goToResults = (term = query.trim()) => { if (!term) return; remember(term); setOpen(false); navigate(`/products?q=${encodeURIComponent(term)}`) }
+  const goToResults = (term = query.trim(), categoryId?: string) => {
+    if (!term && !categoryId) return
+    if (term) remember(term)
+    setOpen(false)
+    const params = new URLSearchParams()
+    if (term) params.set('q', term)
+    if (categoryId) params.set('category', categoryId)
+    navigate(`/products?${params.toString()}`)
+  }
+  const goToProduct = (suggestion: Suggestion) => {
+    setOpen(false)
+    setQuery('')
+    navigate(`/products/${suggestion.id}`)
+  }
   const clearRecent = () => { setRecentSearches([]); localStorage.removeItem(RECENT_KEY) }
+  const showDiscovery = query.trim().length < 2
+  const hasPanelContent = showDiscovery || loading || suggestions.length > 0 || Boolean(query.trim())
 
   return <div ref={containerRef} className={`relative ${compact ? 'w-full' : 'w-full max-w-md'}`}>
-    <div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={(e) => e.key === 'Enter' && goToResults()} placeholder="পণ্য খুঁজুন..." className="w-full rounded-full border border-outline bg-bg py-2.5 pl-10 pr-10 text-sm outline-none focus:border-brand-500 focus:bg-surface focus:ring-1 focus:ring-brand-500" />{query && <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-700" aria-label="সার্চ পরিষ্কার করুন"><X size={15} /></button>}</div>
-    {open && (suggestions.length > 0 || (query.trim().length < 2 && recentSearches.length > 0)) && <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-outline bg-surface shadow-xl">
-      {query.trim().length < 2 && recentSearches.length > 0 && <div className="p-3"><div className="mb-2 flex items-center justify-between"><p className="text-xs font-semibold text-ink-500">সাম্প্রতিক সার্চ</p><button onClick={clearRecent} className="text-xs text-ink-400 hover:text-error">মুছে দিন</button></div>{recentSearches.map((term) => <button key={term} onClick={() => goToResults(term)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-ink-700 hover:bg-bg"><Clock3 size={14} className="text-ink-300" />{term}</button>)}</div>}
-      {suggestions.map((suggestion) => <button key={suggestion.id} onClick={() => { setOpen(false); setQuery(''); navigate(`/products/${suggestion.id}`) }} className="flex w-full items-center gap-3 border-b border-outline px-3 py-2.5 text-left last:border-0 hover:bg-bg"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-outline/30">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm text-ink-900">{suggestion.title}</p><p className="tabular-amount text-xs text-brand-600">{formatTaka(suggestion.price)}</p></div></button>)}
-      {query.trim() && <button onClick={() => goToResults()} className="w-full border-t border-outline px-3 py-2.5 text-center text-sm font-medium text-brand-600 hover:bg-bg">“{query}”-এর সব ফলাফল দেখুন</button>}
+    <div className="relative">
+      <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" />
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => { setQuery(event.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(event) => event.key === 'Enter' && goToResults()}
+        placeholder="ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন খুঁজুন..."
+        className="w-full border border-outline bg-bg py-3 pl-11 pr-10 text-base text-ink-900 outline-none transition focus:border-brand-500 focus:bg-surface focus:ring-2 focus:ring-brand-500/10"
+        aria-label="ডিজিটাল পণ্য খুঁজুন"
+      />
+      {query && <button type="button" onClick={() => { setQuery(''); setOpen(true) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-900" aria-label="সার্চ পরিষ্কার করুন"><X size={16} /></button>}
+    </div>
+
+    {open && hasPanelContent && <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(34rem,calc(100vh-8rem))] overflow-y-auto border border-outline bg-surface shadow-2xl">
+      {showDiscovery && <>
+        {recentSearches.length > 0 && <section className="border-b border-outline p-3.5">
+          <div className="mb-2 flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-semibold text-ink-900"><Clock3 size={15} className="text-ink-400" />সাম্প্রতিক সার্চ</p><button type="button" onClick={clearRecent} className="text-sm text-ink-400 hover:text-error">মুছে দিন</button></div>
+          <div className="flex flex-wrap gap-2">{recentSearches.map((term) => <button type="button" key={term} onClick={() => goToResults(term)} className="border border-outline px-2.5 py-1.5 text-sm text-ink-700 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700">{term}</button>)}</div>
+        </section>}
+        {trendingSearches.length > 0 && <section className="border-b border-outline p-3.5">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-900"><Flame size={15} className="text-brand-600" />জনপ্রিয় সার্চ</p>
+          <div className="flex flex-wrap gap-2">{trendingSearches.map((term) => <button type="button" key={term} onClick={() => goToResults(term)} className="border border-brand-100 bg-brand-50 px-2.5 py-1.5 text-sm text-brand-700 hover:border-brand-400">{term}</button>)}</div>
+        </section>}
+        {categories.length > 0 && <section className="p-3.5">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-900"><Tag size={15} className="text-brand-600" />ক্যাটাগরি দিয়ে ব্রাউজ করুন</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{categories.slice(0, 9).map((category) => <button type="button" key={category.id} onClick={() => goToResults('', category.id)} className="flex items-center justify-between border border-outline px-2.5 py-2 text-left text-sm text-ink-700 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"><span className="truncate">{category.name}</span><ArrowRight size={14} className="shrink-0 text-ink-300" /></button>)}</div>
+        </section>}
+      </>}
+
+      {!showDiscovery && loading && <div className="flex items-center gap-2 px-4 py-5 text-sm text-ink-500"><Sparkles size={16} className="animate-pulse text-brand-600" />ডিজিটাল পণ্য খোঁজা হচ্ছে...</div>}
+      {!showDiscovery && !loading && suggestions.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো digital product পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য keyword দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
+      {!showDiscovery && suggestions.length > 0 && <div>
+        {Object.entries(groupedSuggestions).map(([categoryLabel, items]) => <section key={categoryLabel} className="border-b border-outline last:border-0">
+          <div className="flex items-center justify-between bg-bg px-3.5 py-2"><p className="text-sm font-semibold text-ink-900">{categoryLabel}</p><span className="text-xs text-ink-400">{items.length}টি ফলাফল</span></div>
+          {items.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="flex w-full items-center gap-3 border-t border-outline/70 px-3.5 py-2.5 text-left hover:bg-brand-50/60">
+            <div className="h-11 w-11 shrink-0 overflow-hidden border border-outline bg-bg">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-ink-900">{suggestion.title}</p><p className="mt-0.5 text-xs text-ink-500">ডিজিটাল পণ্য <span className="mx-1 text-ink-300">•</span><span className="tabular-amount font-semibold text-brand-700">{formatTaka(suggestion.price)}</span></p></div>
+            <ArrowRight size={15} className="shrink-0 text-ink-300" />
+          </button>)}
+        </section>)}
+      </div>}
+      {query.trim() && <button type="button" onClick={() => goToResults()} className="flex w-full items-center justify-between border-t border-outline bg-brand-50 px-3.5 py-3 text-left text-base font-semibold text-brand-700 hover:bg-brand-100"><span>“{query.trim()}”-এর সব ফলাফল দেখুন</span><ArrowRight size={17} /></button>}
     </div>}
   </div>
 }

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShieldCheck } from 'lucide-react'
 import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
+import { DEFAULT_PAYMENT_METHODS, getPaymentMethods, loadPublicSettings, type PaymentMethodConfig } from '@/lib/publicSettings'
 
 export function BuyModal({
   product,
@@ -21,6 +22,11 @@ export function BuyModal({
   const [coupon, setCoupon] = useState<CouponPreview | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
   const [acceptedPolicy, setAcceptedPolicy] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(DEFAULT_PAYMENT_METHODS)
+
+  useEffect(() => {
+    void loadPublicSettings().then((settings) => setPaymentMethods(getPaymentMethods(settings)))
+  }, [])
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
   const escrowFee = Math.max(discountedPrice * 0.01, 10)
@@ -90,6 +96,12 @@ export function BuyModal({
           <div className="mt-4 space-y-4">
             <div className="border border-brand-200 bg-brand-50 p-4">
               <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">Digital payment hold ও automatic delivery</p><p className="mt-1 text-xs leading-5 text-ink-700">Payment প্রথমে escrow-তে থাকবে। Payment verified হলে seller-এর key/file/instructions আপনার authenticated order library-তে আসবে। আপনি confirm না করা পর্যন্ত seller payout release হবে না।</p></div></div>
+            </div>
+
+            <div className="border border-outline bg-bg p-3">
+              <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট পদ্ধতি</p><span className="text-xs text-brand-700">UddoktaPay নিরাপদ checkout</span></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">{paymentMethods.slice(0, 9).map((method) => <div key={method.name} className="flex items-center gap-1.5 border border-outline bg-surface px-2 py-2" style={{ borderColor: `${method.color}55` }} title={`${method.name} — তথ্য প্রদর্শন মাত্র`}><span className="flex h-6 w-6 shrink-0 items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: method.color }}>{method.short.slice(0, 3)}</span><span className="truncate text-xs font-medium text-ink-700">{method.name}</span></div>)}</div>
+              <p className="mt-2 text-xs leading-5 text-ink-500">এগুলো payment option-এর display badge; চূড়ান্ত পেমেন্ট UddoktaPay-এর hosted page-এ হবে।</p>
             </div>
 
             <div className="border border-outline p-3">
