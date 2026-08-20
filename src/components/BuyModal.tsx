@@ -5,6 +5,7 @@ import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from 
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
+import { PaymentMethodBadges } from '@/components/PaymentMethodBadges'
 import { DEFAULT_PAYMENT_METHODS, getPaymentMethods, loadPublicSettings, type PaymentMethodConfig } from '@/lib/publicSettings'
 
 export function BuyModal({
@@ -100,7 +101,7 @@ export function BuyModal({
 
             <div className="border border-outline bg-bg p-3">
               <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট পদ্ধতি</p><span className="text-xs text-brand-700">UddoktaPay নিরাপদ checkout</span></div>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">{paymentMethods.slice(0, 9).map((method) => <div key={method.name} className="flex items-center gap-1.5 border border-outline bg-surface px-2 py-2" style={{ borderColor: `${method.color}55` }} title={`${method.name} — তথ্য প্রদর্শন মাত্র`}><span className="flex h-6 w-6 shrink-0 items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: method.color }}>{method.short.slice(0, 3)}</span><span className="truncate text-xs font-medium text-ink-700">{method.name}</span></div>)}</div>
+              <div className="mt-3"><PaymentMethodBadges methods={paymentMethods.slice(0, 9)} compact /></div>
               <p className="mt-2 text-xs leading-5 text-ink-500">এগুলো payment option-এর display badge; চূড়ান্ত পেমেন্ট UddoktaPay-এর hosted page-এ হবে।</p>
             </div>
 

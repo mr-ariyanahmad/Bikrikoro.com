@@ -4,23 +4,25 @@ export interface PaymentMethodConfig {
   name: string
   color: string
   short: string
+  logo?: string
 }
 
 type PublicSettingValue = string | { value?: unknown } | unknown[] | Record<string, unknown> | null
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethodConfig[] = [
-  { name: 'bKash', color: '#E2136E', short: 'bKash' },
-  { name: 'Nagad', color: '#F4821F', short: 'Nagad' },
-  { name: 'Rocket', color: '#8B1FA9', short: 'Rocket' },
-  { name: 'Upay', color: '#00A651', short: 'উপায়' },
-  { name: 'City Bank', color: '#1B4F8A', short: 'City' },
-  { name: 'Islami Bank', color: '#006633', short: 'IBBL' },
-  { name: 'Agrani Bank', color: '#004B87', short: 'Agrani' },
-  { name: 'Pubali Bank', color: '#C41E3A', short: 'Pubali' },
-  { name: 'UCB', color: '#003087', short: 'UCB' },
+  { name: 'bKash', color: '#E2136E', short: 'bKash', logo: '/payment-logos/bkash.png' },
+  { name: 'Nagad', color: '#F4821F', short: 'Nagad', logo: '/payment-logos/nagad.png' },
+  { name: 'Rocket', color: '#8B1FA9', short: 'Rocket', logo: '/payment-logos/rocket.png' },
+  { name: 'Upay', color: '#00A651', short: 'উপায়', logo: '/payment-logos/upay.png' },
+  { name: 'City Bank', color: '#1B4F8A', short: 'City', logo: '/payment-logos/city-bank.png' },
+  { name: 'Islami Bank', color: '#006633', short: 'IBBL', logo: '/payment-logos/islami-bank.png' },
+  { name: 'Agrani Bank', color: '#004B87', short: 'Agrani', logo: '/payment-logos/agrani-bank.png' },
+  { name: 'Pubali Bank', color: '#C41E3A', short: 'Pubali', logo: '/payment-logos/pubali-bank.png' },
+  { name: 'UCB', color: '#003087', short: 'UCB', logo: '/payment-logos/ucb.png' },
 ]
 
 const DEFAULT_TRENDING_SEARCHES = ['গেম অ্যাকাউন্ট', 'প্রিমিয়াম সাবস্ক্রিপশন', 'গিফট কার্ড', 'সফটওয়্যার লাইসেন্স', 'ডিজাইন অ্যাসেট']
+const DEFAULT_LOGO_BY_NAME = new Map(DEFAULT_PAYMENT_METHODS.map((method) => [method.name.toLowerCase(), method.logo]))
 
 let publicSettingsPromise: Promise<Record<string, PublicSettingValue>> | null = null
 
@@ -61,6 +63,7 @@ export function getPaymentMethods(settings: Record<string, PublicSettingValue>):
       name: typeof item.name === 'string' ? item.name.trim() : '',
       color: isHexColor(item.color) ? item.color : '#017C50',
       short: typeof item.short === 'string' && item.short.trim() ? item.short.trim() : typeof item.name === 'string' ? item.name.trim() : '',
+      logo: typeof item.logo === 'string' && item.logo.startsWith('/payment-logos/') ? item.logo : DEFAULT_LOGO_BY_NAME.get(typeof item.name === 'string' ? item.name.trim().toLowerCase() : ''),
     }))
     .filter((item) => item.name && item.short)
   return methods.length > 0 ? methods.slice(0, 12) : DEFAULT_PAYMENT_METHODS

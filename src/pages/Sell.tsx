@@ -126,7 +126,6 @@ export default function Sell() {
       if (!templateError && data && data.length > 0) {
         const templates = data.map((template) => ({ ...template, name_bn: categoryNames.get(template.category_id) ?? template.category_id })) as DigitalCategoryTemplate[]
         setCategoryTemplates(templates)
-        setCategoryId((current) => current || templates[0].category_id)
         return
       }
       if (!active) return
@@ -143,7 +142,6 @@ export default function Sell() {
         is_active: true,
       })) as DigitalCategoryTemplate[]
       setCategoryTemplates(fallback)
-      if (fallback.length > 0) setCategoryId((current) => current || fallback[0].category_id)
     }
     void loadTemplates()
     return () => { active = false }
@@ -275,7 +273,7 @@ export default function Sell() {
       freeReturn: false,
       digitalDeliveryType,
       digitalDeliveryText,
-      specifications,
+      specifications: normalizedSpecifications,
       autoDeliveryEnabled,
       deactivateWhenOutOfStock,
       stockMode,
@@ -341,7 +339,8 @@ export default function Sell() {
   }
 
   const selectedTemplate = categoryTemplates.find((template) => template.category_id === categoryId)
-  const missingRequiredFields = (selectedTemplate?.fields ?? []).filter((field) => field.required && !hasSpecValue(specifications[field.key]))
+  const normalizedSpecifications = selectedTemplate?.fields.some((field) => field.key === 'game_name') ? { ...specifications, game_name: title.trim() } : specifications
+  const missingRequiredFields = (selectedTemplate?.fields ?? []).filter((field) => field.required && !hasSpecValue(normalizedSpecifications[field.key]))
   const isValid =
     digitalVerified &&
     title.trim().length >= 5 &&
@@ -398,7 +397,7 @@ export default function Sell() {
       await sellerListingOptionsRequest({
         action: 'save',
         productId: savedProductId,
-        specifications,
+        specifications: normalizedSpecifications,
         autoDeliveryEnabled,
         deactivateWhenOutOfStock,
         stockMode,
@@ -454,7 +453,7 @@ export default function Sell() {
     <Layout wide>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-brand-700">Digital marketplace</p>
+          <p className="text-sm font-semibold text-brand-700">ডিজিটাল মার্কেটপ্লেস</p>
           <h1 className="mt-1 text-xl font-semibold text-ink-900">{isEditing ? 'ডিজিটাল লিস্টিং এডিট করুন' : 'ডিজিটাল পণ্য বিক্রি করুন'}</h1>
         </div>
         {!isEditing && <div className="flex gap-2"><button type="button" onClick={handleSaveDraft} className="border border-outline px-3 py-2 text-base font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700">ড্রাফট সেভ</button><button type="button" onClick={handleClearDraft} className="border border-error/30 px-3 py-2 text-base font-semibold text-error hover:bg-error/5">ড্রাফট মুছুন</button></div>}
@@ -462,8 +461,14 @@ export default function Sell() {
       {draftMessage && <p className="mt-2 text-sm text-brand-700">{draftMessage}</p>}
 
       <div className="mt-6 space-y-5">
+        <section className="border border-brand-200 bg-brand-50 p-4">
+          <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">প্রথমে ক্যাটাগরি বেছে নিন</p><p className="mt-1 text-xs leading-5 text-ink-700">সঠিক ক্যাটাগরি বেছে নিলে আপনার পণ্যের প্রয়োজনীয় তথ্যগুলো পরের ধাপে দেখা যাবে।</p></div></div>
+          <div className="mt-4"><BrandSelect label="ডিজিটাল ক্যাটাগরি" value={categoryId} options={categoryTemplates.map((template) => ({ value: template.category_id, label: template.name_bn }))} onChange={(value) => { setCategoryId(value); setSpecifications({}) }} placeholder="ডিজিটাল ক্যাটাগরি বেছে নিন" disabled={categoryTemplates.length === 0} /></div>
+          {!categoryId && <p className="mt-3 text-xs text-ink-500">ক্যাটাগরি নির্বাচন করার পর পণ্যের তথ্য পূরণ করার অংশ খুলবে।</p>}
+        </section>
+        {categoryId && <>
         <div className="border border-brand-200 bg-brand-50 p-4">
-          <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">শুধু অনুমোদিত digital delivery</p><p className="mt-1 text-xs leading-5 text-ink-700">Payment escrow-এ গেলে buyer তার order library-তে key, file link বা instructions পাবে। Product approval আলাদা admin review-এর পরে হবে।</p></div></div>
+          <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">নিরাপদ ডিজিটাল ডেলিভারি</p><p className="mt-1 text-xs leading-5 text-ink-700">অর্ডার সম্পন্ন হলে ক্রেতা তার অর্ডার পেজে key, file link বা ব্যবহারের নির্দেশনা দেখতে পারবেন।</p></div></div>
         </div>
 
         <div>
@@ -492,14 +497,11 @@ export default function Sell() {
           <div><label className="mb-1.5 block text-sm font-medium text-ink-900">মূল দাম (ঐচ্ছিক)</label><input type="number" inputMode="numeric" value={originalPrice} onChange={(event) => setOriginalPrice(event.target.value)} placeholder="ছাড় দেখাতে চাইলে" className="tabular-amount w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <BrandSelect label="ডিজিটাল ক্যাটাগরি" value={categoryId} options={categoryTemplates.map((template) => ({ value: template.category_id, label: template.name_bn }))} onChange={(value) => { setCategoryId(value); setSpecifications({}) }} placeholder="ডিজিটাল ক্যাটাগরি বেছে নিন" disabled={categoryTemplates.length === 0} />
-          <div><label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label><div className="flex border border-outline p-1">{(['NEW', 'USED'] as const).map((value) => <button key={value} type="button" onClick={() => setCondition(value)} className={`flex-1 py-2 text-base font-medium ${condition === value ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>{value === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</button>)}</div></div>
-        </div>
+        <div><label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label><div className="flex border border-outline p-1">{(['NEW', 'USED'] as const).map((value) => <button key={value} type="button" onClick={() => setCondition(value)} className={`flex-1 py-2 text-base font-medium ${condition === value ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>{value === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</button>)}</div></div>
 
         {selectedTemplate && <section className="border border-brand-200 bg-brand-50/40 p-4">
-          <div className="flex items-start gap-3"><ShieldCheck size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">{selectedTemplate.name_bn} specification</p><p className="mt-1 text-xs leading-5 text-ink-600">{selectedTemplate.description_bn || 'এই category-এর গুরুত্বপূর্ণ তথ্য buyer-এর জন্য পরিষ্কারভাবে দিন।'}</p></div></div>
-          {selectedTemplate.fields.length > 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{selectedTemplate.fields.map((field) => {
+          <div className="flex items-start gap-3"><ShieldCheck size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">{selectedTemplate.name_bn} এর তথ্য</p><p className="mt-1 text-xs leading-5 text-ink-600">{selectedTemplate.description_bn || 'এই ক্যাটাগরির গুরুত্বপূর্ণ তথ্য পরিষ্কারভাবে দিন।'}</p></div></div>
+          {selectedTemplate.fields.filter((field) => field.key !== 'game_name').length > 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{selectedTemplate.fields.filter((field) => field.key !== 'game_name').map((field) => {
             const rawValue = specifications[field.key]
             const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean' ? rawValue : ''
             const setValue = (next: unknown) => setSpecifications((current) => ({ ...current, [field.key]: next }))
@@ -508,35 +510,36 @@ export default function Sell() {
             if (field.type === 'number') return <label key={field.key} className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{field.label_bn}{field.required ? ' *' : ''}</span><input type="number" value={value === '' ? '' : String(value)} onChange={(event) => setValue(event.target.value ? Number(event.target.value) : '')} className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
             if (field.type === 'boolean') return <button key={field.key} type="button" aria-pressed={value === true} onClick={() => setValue(value !== true)} className={`flex min-h-11 items-center justify-between border px-3 py-2.5 text-left text-sm ${value === true ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-600'}`}><span>{field.label_bn}{field.required ? ' *' : ''}</span><span className="text-xs font-semibold">{value === true ? 'হ্যাঁ' : 'না'}</span></button>
             return <label key={field.key} className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{field.label_bn}{field.required ? ' *' : ''}</span><input type="text" value={String(value)} onChange={(event) => setValue(event.target.value)} className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
-          })}</div> : <p className="mt-3 text-xs text-ink-500">এই category-এর specification template এখনো admin configure করেনি।</p>}
-          {missingRequiredFields.length > 0 && <p className="mt-3 border border-warning/30 bg-warning/5 p-2.5 text-xs text-warning">Required field পূরণ করুন: {missingRequiredFields.map((field) => field.label_bn).join(', ')}</p>}
+          })}</div> : <p className="mt-3 text-xs text-ink-500">এই ক্যাটাগরির অতিরিক্ত তথ্য এখনো যোগ করা হয়নি।</p>}
+          {missingRequiredFields.length > 0 && <p className="mt-3 border border-warning/30 bg-warning/5 p-2.5 text-xs text-warning">এই তথ্যগুলো পূরণ করুন: {missingRequiredFields.map((field) => field.label_bn).join(', ')}</p>}
         </section>}
 
         <section className="border border-outline bg-surface p-4">
-          <div className="flex items-start gap-3"><KeyRound size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">Delivery, stock ও seller terms</p><p className="mt-1 text-xs leading-5 text-ink-600">Z2U-style listing-এর মতো buyer-কে region, মেয়াদ, warranty, stock এবং delivery expectation পরিষ্কারভাবে জানান।</p></div></div>
+          <div className="flex items-start gap-3"><KeyRound size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">ডেলিভারি, মজুত ও পণ্যের শর্ত</p><p className="mt-1 text-xs leading-5 text-ink-600">অঞ্চল, মেয়াদ, warranty, মজুত এবং ডেলিভারির সময় সম্পর্কে পরিষ্কার তথ্য দিন।</p></div></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <BrandSelect label="ডেলিভারি পদ্ধতি" value={digitalDeliveryType} options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]} onChange={(value) => setDigitalDeliveryType(value as DigitalContent['delivery_type'])} />
-            <BrandSelect label="স্টক মডেল" value={stockMode} options={[{ value: 'UNLIMITED', label: 'Unlimited / delivery text' }, { value: 'QUANTITY', label: 'Fixed quantity' }, { value: 'KEY_POOL', label: 'License key pool' }]} onChange={(value) => setStockMode(value as 'UNLIMITED' | 'QUANTITY' | 'KEY_POOL')} />
-            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Region code</span><input value={regionCode} onChange={(event) => setRegionCode(event.target.value.toUpperCase())} placeholder="GLOBAL বা BD" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
-            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">মেয়াদ / subscription period</span><input value={subscriptionPeriod} onChange={(event) => setSubscriptionPeriod(event.target.value)} placeholder="যেমন: ৩০ দিন / Lifetime" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
-            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Warranty / replacement period</span><input value={warrantyPeriod} onChange={(event) => setWarrantyPeriod(event.target.value)} placeholder="যেমন: ৭ দিন বা নেই" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
-            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Fulfillment window (মিনিট)</span><input type="number" min="0" value={fulfillmentWindowMinutes} onChange={(event) => setFulfillmentWindowMinutes(event.target.value)} placeholder="Auto delivery হলে ০" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
-            {stockMode === 'QUANTITY' && <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Available quantity</span><input type="number" min="1" value={stockQuantity} onChange={(event) => setStockQuantity(event.target.value)} className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>}
+            <BrandSelect label="মজুতের ধরন" value={stockMode} options={[{ value: 'UNLIMITED', label: 'সীমাহীন / নির্দেশনা অনুযায়ী' }, { value: 'QUANTITY', label: 'নির্দিষ্ট পরিমাণ' }, { value: 'KEY_POOL', label: 'আলাদা key-এর তালিকা' }]} onChange={(value) => setStockMode(value as 'UNLIMITED' | 'QUANTITY' | 'KEY_POOL')} />
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">অঞ্চল কোড</span><input value={regionCode} onChange={(event) => setRegionCode(event.target.value.toUpperCase())} placeholder="GLOBAL বা BD" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">মেয়াদ / সাবস্ক্রিপশন</span><input value={subscriptionPeriod} onChange={(event) => setSubscriptionPeriod(event.target.value)} placeholder="যেমন: ৩০ দিন / Lifetime" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">ওয়ারেন্টি / পরিবর্তনের সময়</span><input value={warrantyPeriod} onChange={(event) => setWarrantyPeriod(event.target.value)} placeholder="যেমন: ৭ দিন বা নেই" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">ডেলিভারির সর্বোচ্চ সময় (মিনিট)</span><input type="number" min="0" value={fulfillmentWindowMinutes} onChange={(event) => setFulfillmentWindowMinutes(event.target.value)} placeholder="অটোমেটিক ডেলিভারি হলে ০" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            {stockMode === 'QUANTITY' && <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">মজুতের পরিমাণ</span><input type="number" min="1" value={stockQuantity} onChange={(event) => setStockQuantity(event.target.value)} className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>}
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" aria-pressed={autoDeliveryEnabled} onClick={() => setAutoDeliveryEnabled((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${autoDeliveryEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>Automatic delivery: <strong>{autoDeliveryEnabled ? 'চালু' : 'বন্ধ'}</strong></button><button type="button" aria-pressed={deactivateWhenOutOfStock} onClick={() => setDeactivateWhenOutOfStock((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${deactivateWhenOutOfStock ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>Stock শেষ হলে listing: <strong>{deactivateWhenOutOfStock ? 'অপ্রকাশিত হবে' : 'চালু থাকবে'}</strong></button></div>
-          {stockMode === 'KEY_POOL' && <div className="mt-4 border border-brand-200 bg-brand-50/50 p-3"><p className="text-xs font-semibold text-brand-700">Available key: {availableKeyCount}</p><p className="mt-1 text-xs text-ink-600">প্রতি লাইনে একটি key লিখে existing listing-এ batch inventory যোগ করুন। Key public product page-এ দেখানো হবে না।</p>{isEditing ? <><textarea value={keyBatchText} onChange={(event) => setKeyBatchText(event.target.value)} rows={4} placeholder="KEY-001\nKEY-002\nKEY-003" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={() => void handleAddLicenseKeys()} disabled={!keyBatchText.trim()} className="mt-2 border border-brand-500 px-3 py-2 text-base font-semibold text-brand-700 disabled:opacity-50">Key inventory যোগ করুন</button></> : <p className="mt-2 text-xs text-ink-600">লিস্টিং প্রথমে save করার পরে edit page থেকে key pool যোগ করুন।</p>}</div>}
-          <label className="mt-4 block text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Buyer-এর জন্য delivery note / tutorial (ঐচ্ছিক)</span><textarea value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} rows={3} placeholder="Payment-এর পরে কীভাবে access বা redeem করবে তা লিখুন।" className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" aria-pressed={autoDeliveryEnabled} onClick={() => setAutoDeliveryEnabled((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${autoDeliveryEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>অটোমেটিক ডেলিভারি: <strong>{autoDeliveryEnabled ? 'চালু' : 'বন্ধ'}</strong></button><button type="button" aria-pressed={deactivateWhenOutOfStock} onClick={() => setDeactivateWhenOutOfStock((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${deactivateWhenOutOfStock ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>মজুত শেষ হলে পণ্য: <strong>{deactivateWhenOutOfStock ? 'অপ্রকাশিত হবে' : 'চালু থাকবে'}</strong></button></div>
+          {stockMode === 'KEY_POOL' && <div className="mt-4 border border-brand-200 bg-brand-50/50 p-3"><p className="text-xs font-semibold text-brand-700">মজুত key: {availableKeyCount}</p><p className="mt-1 text-xs text-ink-600">প্রতি লাইনে একটি করে key লিখুন। এগুলো প্রকাশ্য পণ্যের পাতায় দেখা যাবে না।</p>{isEditing ? <><textarea value={keyBatchText} onChange={(event) => setKeyBatchText(event.target.value)} rows={4} placeholder="KEY-001\nKEY-002\nKEY-003" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={() => void handleAddLicenseKeys()} disabled={!keyBatchText.trim()} className="mt-2 border border-brand-500 px-3 py-2 text-base font-semibold text-brand-700 disabled:opacity-50">Key যোগ করুন</button></> : <p className="mt-2 text-xs text-ink-600">পণ্যটি একবার সেভ করার পর এখানে key যোগ করা যাবে।</p>}</div>}
+          <label className="mt-4 block text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">ক্রেতার জন্য ডেলিভারি নোট / নির্দেশনা (ঐচ্ছিক)</span><textarea value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} rows={3} placeholder="পেমেন্টের পরে কীভাবে ব্যবহার বা redeem করবে তা লিখুন।" className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
         </section>
 
         <div className="border border-brand-200 bg-brand-50/60 p-4">
-          <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-brand-700">{digitalDeliveryType === 'LICENSE_KEY' ? <KeyRound size={16} /> : digitalDeliveryType === 'DOWNLOAD_LINK' ? <Link2 size={16} /> : <ShieldCheck size={16} />} Payment সফল হলে buyer কী পাবে তা লিখুন</div>
-          <textarea value={digitalDeliveryText} onChange={(event) => setDigitalDeliveryText(event.target.value)} rows={5} placeholder="গোপন key, access instructions অথবা নিরাপদ download link লিখুন। পাবলিক ছবি URL এখানে দেবেন না।" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
-          <p className="mt-2 text-xs leading-relaxed text-ink-600">এই তথ্য শুধু সংশ্লিষ্ট buyer ও seller-এর authenticated order view-তে দেখানো হবে।</p>
+          <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-brand-700">{digitalDeliveryType === 'LICENSE_KEY' ? <KeyRound size={16} /> : digitalDeliveryType === 'DOWNLOAD_LINK' ? <Link2 size={16} /> : <ShieldCheck size={16} />} অর্ডার সম্পন্ন হলে ক্রেতা কী পাবেন তা লিখুন</div>
+          <textarea value={digitalDeliveryText} onChange={(event) => setDigitalDeliveryText(event.target.value)} rows={5} placeholder="গোপন key, ব্যবহারের নির্দেশনা অথবা নিরাপদ download link লিখুন। প্রকাশ্য ছবি বা link এখানে দেবেন না।" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+          <p className="mt-2 text-xs leading-relaxed text-ink-600">এই তথ্য কেবল অর্ডার সম্পন্ন হওয়ার পর সংশ্লিষ্ট ক্রেতাকে নিরাপদে দেখানো হবে।</p>
         </div>
 
         {error && <p className="border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p>}
 
         <button type="button" onClick={() => void handleSubmit()} disabled={!isValid || submitting} className="w-full bg-brand-500 py-3 text-base font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'সেভ করা হচ্ছে...' : isEditing ? 'পরিবর্তন সেভ করুন' : 'ডিজিটাল লিস্টিং পাঠান'}</button>
+        </>}
       </div>
     </Layout>
   )

@@ -6,6 +6,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { SearchBar } from '@/components/SearchBar'
 import { BackButton } from '@/components/BackButton'
+import { PaymentMethodBadges } from '@/components/PaymentMethodBadges'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
 import { supabase } from '@/lib/supabase'
 import { DEFAULT_PAYMENT_METHODS, getPaymentMethods, loadPublicSettings, type PaymentMethodConfig } from '@/lib/publicSettings'
@@ -120,9 +121,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
               </div>
               <span className="text-sm font-medium text-brand-700">আমরা গ্রহণ করি</span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
-              {paymentMethods.map((method) => <div key={method.name} className="flex min-h-14 items-center gap-2 border border-outline bg-surface px-3 py-2.5" style={{ borderColor: `${method.color}55` }} title={`${method.name} — তথ্য প্রদর্শন মাত্র`}><span className="flex h-8 w-8 shrink-0 items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: method.color }}>{method.short.slice(0, 4)}</span><span className="truncate text-sm font-semibold text-ink-700">{method.name}</span></div>)}
-            </div>
+            <div className="mt-4"><PaymentMethodBadges methods={paymentMethods} /></div>
             <p className="mt-3 text-xs leading-5 text-ink-400">Payment brand-গুলো checkout সুবিধার তথ্য হিসেবে দেখানো হয়েছে। চূড়ান্ত লেনদেন UddoktaPay-এর payment page-এ হবে।</p>
           </section>
           <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">Settings ও Help</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
