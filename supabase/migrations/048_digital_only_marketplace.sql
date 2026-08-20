@@ -58,10 +58,6 @@ create index if not exists idx_orders_digital_lifecycle
   on public.orders(status, updated_at desc)
   where status in ('PENDING_PAYMENT', 'ESCROW_HELD', 'DIGITAL_DELIVERED', 'DISPUTED');
 
-create index if not exists idx_orders_admin_review_digital
-  on public.orders(admin_review_status, status, created_at desc)
-  where status in ('PENDING_PAYMENT', 'ESCROW_HELD', 'DIGITAL_DELIVERED', 'DISPUTED');
-
 -- ---------------------------------------------------------------------
 -- 3) Public catalogue is approved, visible DIGITAL products only.
 -- ---------------------------------------------------------------------
