@@ -1,5 +1,3 @@
-export type OrderStatus = 'PENDING_PAYMENT' | 'ESCROW_HELD' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED'
-
 export type PaymentMethod = 'BKASH' | 'NAGAD' | 'CARD' | 'CASH_ON_MEETUP'
 
 export type DisputeReason =
@@ -12,6 +10,8 @@ export type DisputeReason =
 
 export type DisputeStatus = 'REPORTED' | 'UNDER_REVIEW' | 'RESOLVED_REFUNDED' | 'RESOLVED_DENIED'
 
+export type OrderStatus = 'PENDING_PAYMENT' | 'ESCROW_HELD' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'DIGITAL_DELIVERED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED' | 'REFUNDED'
+
 export interface Order {
   id: string
   product_id: string | null
@@ -22,10 +22,14 @@ export interface Order {
   seller_id: string
   buyer_id: string
   delivery_address: string
-  payment_method: PaymentMethod
+  payment_method: PaymentMethod | null
   status: OrderStatus
   escrow_fee: number
   dispute_status: DisputeStatus | null
+  digital_delivered_at?: string | null
+  buyer_confirmed_at?: string | null
+  escrow_released_at?: string | null
+  refunded_at?: string | null
   created_at: string
 }
 

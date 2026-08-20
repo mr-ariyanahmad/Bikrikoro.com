@@ -36,6 +36,14 @@ export async function confirmOrderDelivery(orderId: string, _buyerId: string) {
   await callOrderAction('confirm_delivery', { orderId })
 }
 
+export async function confirmDigitalDelivery(orderId: string, _buyerId: string) {
+  await callOrderAction('buyer_confirm_digital', { orderId })
+}
+
+export async function sellerDeliverDigital(orderId: string, _sellerId: string) {
+  await callOrderAction('digital_deliver', { orderId })
+}
+
 export async function buyerCancelOrder(orderId: string, _buyerId: string) {
   await callOrderAction('buyer_cancel', { orderId })
 }

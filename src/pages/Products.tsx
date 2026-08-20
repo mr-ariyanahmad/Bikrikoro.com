@@ -11,18 +11,9 @@ import type { Product, Category } from '@/types/product'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
-type DigitalFilter = 'all' | 'digital' | 'physical'
-type SavedSearch = { label: string; url: string }
-
-function readSavedSearches(): SavedSearch[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem('bikrikoro:saved-searches') ?? '[]')
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((item): item is SavedSearch => Boolean(item) && typeof item === 'object' && typeof (item as { label?: unknown }).label === 'string' && typeof (item as { url?: unknown }).url === 'string')
-  } catch {
-    return []
-  }
-}
+type CachedProducts = { expiresAt: number; products: Product[] }
+const productQueryCache = new Map<string, CachedProducts>()
+const PRODUCT_CACHE_TTL_MS = 30_000
 
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -30,9 +21,6 @@ export default function Products() {
   const query = searchParams.get('q') ?? ''
   const sort = (searchParams.get('sort') as SortOption) || 'newest'
   const condition = (searchParams.get('condition') as ConditionFilter) || 'all'
-  const digital = (searchParams.get('digital') as DigitalFilter) || 'all'
-  const location = searchParams.get('location') ?? ''
-  const delivery = searchParams.get('delivery') ?? ''
   const minPrice = searchParams.get('min') ?? ''
   const maxPrice = searchParams.get('max') ?? ''
 
@@ -42,17 +30,19 @@ export default function Products() {
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('bikrikoro:products-view') as 'grid' | 'list') || 'grid')
   const [notice, setNotice] = useState<string | null>(null)
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query), 250)
+    return () => window.clearTimeout(timeout)
+  }, [query])
 
   useEffect(() => {
     if (!supabaseConfigured) return
-    supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order')
-      .then(({ data, error }) => {
-        if (error) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${error.message}`)
-        setCategories(data ?? [])
-      })
+    supabase.from('categories').select('*').order('sort_order').then(({ data, error }) => {
+      if (error) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${error.message}`)
+      setCategories(data ?? [])
+    })
   }, [])
 
   useEffect(() => {
@@ -62,27 +52,36 @@ export default function Products() {
     async function load() {
       if (!supabaseConfigured) {
         setProducts([])
-        setNotice('লাইভ পণ্য data দেখতে Supabase configuration প্রয়োজন।')
+        setNotice('লাইভ digital product data দেখতে Supabase configuration প্রয়োজন।')
         setLoading(false)
         return
       }
       try {
-        let request = supabase.from('products').select('*')
-      if (categoryId) request = request.eq('category_id', categoryId)
-      if (query.trim()) request = request.ilike('title', `%${query.trim()}%`)
-      if (condition !== 'all') request = request.eq('condition', condition)
-      if (digital === 'digital') request = request.eq('is_digital', true)
-      if (digital === 'physical') request = request.eq('is_digital', false)
-      if (location.trim()) request = request.ilike('location', `%${location.trim()}%`)
-      if (delivery === 'free') request = request.eq('free_delivery', true)
-      if (minPrice && Number(minPrice) >= 0) request = request.gte('price', Number(minPrice))
-      if (maxPrice && Number(maxPrice) > 0) request = request.lte('price', Number(maxPrice))
+        const cacheKey = JSON.stringify({ categoryId, query: debouncedQuery.trim(), sort, condition, minPrice, maxPrice })
+        const cached = productQueryCache.get(cacheKey)
+        if (cached && cached.expiresAt > Date.now()) {
+          setProducts(cached.products)
+          setNotice(null)
+          setLoading(false)
+          return
+        }
+        let request = supabase
+          .from('products')
+          .select('*')
+          .eq('is_digital', true)
+          .eq('is_hidden', false)
+          .eq('approval_status', 'APPROVED')
+        if (categoryId) request = request.eq('category_id', categoryId)
+        if (debouncedQuery.trim()) request = request.ilike('title', `%${debouncedQuery.trim()}%`)
+        if (condition !== 'all') request = request.eq('condition', condition)
+        if (minPrice && Number(minPrice) >= 0) request = request.gte('price', Number(minPrice))
+        if (maxPrice && Number(maxPrice) > 0) request = request.lte('price', Number(maxPrice))
 
-      if (sort === 'price_asc') request = request.order('price', { ascending: true })
-      else if (sort === 'price_desc') request = request.order('price', { ascending: false })
-      else if (sort === 'oldest') request = request.order('created_at', { ascending: true })
-      else if (sort === 'popular') request = request.order('view_count', { ascending: false })
-      else request = request.order('created_at', { ascending: false })
+        if (sort === 'price_asc') request = request.order('price', { ascending: true })
+        else if (sort === 'price_desc') request = request.order('price', { ascending: false })
+        else if (sort === 'oldest') request = request.order('created_at', { ascending: true })
+        else if (sort === 'popular') request = request.order('view_count', { ascending: false })
+        else request = request.order('created_at', { ascending: false })
 
         const { data, error } = await request.limit(60)
         if (error) throw error
@@ -91,28 +90,24 @@ export default function Products() {
           setNotice(null)
           if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
           setProducts(nextProducts)
+          productQueryCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_CACHE_TTL_MS, products: nextProducts })
         }
-      } catch (error) {
-        console.error('Products load failed:', error)
+      } catch (loadError) {
+        console.error('Digital products load failed:', loadError)
         if (!cancelled) {
           setProducts([])
-          setNotice('পণ্যগুলো এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+          setNotice('Digital products এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
         }
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
 
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [categoryId, query, sort, condition, digital, location, delivery, minPrice, maxPrice])
+    void load()
+    return () => { cancelled = true }
+  }, [categoryId, debouncedQuery, sort, condition, minPrice, maxPrice])
 
-  const activeFilterCount = useMemo(
-    () => [condition !== 'all', digital !== 'all', Boolean(location), delivery === 'free', Boolean(minPrice), Boolean(maxPrice)].filter(Boolean).length,
-    [condition, digital, location, delivery, minPrice, maxPrice]
-  )
+  const activeFilterCount = useMemo(() => [condition !== 'all', Boolean(minPrice), Boolean(maxPrice)].filter(Boolean).length, [condition, minPrice, maxPrice])
 
   const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams)
@@ -123,131 +118,60 @@ export default function Products() {
 
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams)
-    ;['condition', 'digital', 'location', 'delivery', 'min', 'max', 'sort'].forEach((key) => next.delete(key))
+    ;['condition', 'min', 'max', 'sort'].forEach((key) => next.delete(key))
     setSearchParams(next)
   }
 
-  const handleCategorySelect = (id: string | null) => updateParam('category', id ?? '')
   const saveCurrentSearch = () => {
     const url = `${window.location.pathname}${window.location.search}`
-    const label = query.trim() || (categoryId ? 'ক্যাটাগরি ফলাফল' : 'সব পণ্য')
-    const saved = readSavedSearches()
+    const label = query.trim() || (categoryId ? 'ডিজিটাল ক্যাটাগরি ফলাফল' : 'সব ডিজিটাল পণ্য')
+    const saved = JSON.parse(localStorage.getItem('bikrikoro:saved-searches') ?? '[]') as Array<{ label: string; url: string }>
     localStorage.setItem('bikrikoro:saved-searches', JSON.stringify([{ label, url }, ...saved.filter((item) => item.url !== url)].slice(0, 8)))
     setNotice('সার্চটি সেভ হয়েছে।')
   }
+
   const shareCurrentSearch = async () => {
-    const url = window.location.href
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'BikriKoro.Com পণ্য সার্চ', url })
-        setNotice('এই filter link শেয়ার হয়েছে।')
-        return
-      }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        setNotice('এই filter link কপি হয়েছে।')
-        return
-      }
-      const textarea = document.createElement('textarea')
-      textarea.value = url
-      textarea.setAttribute('readonly', '')
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      const copied = document.execCommand('copy')
-      textarea.remove()
-      setNotice(copied ? 'এই filter link কপি হয়েছে।' : 'Filter link কপি করা যায়নি।')
-    } catch {
-      setNotice('Filter link কপি করা যায়নি।')
-    }
+    try { await navigator.clipboard.writeText(window.location.href); setNotice('এই filter link কপি হয়েছে।') } catch { setNotice('Filter link কপি করা যায়নি।') }
   }
+
   const changeView = (next: 'grid' | 'list') => { setViewMode(next); localStorage.setItem('bikrikoro:products-view', next) }
+  const handleCategorySelect = (id: string | null) => updateParam('category', id ?? '')
 
   return (
     <Layout wide>
       <Helmet>
-        <title>সব পণ্য ব্রাউজ করুন | BikriKoro.Com</title>
-        <meta name="description" content="বাংলাদেশজুড়ে হাজারো পণ্য — ডিজিটাল প্রোডাক্ট, ইলেকট্রনিক্স, ফ্যাশন ও আরও অনেক কিছু।" />
+        <title>ডিজিটাল পণ্য ব্রাউজ করুন | BikriKoro.Com</title>
+        <meta name="description" content="বাংলাদেশের নিরাপদ digital key, file, access এবং service marketplace।" />
         <link rel="canonical" href="https://bikrikoro.com/products" />
       </Helmet>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => updateParam('q', e.target.value)}
-          aria-label="পণ্য খুঁজুন"
-          placeholder="পণ্য খুঁজুন..."
-          className="flex-1 rounded-lg border border-outline px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-        />
-        <button
-          type="button"
-          onClick={() => setShowFilters((current) => !current)}
-          aria-expanded={showFilters}
-          className="rounded-lg border border-outline px-3 py-2.5 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 sm:hidden"
-        >
-          ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
-        </button>
+        <input type="search" value={query} onChange={(event) => updateParam('q', event.target.value)} aria-label="ডিজিটাল পণ্য খুঁজুন" placeholder="ডিজিটাল পণ্য খুঁজুন..." className="flex-1 border border-outline px-4 py-2.5 text-base outline-none focus:border-brand-500" />
+        <button type="button" onClick={() => setShowFilters((current) => !current)} aria-expanded={showFilters} className="border border-outline px-3 py-2.5 text-base font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700 sm:hidden">ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
         <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'popular', label: 'জনপ্রিয় আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
       </div>
 
-      <div className={`${showFilters ? 'block' : 'hidden'} mb-5 rounded-2xl border border-outline bg-surface p-4 sm:block`}>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="text-sm text-ink-600">
-            <span className="mb-1 block font-medium text-ink-900">ন্যূনতম দাম</span>
-            <input
-              type="number"
-              min="0"
-              value={minPrice}
-              onChange={(e) => updateParam('min', e.target.value)}
-              placeholder="৳ ০"
-              className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500"
-            />
-          </label>
-          <label className="text-sm text-ink-600">
-            <span className="mb-1 block font-medium text-ink-900">সর্বোচ্চ দাম</span>
-            <input
-              type="number"
-              min="0"
-              value={maxPrice}
-              onChange={(e) => updateParam('max', e.target.value)}
-              placeholder="৳ সীমা নেই"
-              className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500"
-            />
-          </label>
+      <div className={`${showFilters ? 'block' : 'hidden'} mb-5 border border-outline bg-surface p-4 sm:block`}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-base text-ink-700"><span className="mb-1 block font-medium text-ink-900">ন্যূনতম দাম</span><input type="number" min="0" value={minPrice} onChange={(event) => updateParam('min', event.target.value)} placeholder="৳ ০" className="w-full border border-outline px-3 py-2 text-base outline-none focus:border-brand-500" /></label>
+          <label className="text-base text-ink-700"><span className="mb-1 block font-medium text-ink-900">সর্বোচ্চ দাম</span><input type="number" min="0" value={maxPrice} onChange={(event) => updateParam('max', event.target.value)} placeholder="৳ সীমা নেই" className="w-full border border-outline px-3 py-2 text-base outline-none focus:border-brand-500" /></label>
           <BrandSelect label="অবস্থা" value={condition} options={[{ value: 'all', label: 'সব ধরনের' }, { value: 'NEW', label: 'নতুন' }, { value: 'USED', label: 'ব্যবহৃত' }]} onChange={(value) => updateParam('condition', value)} />
-          <BrandSelect label="পণ্যের ধরন" value={digital} options={[{ value: 'all', label: 'সব পণ্য' }, { value: 'digital', label: 'ডিজিটাল' }, { value: 'physical', label: 'ফিজিক্যাল' }]} onChange={(value) => updateParam('digital', value)} />
-          <label className="text-sm text-ink-600">
-            <span className="mb-1 block font-medium text-ink-900">লোকেশন</span>
-            <input
-              value={location}
-              onChange={(e) => updateParam('location', e.target.value)}
-              placeholder="শহর বা এলাকা"
-              className="w-full rounded-lg border border-outline px-3 py-2 outline-none focus:border-brand-500"
-            />
-          </label>
         </div>
-        {activeFilterCount > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-3"><button onClick={clearFilters} className="text-sm font-semibold text-error hover:underline">সব ফিল্টার পরিষ্কার করুন</button>{delivery === 'free' && <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">ফ্রি ডেলিভারি</span>}</div>
-        )}
+        {activeFilterCount > 0 && <div className="mt-3"><button type="button" onClick={clearFilters} className="text-base font-semibold text-error hover:underline">সব ফিল্টার পরিষ্কার করুন</button></div>}
       </div>
 
       <CategoryPills categories={categories} selectedId={categoryId} onSelect={handleCategorySelect} />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-600">
-        <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি পণ্য পাওয়া গেছে`}</span>
-        <div className="flex items-center gap-1.5"><button onClick={saveCurrentSearch} className="inline-flex items-center gap-1 rounded-lg border border-outline px-2.5 py-1.5 text-xs font-semibold hover:border-brand-500 hover:text-brand-600"><BookmarkPlus size={14} />সার্চ সেভ</button><button onClick={shareCurrentSearch} className="inline-flex items-center gap-1 rounded-lg border border-outline px-2.5 py-1.5 text-xs font-semibold hover:border-brand-500 hover:text-brand-600"><Share2 size={14} />শেয়ার</button><button onClick={() => changeView('grid')} className={`rounded-lg p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button onClick={() => changeView('list')} className={`rounded-lg p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-base text-ink-700">
+        <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি digital product পাওয়া গেছে`}</span>
+        <div className="flex items-center gap-1.5"><button type="button" onClick={saveCurrentSearch} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><BookmarkPlus size={14} />সার্চ সেভ</button><button type="button" onClick={() => void shareCurrentSearch()} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><Share2 size={14} />শেয়ার</button><button type="button" onClick={() => changeView('grid')} className={`p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button type="button" onClick={() => changeView('list')} className={`p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
       </div>
-      {notice && <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{notice}</p>}
+      {notice && <p className="mt-2 border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">{notice}</p>}
 
       <div className={`mt-3 grid gap-3 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'}`}>
-        {loading
-          ? Array.from({ length: 12 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-outline/40" />)
-          : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
+        {loading ? Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/4] animate-pulse bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
       </div>
-
-      {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-600">এই ফিল্টারে কোনো পণ্য পাওয়া যায়নি।</p>}
+      {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-700">এই filter-এ কোনো digital product পাওয়া যায়নি।</p>}
     </Layout>
   )
 }

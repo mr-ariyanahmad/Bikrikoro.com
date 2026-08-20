@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
-type Body = { action?: 'list' | 'detail' | 'payment_state' | 'dispute' | 'wallet'; orderId?: string; disputeId?: string }
+type Body = { action?: 'list' | 'detail' | 'payment_state' | 'digital_library' | 'dispute' | 'wallet'; orderId?: string; disputeId?: string }
 
 function bodyOf(req: VercelRequest): Body {
   if (typeof req.body === 'string') return JSON.parse(req.body) as Body
@@ -22,24 +22,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (input.action === 'list') {
       const { data: orders, error: ordersError } = await supabase.rpc('buyer_list_orders', { p_user_id: token.uid })
       if (ordersError) throw ordersError
-      const [{ data: reviews, error: reviewsError }, { data: disputes, error: disputesError }] = await Promise.all([
+      const orderIds = (orders ?? []).map((row) => row.id)
+      const [{ data: reviews, error: reviewsError }, { data: disputes, error: disputesError }, { data: deliveries, error: deliveriesError }] = await Promise.all([
         supabase.from('reviews').select('order_id').eq('buyer_id', token.uid),
         supabase.from('order_disputes').select('id, order_id').eq('buyer_id', token.uid),
+        orderIds.length > 0
+          ? supabase.from('digital_deliveries').select('order_id, delivery_type, delivery_text, status, delivered_at, updated_at').in('order_id', orderIds)
+          : Promise.resolve({ data: [], error: null }),
       ])
       if (reviewsError) throw reviewsError
       if (disputesError) throw disputesError
-      res.status(200).json({ orders: orders ?? [], reviewedOrderIds: (reviews ?? []).map((row) => row.order_id), disputes: disputes ?? [] })
+      if (deliveriesError) throw deliveriesError
+      res.status(200).json({ orders: orders ?? [], deliveries: deliveries ?? [], reviewedOrderIds: (reviews ?? []).map((row) => row.order_id), disputes: disputes ?? [] })
       return
     }
     if (input.action === 'detail') {
       if (!input.orderId) throw new Error('Order ID is required')
-      const [{ data: order, error: orderError }, { data: reviewed, error: reviewError }] = await Promise.all([
+      const [{ data: order, error: orderError }, { data: reviewed, error: reviewError }, { data: delivery, error: deliveryError }] = await Promise.all([
         supabase.rpc('buyer_get_order', { p_user_id: token.uid, p_order_id: input.orderId }),
         supabase.rpc('buyer_has_order_review', { p_buyer_id: token.uid, p_order_id: input.orderId }),
+        supabase.from('digital_deliveries').select('order_id, delivery_type, delivery_text, status, delivered_at, updated_at').eq('order_id', input.orderId).maybeSingle(),
       ])
       if (orderError) throw orderError
       if (reviewError) throw reviewError
-      res.status(200).json({ order, reviewed: reviewed === true })
+      if (deliveryError) throw deliveryError
+      res.status(200).json({ order, delivery: delivery ?? null, reviewed: reviewed === true })
+      return
+    }
+    if (input.action === 'digital_library') {
+      const { data, error } = await supabase.rpc('get_digital_library', { p_buyer_id: token.uid })
+      if (error) throw error
+      res.status(200).json({ library: data ?? [] })
       return
     }
     if (input.action === 'payment_state') {

@@ -42,9 +42,16 @@ export async function validateCoupon(code: string, productId: string, buyerId: s
 }
 
 export async function loadDigitalLibrary(userId: string): Promise<DigitalLibraryItem[]> {
-  const { data, error } = await supabase.rpc('get_digital_library', { p_buyer_id: userId })
-  if (error) throw error
-  return (data ?? []) as DigitalLibraryItem[]
+  if (auth.currentUser?.uid !== userId) throw new Error('আপনার digital library session পাওয়া যায়নি।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/order-read', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ action: 'digital_library' }),
+  })
+  const payload = await response.json().catch(() => ({})) as { library?: DigitalLibraryItem[]; error?: string }
+  if (!response.ok) throw new Error(payload.error || `Digital library load failed (HTTP ${response.status})`)
+  return payload.library ?? []
 }
 
 async function notificationApi(userId: string, payload: Record<string, unknown>) {

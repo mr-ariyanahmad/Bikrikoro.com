@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BadgeCheck, Check, ChevronRight, Coins, Crown, Gift, ShieldCheck, ShoppingBag, Sparkles, Truck } from 'lucide-react'
+import { BadgeCheck, Check, ChevronRight, Coins, Crown, Gift, ShieldCheck, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Layout } from '@/components/Layout'
@@ -52,7 +52,7 @@ export default function RewardsHub() {
   }
 
   return <Layout wide>
-    <Helmet><title>Rewards ও সুবিধা | BikriKoro.Com</title><meta name="description" content="BikriKoro daily check-in, reward coins, VIP status এবং delivery সুবিধা দেখুন।" /></Helmet>
+    <Helmet><title>Rewards ও সুবিধা | BikriKoro.Com</title><meta name="description" content="BikriKoro daily check-in, reward coins, VIP status এবং digital marketplace সুবিধা দেখুন।" /></Helmet>
     <div className="mx-auto max-w-5xl">
       <section className="rounded-3xl bg-gradient-to-br from-brand-600 via-brand-500 to-brand-700 p-6 text-white shadow-lg sm:p-8">
         <div className="flex items-start justify-between gap-5"><div><p className="text-sm font-semibold text-brand-50/80">BikriKoro Rewards</p><h1 className="mt-2 text-3xl font-bold sm:text-4xl">কেনাকাটায় আরও সুবিধা পান</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-brand-50/85">দৈনিক check-in থেকে কয়েন নিন, আপনার reward status দেখুন এবং নির্বাচিত পণ্যে delivery সুবিধা ব্যবহার করুন।</p></div><span className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-white/15 sm:flex"><Gift size={28} /></span></div>
@@ -67,8 +67,8 @@ export default function RewardsHub() {
       </section>
 
       <section className="mt-5 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-brand-100 bg-brand-50 p-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-brand-600"><Truck size={22} /></span><div><h2 className="font-bold text-brand-800">ফ্রি ডেলিভারি সুবিধা</h2><p className="mt-0.5 text-xs text-brand-700/75">নির্বাচিত physical পণ্যে প্রযোজ্য</p></div></div><p className="mt-4 text-sm leading-6 text-brand-800/80">যেসব product card-এ free delivery badge আছে, সেগুলো বেছে নিন। Checkout-এর আগে delivery eligibility দেখে নিতে পারবেন।</p><Link to="/products?delivery=free" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-600">ফ্রি ডেলিভারি পণ্য দেখুন <ShoppingBag size={17} /></Link></div>
-        <div className="rounded-2xl border border-outline bg-surface p-5 shadow-sm"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><ShieldCheck size={22} /></span><div><h2 className="font-bold text-ink-900">Reward ব্যবহারের নিয়ম</h2><p className="mt-0.5 text-xs text-ink-500">সহজ ও স্বচ্ছ সুবিধা</p></div></div><div className="mt-4 space-y-3 text-sm text-ink-600"><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />Reward coin BDT wallet balance নয় এবং cash-out করা যায় না।</p><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />একজন user প্রতিদিন একবার check-in করতে পারবেন।</p><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />Free delivery শুধু eligible product ও campaign-এর ক্ষেত্রে প্রযোজ্য।</p></div></div>
+        <div className="border border-brand-100 bg-brand-50 p-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center bg-white text-brand-600"><ShieldCheck size={22} /></span><div><h2 className="font-bold text-brand-800">Digital buyer protection</h2><p className="mt-0.5 text-xs text-brand-700/75">Escrow, delivery confirmation ও dispute review</p></div></div><p className="mt-4 text-sm leading-6 text-brand-800/80">Payment আগে hold থাকে। Delivery status ও product access যাচাই করে buyer confirm করলে seller wallet-এ payout release হয়। সমস্যা হলে admin review পর্যন্ত টাকা hold থাকে।</p><Link to="/products" className="mt-4 inline-flex items-center gap-2 bg-brand-500 px-4 py-3 text-base font-bold text-white transition hover:bg-brand-600">Digital product দেখুন</Link></div>
+        <div className="border border-outline bg-surface p-5"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center bg-brand-50 text-brand-600"><ShieldCheck size={22} /></span><div><h2 className="font-bold text-ink-900">Reward ব্যবহারের নিয়ম</h2><p className="mt-0.5 text-xs text-ink-500">সহজ ও স্বচ্ছ সুবিধা</p></div></div><div className="mt-4 space-y-3 text-sm text-ink-600"><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />Reward coin BDT wallet balance নয় এবং cash-out করা যায় না।</p><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />একজন user প্রতিদিন একবার check-in করতে পারবেন।</p><p className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-brand-500" />Digital product delivery, escrow ও refund rules checkout-এ স্পষ্টভাবে দেখানো হয়।</p></div></div>
       </section>
     </div>
   </Layout>

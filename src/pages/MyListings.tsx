@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatTaka } from '@/lib/format'
@@ -30,13 +31,27 @@ export default function MyListings() {
 
   const handleDuplicate = async (product: Product) => {
     if (!user) return
+    if (!product.is_digital) {
+      setMessage('পুরনো physical listing archive করা আছে; নতুন করে copy বা publish করা যাবে না।')
+      return
+    }
     setDuplicatingId(product.id)
     setMessage(null)
-    const { data: digitalContent, error: contentLoadError } = product.is_digital
-      ? await supabase.from('digital_product_contents').select('delivery_type, delivery_text').eq('product_id', product.id).maybeSingle()
-      : { data: null, error: null }
-    if (contentLoadError) {
-      setMessage('ডিজিটাল delivery তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
+    const idToken = await auth.currentUser?.getIdToken()
+    if (!idToken) {
+      setMessage('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+      setDuplicatingId(null)
+      return
+    }
+    const contentResponse = await fetch('/api/seller-digital-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ action: 'get', productId: product.id }),
+    })
+    const contentPayload = await contentResponse.json().catch(() => ({})) as { content?: { delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'; delivery_text: string }; error?: string }
+    const digitalContent = contentPayload.content
+    if (!contentResponse.ok) {
+      setMessage(contentPayload.error || 'ডিজিটাল delivery তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
       setDuplicatingId(null)
       return
     }
@@ -48,13 +63,13 @@ export default function MyListings() {
       p_original_price: product.original_price,
       p_category_id: product.category_id,
       p_condition: product.condition,
-      p_location: product.location,
+      p_location: '',
       p_images: product.images,
-      p_is_digital: product.is_digital,
-      p_supports_cod: Boolean(product.supports_cod),
-      p_free_delivery: Boolean(product.free_delivery),
-      p_fast_delivery: Boolean(product.fast_delivery),
-      p_free_return: Boolean(product.free_return),
+      p_is_digital: true,
+      p_supports_cod: false,
+      p_free_delivery: false,
+      p_fast_delivery: false,
+      p_free_return: false,
       p_video_url: product.video_url ?? null,
     })
     if (error || !newProductId) {
@@ -62,9 +77,13 @@ export default function MyListings() {
       setDuplicatingId(null)
       return
     }
-    if (product.is_digital && digitalContent) {
-      const { error: contentError } = await supabase.rpc('seller_upsert_digital_content', { p_seller_id: user.uid, p_product_id: newProductId, p_delivery_type: digitalContent.delivery_type, p_delivery_text: digitalContent.delivery_text })
-      if (contentError) {
+    if (digitalContent) {
+      const saveResponse = await fetch('/api/seller-digital-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ action: 'save', productId: newProductId, deliveryType: digitalContent.delivery_type, deliveryText: digitalContent.delivery_text }),
+      })
+      if (!saveResponse.ok) {
         await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
         setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
         setDuplicatingId(null)
@@ -152,11 +171,11 @@ export default function MyListings() {
                   এডিট
                 </Link>
                 <button
-                  onClick={() => handleDuplicate(product)}
-                  disabled={duplicatingId === product.id}
-                  className="rounded-lg border border-outline px-3 py-1.5 text-xs font-medium text-brand-600 hover:border-brand-500 disabled:opacity-50"
+                  onClick={() => void handleDuplicate(product)}
+                  disabled={duplicatingId === product.id || !product.is_digital}
+                  className="border border-outline px-3 py-1.5 text-base font-medium text-brand-600 hover:border-brand-500 disabled:opacity-50"
                 >
-                  {duplicatingId === product.id ? '...' : 'কপি'}
+                  {duplicatingId === product.id ? '...' : product.is_digital ? 'কপি' : 'archive'}
                 </button>
                 <button
                   onClick={() => setDeleteTarget(product)}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { FileCheck2, Package, ShieldCheck } from 'lucide-react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { KeyRound, Link2, ShieldCheck } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
@@ -18,14 +18,29 @@ interface LocalImage {
   uploading?: boolean
 }
 
+type DigitalContent = {
+  delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
+  delivery_text: string
+}
+
+async function digitalContentRequest(body: Record<string, unknown>) {
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+  const response = await fetch('/api/seller-digital-content', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => ({})) as { error?: string; content?: DigitalContent | null }
+  if (!response.ok) throw new Error(payload.error || 'ডিজিটাল ডেলিভারি তথ্য লোড করা যায়নি।')
+  return payload
+}
+
 export default function Sell() {
   const { id } = useParams<{ id: string }>()
   const isEditing = Boolean(id)
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { user } = useAuth()
-  const requestedMode = searchParams.get('mode')
-  const modeLocked = requestedMode === 'DIGITAL' || requestedMode === 'PHYSICAL'
 
   const [categories, setCategories] = useState<Category[]>([])
   const [title, setTitle] = useState('')
@@ -33,35 +48,31 @@ export default function Sell() {
   const [price, setPrice] = useState('')
   const [originalPrice, setOriginalPrice] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [condition, setCondition] = useState<'NEW' | 'USED'>('USED')
-  const [isDigital, setIsDigital] = useState(requestedMode === 'DIGITAL')
-  const [modeSelected, setModeSelected] = useState(isEditing || modeLocked)
-  const [supportsCod, setSupportsCod] = useState(false)
-  const [freeDelivery, setFreeDelivery] = useState(false)
-  const [fastDelivery, setFastDelivery] = useState(false)
-  const [freeReturn, setFreeReturn] = useState(false)
-  const [digitalDeliveryType, setDigitalDeliveryType] = useState<'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'>('INSTRUCTIONS')
-  const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
-  const [location, setLocation] = useState('')
+  const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW')
   const [images, setImages] = useState<LocalImage[]>([])
   const [videoUrl, setVideoUrl] = useState('')
+  const [digitalDeliveryType, setDigitalDeliveryType] = useState<DigitalContent['delivery_type']>('INSTRUCTIONS')
+  const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
   const [loadingExisting, setLoadingExisting] = useState(isEditing)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
   const [digitalVerified, setDigitalVerified] = useState(false)
   const [digitalVerificationLoading, setDigitalVerificationLoading] = useState(true)
+  const [archivedPhysical, setArchivedPhysical] = useState(false)
 
   useEffect(() => {
+    let active = true
     supabase
       .from('categories')
       .select('*')
       .order('sort_order')
       .then(({ data }) => {
+        if (!active) return
         setCategories(data ?? [])
-        if (data && data.length > 0 && !categoryId) setCategoryId(data[0].id)
+        if (data && data.length > 0) setCategoryId((current) => current || data[0].id)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -78,8 +89,8 @@ export default function Sell() {
         const payload = await response.json().catch(() => ({})) as { digitalVerified?: boolean }
         if (!response.ok) throw new Error('Seller verification status লোড করা যায়নি।')
         if (active) setDigitalVerified(payload.digitalVerified === true)
-      } catch (error) {
-        console.error('Digital seller eligibility check failed:', error)
+      } catch (statusError) {
+        console.error('Digital seller eligibility check failed:', statusError)
         if (active) setDigitalVerified(false)
       } finally {
         if (active) setDigitalVerificationLoading(false)
@@ -90,7 +101,7 @@ export default function Sell() {
   }, [user])
 
   useEffect(() => {
-    if (isEditing) return
+    if (isEditing || !user) return
     const draft = loadListingDraft()
     if (!draft) return
     setTitle(draft.title)
@@ -99,56 +110,53 @@ export default function Sell() {
     setOriginalPrice(draft.originalPrice)
     setCategoryId(draft.categoryId)
     setCondition(draft.condition)
-    if (!modeLocked) setIsDigital(draft.isDigital)
-    setSupportsCod(draft.supportsCod)
-    setFreeDelivery(draft.freeDelivery)
-    setFastDelivery(draft.fastDelivery)
-    setFreeReturn(draft.freeReturn)
     setDigitalDeliveryType(draft.digitalDeliveryType)
     setDigitalDeliveryText(draft.digitalDeliveryText)
-    setLocation(draft.location)
     setImages(draft.images.map((url) => ({ url })))
     setVideoUrl(draft.videoUrl)
-    setModeSelected(true)
-    setDraftMessage('আগের অসম্পূর্ণ ড্রাফট লোড হয়েছে।')
-  }, [isEditing, modeLocked])
+    setDraftMessage('আগের অসম্পূর্ণ ডিজিটাল ড্রাফট লোড হয়েছে।')
+  }, [isEditing, user])
 
   useEffect(() => {
     if (!id || !user) return
-
-    supabase
-      .rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: id })
-      .then(async ({ data, error: fetchError }) => {
-        if (fetchError || !data || data.seller_id !== user.uid) {
-          setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')
-          setLoadingExisting(false)
-          return
-        }
-        setTitle(data.title)
-        setDescription(data.description)
-        setPrice(String(data.price))
-        setOriginalPrice(data.original_price ? String(data.original_price) : '')
-        setCategoryId(data.category_id)
-        setCondition(data.condition)
-        setIsDigital(Boolean(data.is_digital))
-        setSupportsCod(Boolean(data.supports_cod))
-        setFreeDelivery(Boolean(data.free_delivery))
-        setFastDelivery(Boolean(data.fast_delivery))
-        setFreeReturn(Boolean(data.free_return))
-        setLocation(data.location || '')
-        setImages(data.images.map((url: string) => ({ url })))
-        setVideoUrl(data.video_url || '')
-        const { data: delivery } = await supabase
-          .from('digital_product_contents')
-          .select('delivery_type, delivery_text')
-          .eq('product_id', id)
-          .maybeSingle()
+    let active = true
+    const loadListing = async () => {
+      const { data, error: fetchError } = await supabase.rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: id })
+      if (!active) return
+      if (fetchError || !data || data.seller_id !== user.uid) {
+        setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')
+        setLoadingExisting(false)
+        return
+      }
+      if (data.is_digital !== true) {
+        setArchivedPhysical(true)
+        setLoadingExisting(false)
+        return
+      }
+      setTitle(data.title)
+      setDescription(data.description)
+      setPrice(String(data.price))
+      setOriginalPrice(data.original_price ? String(data.original_price) : '')
+      setCategoryId(data.category_id)
+      setCondition(data.condition)
+      setImages((data.images ?? []).map((url: string) => ({ url })))
+      setVideoUrl(data.video_url || '')
+      try {
+        const payload = await digitalContentRequest({ action: 'get', productId: id })
+        const delivery = payload.content
         if (delivery) {
           setDigitalDeliveryType(delivery.delivery_type)
           setDigitalDeliveryText(delivery.delivery_text || '')
         }
-        setLoadingExisting(false)
-      })
+      } catch (contentError) {
+        console.error('Digital delivery content load failed:', contentError)
+        setError(contentError instanceof Error ? contentError.message : 'ডেলিভারি তথ্য লোড করা যায়নি।')
+      } finally {
+        if (active) setLoadingExisting(false)
+      }
+    }
+    void loadListing()
+    return () => { active = false }
   }, [id, user])
 
   const handleSaveDraft = () => {
@@ -159,18 +167,18 @@ export default function Sell() {
       originalPrice,
       categoryId,
       condition,
-      isDigital,
-      supportsCod,
-      freeDelivery,
-      fastDelivery,
-      freeReturn,
+      isDigital: true,
+      supportsCod: false,
+      freeDelivery: false,
+      fastDelivery: false,
+      freeReturn: false,
       digitalDeliveryType,
       digitalDeliveryText,
-      location,
+      location: '',
       images: images.filter((image) => !image.uploading).map((image) => image.url),
       videoUrl,
     })
-    setDraftMessage('ড্রাফট সেভ হয়েছে। পরে আবার এলে এখান থেকেই শুরু করতে পারবেন।')
+    setDraftMessage('ডিজিটাল লিস্টিং ড্রাফট সেভ হয়েছে।')
   }
 
   const handleClearDraft = () => {
@@ -186,7 +194,6 @@ export default function Sell() {
       uploading: true,
     }))
     setImages((prev) => [...prev, ...placeholders])
-
     try {
       const urls = await uploadProductImages(files, user.uid)
       setImages((prev) => prev.map((image) => {
@@ -194,11 +201,11 @@ export default function Sell() {
         return placeholderIndex >= 0 ? { url: urls[placeholderIndex] } : image
       }))
       placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
-    } catch (err) {
-      console.error('Image upload failed:', err)
-      setError(err instanceof Error ? err.message : 'ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
+    } catch (uploadError) {
+      console.error('Image upload failed:', uploadError)
+      setError(uploadError instanceof Error ? uploadError.message : 'ছবি আপলোড করা যায়নি — আবার চেষ্টা করুন।')
       placeholders.forEach((placeholder) => URL.revokeObjectURL(placeholder.url))
-      setImages((prev) => prev.filter((img) => !placeholders.some((p) => p.url === img.url)))
+      setImages((prev) => prev.filter((image) => !placeholders.some((placeholder) => placeholder.url === image.url)))
     }
   }
 
@@ -206,36 +213,26 @@ export default function Sell() {
     setImages((prev) => {
       const target = prev[index]
       if (target?.url.startsWith('blob:')) URL.revokeObjectURL(target.url)
-      return prev.filter((_, i) => i !== index)
+      return prev.filter((_, imageIndex) => imageIndex !== index)
     })
   }
 
   const isValid =
+    digitalVerified &&
     title.trim().length >= 5 &&
     Number(price) > 0 &&
-    categoryId &&
-    (isDigital || location.trim().length >= 2) &&
-    (!isDigital || digitalVerified) &&
-    (!isDigital || digitalDeliveryText.trim().length >= 3) &&
+    Boolean(categoryId) &&
+    digitalDeliveryText.trim().length >= 3 &&
     images.length > 0 &&
-    !images.some((img) => img.uploading) &&
+    !images.some((image) => image.uploading) &&
     (!videoUrl.trim() || isYouTubeUrl(videoUrl))
-  const qualityChecks = [title.trim().length >= 10, description.trim().length >= 40, images.length >= 2, Number(price) > 0, isDigital || location.trim().length >= 2]
-  const qualityScore = Math.round((qualityChecks.filter(Boolean).length / qualityChecks.length) * 100)
-
-  useEffect(() => {
-    if (!isEditing && !digitalVerificationLoading && !digitalVerified && isDigital) {
-      setIsDigital(false)
-      setModeSelected(requestedMode !== 'DIGITAL')
-    }
-  }, [digitalVerificationLoading, digitalVerified, isDigital, isEditing, requestedMode])
 
   const handleSubmit = async () => {
     if (!user || !isValid || digitalVerificationLoading) return
     setSubmitting(true)
     setError(null)
     try {
-      if (isDigital && !digitalVerified) throw new Error('ডিজিটাল পণ্য বিক্রি করতে আগে Seller Verification সম্পন্ন ও Admin approval নিতে হবে।')
+      if (!digitalVerified) throw new Error('ডিজিটাল পণ্য বিক্রি করতে Seller Verification ও Admin approval প্রয়োজন।')
       if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) throw new Error('শুধু valid YouTube video link দেওয়া যাবে।')
 
       const payload = {
@@ -245,13 +242,7 @@ export default function Sell() {
         original_price: originalPrice ? Number(originalPrice) : null,
         category_id: categoryId,
         condition,
-        is_digital: isDigital,
-        supports_cod: !isDigital && supportsCod,
-        free_delivery: !isDigital && freeDelivery,
-        fast_delivery: !isDigital && fastDelivery,
-        free_return: !isDigital && freeReturn,
-        location: isDigital ? '' : location.trim(),
-        images: images.map((img) => img.url),
+        images: images.map((image) => image.url),
         video_url: videoUrl.trim() || null,
       }
 
@@ -265,13 +256,13 @@ export default function Sell() {
             p_original_price: payload.original_price,
             p_category_id: payload.category_id,
             p_condition: payload.condition,
-            p_location: payload.location,
+            p_location: '',
             p_images: payload.images,
-            p_is_digital: payload.is_digital,
-            p_supports_cod: payload.supports_cod,
-            p_free_delivery: payload.free_delivery,
-            p_fast_delivery: payload.fast_delivery,
-            p_free_return: payload.free_return,
+            p_is_digital: true,
+            p_supports_cod: false,
+            p_free_delivery: false,
+            p_fast_delivery: false,
+            p_free_return: false,
             p_video_url: payload.video_url,
           })
         : await supabase.rpc('seller_create_product', {
@@ -282,40 +273,25 @@ export default function Sell() {
             p_original_price: payload.original_price,
             p_category_id: payload.category_id,
             p_condition: payload.condition,
-            p_location: payload.location,
+            p_location: '',
             p_images: payload.images,
-            p_is_digital: payload.is_digital,
-            p_supports_cod: payload.supports_cod,
-            p_free_delivery: payload.free_delivery,
-            p_fast_delivery: payload.fast_delivery,
-            p_free_return: payload.free_return,
+            p_is_digital: true,
+            p_supports_cod: false,
+            p_free_delivery: false,
+            p_fast_delivery: false,
+            p_free_return: false,
             p_video_url: payload.video_url,
           })
       if (result.error) throw result.error
 
       const savedProductId = id ?? result.data
       if (!savedProductId) throw new Error('সেভ হওয়া পণ্যের ID পাওয়া যায়নি।')
-      const deliveryResult = isDigital
-        ? await supabase.rpc('seller_upsert_digital_content', {
-            p_seller_id: user.uid,
-            p_product_id: savedProductId,
-            p_delivery_type: digitalDeliveryType,
-            p_delivery_text: digitalDeliveryText.trim(),
-          })
-        : await supabase.rpc('seller_clear_digital_content', {
-            p_seller_id: user.uid,
-            p_product_id: savedProductId,
-          })
-      if (deliveryResult.error) {
-        if (!isEditing) {
-          const { error: archiveError } = await supabase.rpc('seller_archive_product', {
-            p_seller_id: user.uid,
-            p_product_id: savedProductId,
-          })
-          if (archiveError) console.error('Failed to archive incomplete listing:', archiveError)
-        }
-        throw new Error(isDigital ? `ডিজিটাল ডেলিভারি তথ্য সেভ হয়নি: ${deliveryResult.error.message}` : deliveryResult.error.message)
-      }
+      await digitalContentRequest({
+        action: 'save',
+        productId: savedProductId,
+        deliveryType: digitalDeliveryType,
+        deliveryText: digitalDeliveryText.trim(),
+      })
 
       clearListingDraft()
       navigate('/my-listings')
@@ -327,180 +303,93 @@ export default function Sell() {
     }
   }
 
-  if (loadingExisting) {
+  if (loadingExisting || digitalVerificationLoading) {
+    return <Layout wide><div className="mx-auto max-w-3xl animate-pulse border border-outline bg-surface p-8"><div className="h-6 w-48 bg-outline/50" /><div className="mt-4 h-32 bg-outline/30" /></div></Layout>
+  }
+
+  if (archivedPhysical) {
     return (
-      <Layout>
-        <div className="h-96 animate-pulse rounded-2xl bg-outline/40" />
+      <Layout wide>
+        <div className="mx-auto max-w-xl border border-outline bg-surface p-6 text-center">
+          <ShieldCheck className="mx-auto text-brand-600" size={32} />
+          <h1 className="mt-3 text-lg font-bold text-ink-900">এই physical listing archive করা হয়েছে</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-600">BikriKoro এখন শুধু digital product marketplace। পুরনো রেকর্ড history ও admin audit-এর জন্য সংরক্ষিত আছে।</p>
+          <button type="button" onClick={() => navigate('/my-listings')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">My Listings-এ ফিরুন</button>
+        </div>
       </Layout>
     )
   }
 
-  if (isDigital && digitalVerificationLoading) {
-    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-brand-100 bg-brand-50 p-6 text-center"><ShieldCheck className="mx-auto text-brand-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification যাচাই হচ্ছে</h1><p className="mt-2 text-sm leading-6 text-ink-600">আপনার account-এ ডিজিটাল পণ্য বিক্রির অনুমোদন আছে কি না যাচাই করছি।</p></div></Layout>
-  }
-
-  if (isEditing && isDigital && !digitalVerificationLoading && !digitalVerified) {
-    return <Layout><div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center"><ShieldCheck className="mx-auto text-amber-600" size={32} /><h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল listing edit করা যাচ্ছে না</h1><p className="mt-2 text-sm leading-6 text-ink-700">ডিজিটাল পণ্য edit করতে Digital Seller Verification আবার অনুমোদিত হতে হবে।</p><button type="button" onClick={() => navigate('/my-listings')} className="mt-4 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white">My Listings-এ ফিরুন</button></div></Layout>
-  }
-
-  if (!isEditing && !modeSelected) {
-    return <Layout wide><div className="mx-auto max-w-3xl"><div className="rounded-3xl bg-ink-900 p-6 text-white sm:p-8"><p className="text-sm font-semibold text-brand-300">Seller setup</p><h1 className="mt-2 text-2xl font-bold">আপনি কী বিক্রি করবেন?</h1><p className="mt-2 text-sm leading-6 text-white/70">প্রথমে listing-এর ধরন নির্বাচন করুন। Digital product seller হলে publish করার আগে শক্ত verification লাগবে।</p></div><div className={`mt-5 grid gap-3 ${digitalVerified ? 'sm:grid-cols-2' : ''}`}>{digitalVerified && <button type="button" onClick={() => { setIsDigital(true); setModeSelected(true) }} className="rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500 text-white"><FileCheck2 size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ডিজিটাল</span><span className="mt-1 block text-xs text-ink-500">আপনার verification অনুমোদিত — কোড, ফাইল, course বা service</span></span></div><p className="mt-4 text-sm font-semibold text-brand-700">Digital listing তৈরি করুন →</p></button>}<button type="button" onClick={() => { setIsDigital(false); setModeSelected(true) }} className="rounded-2xl border border-outline bg-surface p-5 text-left transition hover:border-brand-500"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-bg text-brand-600"><Package size={22} /></span><span><span className="block text-lg font-bold text-ink-900">ফিজিক্যাল</span><span className="mt-1 block text-xs text-ink-500">Courier-এ পাঠানো যাবে এমন পণ্য</span></span></div><p className="mt-4 text-sm font-semibold text-ink-600">Physical listing তৈরি করুন →</p></button></div>{!digitalVerified && <div className="mt-4 rounded-xl border border-outline bg-bg p-3 text-xs leading-5 text-ink-600"><ShieldCheck size={15} className="mr-1 inline text-brand-600" /> Digital product option verification approve হওয়ার পরে চালু হবে। এখন আপনি শুধু physical product list করতে পারবেন।</div>}<div className="mt-5 flex items-start gap-2 rounded-xl bg-brand-50 p-3 text-xs leading-5 text-brand-800"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Admin approval, document verification এবং sector badge ক্রেতার trust বাড়াতে সাহায্য করবে।</div></div></Layout>
+  if (!digitalVerified) {
+    return (
+      <Layout wide>
+        <div className="mx-auto max-w-xl border border-brand-200 bg-brand-50 p-6 text-center">
+          <ShieldCheck className="mx-auto text-brand-600" size={34} />
+          <h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification প্রয়োজন</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-700">নিরাপদ digital marketplace-এ listing প্রকাশের আগে seller identity ও business information admin review করে approve করবেন।</p>
+          <button type="button" onClick={() => navigate('/become-seller')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">Verification শুরু করুন</button>
+        </div>
+      </Layout>
+    )
   }
 
   return (
     <Layout wide>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন পণ্য বিক্রি করুন'}</h1>
-        {!isEditing && (
-          <div className="flex gap-2">
-            <button onClick={handleSaveDraft} className="rounded-lg border border-outline px-3 py-2 text-xs font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600">
-              ড্রাফট সেভ করুন
-            </button>
-            <button onClick={handleClearDraft} className="rounded-lg px-3 py-2 text-xs font-medium text-error hover:bg-error/5">
-              ড্রাফট মুছুন
-            </button>
-          </div>
-        )}
+        <div>
+          <p className="text-sm font-semibold text-brand-700">Digital marketplace</p>
+          <h1 className="mt-1 text-xl font-semibold text-ink-900">{isEditing ? 'ডিজিটাল লিস্টিং এডিট করুন' : 'ডিজিটাল পণ্য বিক্রি করুন'}</h1>
+        </div>
+        {!isEditing && <div className="flex gap-2"><button type="button" onClick={handleSaveDraft} className="border border-outline px-3 py-2 text-base font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700">ড্রাফট সেভ</button><button type="button" onClick={handleClearDraft} className="border border-error/30 px-3 py-2 text-base font-semibold text-error hover:bg-error/5">ড্রাফট মুছুন</button></div>}
       </div>
       {draftMessage && <p className="mt-2 text-sm text-brand-700">{draftMessage}</p>}
 
       <div className="mt-6 space-y-5">
+        <div className="border border-brand-200 bg-brand-50 p-4">
+          <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">শুধু অনুমোদিত digital delivery</p><p className="mt-1 text-xs leading-5 text-ink-700">Payment escrow-এ গেলে buyer তার order library-তে key, file link বা instructions পাবে। Product approval আলাদা admin review-এর পরে হবে।</p></div></div>
+        </div>
+
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-ink-900">ছবি</label>
+          <label className="mb-1.5 block text-sm font-medium text-ink-900">পণ্যের ছবি</label>
           <ImageUploader images={images} onAdd={handleAddImages} onRemove={handleRemoveImage} onError={setError} max={8} />
         </div>
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-900">YouTube product video (ঐচ্ছিক)</label>
-          <input
-            type="url"
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=..."
-            className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-brand-500 ${videoUrl && !isYouTubeUrl(videoUrl) ? 'border-error' : 'border-outline'}`}
-          />
-          <p className="mt-1.5 text-xs text-ink-500">YouTube link দিলে product page-এ video প্রথমে দেখাবে; swipe করলে product-এর ছবি দেখা যাবে।</p>
+          <input type="url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={`w-full border px-3 py-2.5 text-sm outline-none focus:border-brand-500 ${videoUrl && !isYouTubeUrl(videoUrl) ? 'border-error' : 'border-outline'}`} />
+          <p className="mt-1.5 text-xs text-ink-500">YouTube link দিলে product page-এ video প্রথমে দেখাবে; swipe করলে ছবিগুলো দেখা যাবে।</p>
         </div>
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-900">পণ্যের নাম</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="যেমন: স্যামসাং গ্যালাক্সি A54, প্রায় নতুন"
-            className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
+          <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="যেমন: Canva Pro 1 বছরের access" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
         </div>
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-900">বিবরণ</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            placeholder="পণ্যের অবস্থা, ব্যবহারের সময়কাল, কেন বিক্রি করছেন ইত্যাদি লিখুন"
-            className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
+          <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} placeholder="Digital product কী, কীভাবে ব্যবহার করবেন, মেয়াদ বা সীমাবদ্ধতা লিখুন" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">দাম (৳)</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="tabular-amount w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">আসল দাম (ঐচ্ছিক)</label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={originalPrice}
-              onChange={(e) => setOriginalPrice(e.target.value)}
-              placeholder="ছাড় দেখাতে চাইলে"
-              className="tabular-amount w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
+          <div><label className="mb-1.5 block text-sm font-medium text-ink-900">দাম (৳)</label><input type="number" inputMode="numeric" value={price} onChange={(event) => setPrice(event.target.value)} className="tabular-amount w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></div>
+          <div><label className="mb-1.5 block text-sm font-medium text-ink-900">মূল দাম (ঐচ্ছিক)</label><input type="number" inputMode="numeric" value={originalPrice} onChange={(event) => setOriginalPrice(event.target.value)} placeholder="ছাড় দেখাতে চাইলে" className="tabular-amount w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <BrandSelect
-            label="ক্যাটাগরি"
-            value={categoryId}
-            options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
-            onChange={setCategoryId}
-            placeholder="ক্যাটাগরি বেছে নিন"
-            disabled={categories.length === 0}
-          />
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label>
-            <div className="flex rounded-lg border border-outline p-1">
-              {(['NEW', 'USED'] as const).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCondition(c)}
-                  className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                    condition === c ? 'bg-brand-500 text-white' : 'text-ink-600'
-                  }`}
-                >
-                  {c === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}
-                </button>
-              ))}
-            </div>
-          </div>
+          <BrandSelect label="ক্যাটাগরি" value={categoryId} options={categories.map((category) => ({ value: category.id, label: category.name }))} onChange={setCategoryId} placeholder="ক্যাটাগরি বেছে নিন" disabled={categories.length === 0} />
+          <div><label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label><div className="flex border border-outline p-1">{(['NEW', 'USED'] as const).map((value) => <button key={value} type="button" onClick={() => setCondition(value)} className={`flex-1 py-2 text-base font-medium ${condition === value ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>{value === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</button>)}</div></div>
         </div>
 
-        {digitalVerified ? <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-3"><label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink-900"><input type="checkbox" checked={isDigital} onChange={(e) => setIsDigital(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />এটি একটি ডিজিটাল পণ্য (কোড/ফাইল/সার্ভিস — কুরিয়ারে পাঠানো হবে না)</label><p className="mt-1 text-xs text-brand-700">আপনার Digital Seller Verification অনুমোদিত হয়েছে।</p><p className="mt-1 text-xs text-ink-500">ডিজিটাল পণ্যে ডেলিভারি ঠিকানা বা এলাকা লাগবে না এবং ক্যাশ অন ডেলিভারি প্রযোজ্য নয়।</p></div> : <div className="rounded-xl border border-outline bg-bg p-3"><div className="flex items-start gap-2"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">শুধু ফিজিক্যাল listing চালু আছে</p><p className="mt-1 text-xs leading-5 text-ink-600">ডিজিটাল পণ্য বিক্রি করতে Digital Seller Verification এবং Admin approval প্রয়োজন।</p></div></div></div>}
+        <div className="border border-brand-200 bg-brand-50/60 p-4">
+          <BrandSelect label="ডিজিটাল ডেলিভারি" value={digitalDeliveryType} options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]} onChange={(value) => setDigitalDeliveryType(value as DigitalContent['delivery_type'])} />
+          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-brand-700">{digitalDeliveryType === 'LICENSE_KEY' ? <KeyRound size={16} /> : digitalDeliveryType === 'DOWNLOAD_LINK' ? <Link2 size={16} /> : <ShieldCheck size={16} />} Payment সফল হলে buyer কী পাবে তা লিখুন</div>
+          <textarea value={digitalDeliveryText} onChange={(event) => setDigitalDeliveryText(event.target.value)} rows={5} placeholder="গোপন key, access instructions অথবা নিরাপদ download link লিখুন। পাবলিক ছবি URL এখানে দেবেন না।" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
+          <p className="mt-2 text-xs leading-relaxed text-ink-600">এই তথ্য শুধু সংশ্লিষ্ট buyer ও seller-এর authenticated order view-তে দেখানো হবে।</p>
+        </div>
 
-        {!isDigital && <div className="rounded-xl border border-outline bg-bg p-4"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-ink-900">ক্রেতার জন্য ডেলিভারি ব্যাজ</p><p className="mt-1 text-xs text-ink-500">শুধু আপনি সত্যিই দিতে পারবেন এমন সুবিধা বেছে নিন।</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${qualityScore >= 80 ? 'bg-success/10 text-success' : 'bg-amber-50 text-amber-700'}`}>Listing quality {qualityScore}%</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{[[supportsCod, setSupportsCod, 'ক্যাশ অন ডেলিভারি (COD)'], [freeDelivery, setFreeDelivery, 'ফ্রি ডেলিভারি'], [fastDelivery, setFastDelivery, 'দ্রুত ডেলিভারি'], [freeReturn, setFreeReturn, 'ফ্রি রিটার্ন']].map(([checked, setter, label]) => <label key={label as string} className="flex items-center gap-2 rounded-lg border border-outline bg-surface px-3 py-2 text-sm text-ink-700"><input type="checkbox" checked={checked as boolean} onChange={(e) => (setter as (value: boolean) => void)(e.target.checked)} className="h-4 w-4 rounded border-outline text-brand-500 focus:ring-brand-500" />{label as string}</label>)}</div></div>}
+        {error && <p className="border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p>}
 
-        {isDigital && (
-          <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
-            <BrandSelect
-              label="ডিজিটাল ডেলিভারি"
-              value={digitalDeliveryType}
-              options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]}
-              onChange={(value) => setDigitalDeliveryType(value as typeof digitalDeliveryType)}
-            />
-            <textarea
-              value={digitalDeliveryText}
-              onChange={(e) => setDigitalDeliveryText(e.target.value)}
-              rows={4}
-              placeholder="পেমেন্ট সম্পন্ন হলে ক্রেতা কী পাবে তা লিখুন। পাবলিক ছবি লিংক এখানে দেবেন না।"
-              className="mt-3 w-full rounded-lg border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
-            />
-            <p className="mt-2 text-xs leading-relaxed text-ink-600">ডেলিভারি তথ্য শুধু সম্পন্ন অর্ডারের ক্রেতার লাইব্রেরিতে দেখানো হবে।</p>
-          </div>
-        )}
-
-        {!isDigital && (
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">এলাকা</label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="যেমন: খুলনা সদর, খুলনা"
-              className="w-full rounded-lg border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
-        )}
-
-        {error && <p className="text-sm text-error">{error}</p>}
-
-        <button
-          onClick={handleSubmit}
-          disabled={!isValid || submitting}
-          className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? 'সেভ করা হচ্ছে...' : isEditing ? 'পরিবর্তন সেভ করুন' : 'পোস্ট করুন'}
-        </button>
+        <button type="button" onClick={() => void handleSubmit()} disabled={!isValid || submitting} className="w-full bg-brand-500 py-3 text-base font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'সেভ করা হচ্ছে...' : isEditing ? 'পরিবর্তন সেভ করুন' : 'ডিজিটাল লিস্টিং পাঠান'}</button>
       </div>
     </Layout>
   )

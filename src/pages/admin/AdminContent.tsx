@@ -55,7 +55,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
         return
       }
       if (mode === 'downloads') {
-        const { data, error: loadError } = await supabase.from('digital_deliveries').select('*').order('created_at', { ascending: false }).limit(100)
+        const { data, error: loadError } = await adminRpc('admin_list_digital_deliveries', { p_admin_id: user?.uid })
         if (loadError) throw loadError
         setDownloads((data ?? []) as Download[])
         return
@@ -69,7 +69,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
     } catch (loadError) {
       console.error('Admin content load failed:', loadError)
       const errorLike = loadError && typeof loadError === 'object' ? loadError as { code?: string | null; message?: string | null } : { message: loadError instanceof Error ? loadError.message : String(loadError ?? '') }
-      setError(formatAdminRpcError(errorLike, mode === 'gallery' ? 'গ্যালারি data' : mode === 'downloads' ? 'ডাউনলোড data' : 'কনটেন্ট data', mode === 'gallery' ? '016 public expansion migration' : mode === 'downloads' ? '014 admin workspace migration' : '035 content/SEO migration'))
+      setError(formatAdminRpcError(errorLike, mode === 'gallery' ? 'গ্যালারি data' : mode === 'downloads' ? 'ডাউনলোড data' : 'কনটেন্ট data', mode === 'gallery' ? '016 public expansion migration' : mode === 'downloads' ? '046 admin read-scope migration' : '035 content/SEO migration'))
     } finally {
       setLoading(false)
     }

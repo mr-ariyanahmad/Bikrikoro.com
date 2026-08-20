@@ -32,15 +32,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
     if (input.action === 'create' || input.action === 'create_wallet') {
-      if (!input.productId || !input.deliveryAddress?.trim()) throw new Error('Product and delivery address are required')
+      if (!input.productId) throw new Error('Digital product is required')
+      const digitalDeliveryAddress = ''
       const walletPayment = input.action === 'create_wallet'
       const result = walletPayment
         ? input.couponCode?.trim()
-          ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: input.deliveryAddress.trim(), p_coupon_code: input.couponCode.trim() })
-          : await supabase.rpc('create_order_wallet_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: input.deliveryAddress.trim() })
+          ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_coupon_code: input.couponCode.trim() })
+          : await supabase.rpc('create_order_wallet_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress })
         : input.couponCode?.trim()
-          ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: input.deliveryAddress.trim(), p_coupon_code: input.couponCode.trim() })
-          : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: input.deliveryAddress.trim() })
+          ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_coupon_code: input.couponCode.trim() })
+          : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress })
       if (result.error) throw result.error
       res.status(200).json({ orderId: result.data, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
       return
