@@ -36,17 +36,20 @@ export default function Home() {
         return
       }
       try {
-        const [bannersRes, categoriesRes, productsRes] = await Promise.all([
+        const [bannersRes, categoriesRes, templatesRes, productsRes] = await Promise.all([
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
-              supabase.from('products').select('*').eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }).limit(12),
+          supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
+          supabase.from('products').select('*').eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }).limit(12),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {
           throw bannersRes.error ?? categoriesRes.error ?? productsRes.error
         }
+        const categoryMap = new Map((categoriesRes.data ?? []).map((category) => [category.id, category]))
+        const digitalCategories = (templatesRes.data ?? []).map((template) => categoryMap.get(template.category_id)).filter(Boolean)
         setBanners(bannersRes.data ?? [])
-        setCategories(categoriesRes.data ?? [])
+        setCategories(digitalCategories.length > 0 ? digitalCategories : categoriesRes.data ?? [])
         setProducts(productsRes.data ?? [])
       } catch (loadError) {
         console.error('Homepage data load failed:', loadError)

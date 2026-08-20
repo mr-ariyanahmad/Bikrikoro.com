@@ -39,10 +39,20 @@ export default function Products() {
 
   useEffect(() => {
     if (!supabaseConfigured) return
-    supabase.from('categories').select('*').order('sort_order').then(({ data, error }) => {
-      if (error) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${error.message}`)
-      setCategories(data ?? [])
-    })
+    const loadCategories = async () => {
+      const [{ data: templates, error: templateError }, { data: legacyCategories, error: categoryError }] = await Promise.all([
+        supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
+        supabase.from('categories').select('*').order('sort_order'),
+      ])
+      if (templateError || !templates || templates.length === 0) {
+        if (categoryError) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${categoryError.message}`)
+        setCategories((legacyCategories ?? []) as Category[])
+        return
+      }
+      const categoryMap = new Map((legacyCategories ?? []).map((category) => [category.id, category]))
+      setCategories(templates.map((template) => categoryMap.get(template.category_id)).filter((category): category is Category => Boolean(category)))
+    }
+    void loadCategories()
   }, [])
 
   useEffect(() => {

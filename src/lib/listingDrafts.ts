@@ -12,6 +12,16 @@ export interface ListingDraft {
   freeReturn: boolean
   digitalDeliveryType: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
   digitalDeliveryText: string
+  specifications: Record<string, unknown>
+  autoDeliveryEnabled: boolean
+  deactivateWhenOutOfStock: boolean
+  stockMode: 'UNLIMITED' | 'QUANTITY' | 'KEY_POOL'
+  stockQuantity: string
+  fulfillmentWindowMinutes: string
+  regionCode: string
+  subscriptionPeriod: string
+  warrantyPeriod: string
+  deliveryNote: string
   location: string
   images: string[]
   videoUrl: string
@@ -44,6 +54,16 @@ export function loadListingDraft(): ListingDraft | null {
       freeReturn: Boolean(value.freeReturn),
       digitalDeliveryType: value.digitalDeliveryType === 'LICENSE_KEY' || value.digitalDeliveryType === 'DOWNLOAD_LINK' ? value.digitalDeliveryType : 'INSTRUCTIONS',
       digitalDeliveryText: typeof value.digitalDeliveryText === 'string' ? value.digitalDeliveryText : '',
+      specifications: value.specifications && typeof value.specifications === 'object' && !Array.isArray(value.specifications) ? value.specifications as Record<string, unknown> : {},
+      autoDeliveryEnabled: value.autoDeliveryEnabled !== false,
+      deactivateWhenOutOfStock: Boolean(value.deactivateWhenOutOfStock),
+      stockMode: value.stockMode === 'QUANTITY' || value.stockMode === 'KEY_POOL' ? value.stockMode : 'UNLIMITED',
+      stockQuantity: typeof value.stockQuantity === 'string' ? value.stockQuantity : '',
+      fulfillmentWindowMinutes: typeof value.fulfillmentWindowMinutes === 'string' ? value.fulfillmentWindowMinutes : '',
+      regionCode: typeof value.regionCode === 'string' ? value.regionCode : 'GLOBAL',
+      subscriptionPeriod: typeof value.subscriptionPeriod === 'string' ? value.subscriptionPeriod : '',
+      warrantyPeriod: typeof value.warrantyPeriod === 'string' ? value.warrantyPeriod : '',
+      deliveryNote: typeof value.deliveryNote === 'string' ? value.deliveryNote : '',
       location: typeof value.location === 'string' ? value.location : '',
       images: Array.isArray(value.images) ? value.images.filter((image): image is string => typeof image === 'string') : [],
       videoUrl: typeof value.videoUrl === 'string' ? value.videoUrl : '',

@@ -5,6 +5,45 @@ export interface Category {
   sort_order: number
 }
 
+export type DigitalSpecFieldType = 'text' | 'textarea' | 'number' | 'select' | 'boolean'
+
+export interface DigitalSpecField {
+  key: string
+  label_bn: string
+  label_en?: string
+  type: DigitalSpecFieldType
+  required?: boolean
+  options?: string[]
+}
+
+export interface DigitalCategoryTemplate {
+  category_id: string
+  name_bn: string
+  name_en: string
+  description_bn: string
+  icon_key: string
+  parent_category_id: string | null
+  fields: DigitalSpecField[]
+  sort_order: number
+  is_active: boolean
+}
+
+export interface ProductDigitalSpecs {
+  product_id: string
+  seller_id?: string
+  specifications: Record<string, unknown>
+  auto_delivery_enabled: boolean
+  deactivate_when_out_of_stock: boolean
+  stock_mode: 'UNLIMITED' | 'QUANTITY' | 'KEY_POOL'
+  stock_quantity: number
+  fulfillment_window_minutes: number
+  region_code: string
+  subscription_period: string
+  warranty_period: string
+  delivery_note: string
+  updated_at: string
+}
+
 export interface Product {
   id: string
   title: string

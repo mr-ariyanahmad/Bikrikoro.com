@@ -43,49 +43,45 @@ export default function MyListings() {
       setDuplicatingId(null)
       return
     }
-    const contentResponse = await fetch('/api/seller-digital-content', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ action: 'get', productId: product.id }),
-    })
+    const [contentResponse, optionsResponse] = await Promise.all([
+      fetch('/api/seller-digital-content', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'get', productId: product.id }) }),
+      fetch('/api/seller-listing-options', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'get', productId: product.id }) }),
+    ])
     const contentPayload = await contentResponse.json().catch(() => ({})) as { content?: { delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'; delivery_text: string }; error?: string }
+    const optionsPayload = await optionsResponse.json().catch(() => ({})) as { options?: Record<string, unknown> | null; error?: string }
     const digitalContent = contentPayload.content
-    if (!contentResponse.ok) {
-      setMessage(contentPayload.error || 'ডিজিটাল delivery তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
+    if (!contentResponse.ok || !optionsResponse.ok) {
+      setMessage(contentPayload.error || optionsPayload.error || 'ডিজিটাল listing তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
       setDuplicatingId(null)
       return
     }
-    const { data: newProductId, error } = await supabase.rpc('seller_create_product', {
-      p_seller_id: user.uid,
-      p_title: `${product.title} (কপি)`,
-      p_description: product.description,
-      p_price: product.price,
-      p_original_price: product.original_price,
-      p_category_id: product.category_id,
-      p_condition: product.condition,
-      p_location: '',
-      p_images: product.images,
-      p_is_digital: true,
-      p_supports_cod: false,
-      p_free_delivery: false,
-      p_fast_delivery: false,
-      p_free_return: false,
-      p_video_url: product.video_url ?? null,
+    const productResponse = await fetch('/api/seller-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ action: 'create', title: `${product.title} (কপি)`, description: product.description, price: product.price, originalPrice: product.original_price, categoryId: product.category_id, condition: product.condition, images: product.images, videoUrl: product.video_url ?? null }),
     })
-    if (error || !newProductId) {
-      setMessage(`লিস্টিং copy করা যায়নি: ${error?.message || 'অজানা সমস্যা'}`)
+    const productPayload = await productResponse.json().catch(() => ({})) as { productId?: string; error?: string }
+    const newProductId = productPayload.productId
+    if (!productResponse.ok || !newProductId) {
+      setMessage(`লিস্টিং copy করা যায়নি: ${productPayload.error || 'অজানা সমস্যা'}`)
       setDuplicatingId(null)
       return
     }
     if (digitalContent) {
-      const saveResponse = await fetch('/api/seller-digital-content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({ action: 'save', productId: newProductId, deliveryType: digitalContent.delivery_type, deliveryText: digitalContent.delivery_text }),
-      })
+      const saveResponse = await fetch('/api/seller-digital-content', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, deliveryType: digitalContent.delivery_type, deliveryText: digitalContent.delivery_text }) })
       if (!saveResponse.ok) {
         await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
         setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
+        setDuplicatingId(null)
+        return
+      }
+    }
+    if (optionsPayload.options) {
+      const options = optionsPayload.options as Record<string, unknown>
+      const saveOptionsResponse = await fetch('/api/seller-listing-options', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, specifications: options.specifications, autoDeliveryEnabled: options.auto_delivery_enabled, deactivateWhenOutOfStock: options.deactivate_when_out_of_stock, stockMode: options.stock_mode === 'KEY_POOL' ? 'UNLIMITED' : options.stock_mode, stockQuantity: options.stock_quantity, fulfillmentWindowMinutes: options.fulfillment_window_minutes, regionCode: options.region_code, subscriptionPeriod: options.subscription_period, warrantyPeriod: options.warranty_period, deliveryNote: options.delivery_note }) })
+      if (!saveOptionsResponse.ok) {
+        await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
+        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু structured listing options copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
         setDuplicatingId(null)
         return
       }

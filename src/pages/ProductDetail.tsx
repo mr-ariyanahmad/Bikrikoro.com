@@ -13,7 +13,7 @@ import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
 import { answerProductQuestion, askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
-import type { Product, Profile } from '@/types/product'
+import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
 import { SITE_URL } from '@/lib/site'
 
@@ -23,6 +23,7 @@ export default function ProductDetail() {
   const navigate = useNavigate()
 
   const [product, setProduct] = useState<Product | null>(null)
+  const [digitalSpecs, setDigitalSpecs] = useState<ProductDigitalSpecs | null>(null)
   const [seller, setSeller] = useState<Profile | null>(null)
   const [sellerBadges, setSellerBadges] = useState<Array<{ badge_key: string; badge_label: string }>>([])
   const [activeMedia, setActiveMedia] = useState(0)
@@ -52,6 +53,7 @@ export default function ProductDetail() {
     setLoading(true)
     setLoadError(null)
     setProduct(null)
+    setDigitalSpecs(null)
     setSeller(null)
     setSellerBadges([])
     setActiveMedia(0)
@@ -63,6 +65,16 @@ export default function ProductDetail() {
         if (productError) throw productError
         if (!active) return
         setProduct(productData as Product | null)
+
+        if (productData?.is_digital) {
+          const { data: specsData, error: specsError } = await supabase
+            .from('product_digital_specs')
+            .select('product_id, specifications, auto_delivery_enabled, deactivate_when_out_of_stock, stock_mode, stock_quantity, fulfillment_window_minutes, region_code, subscription_period, warranty_period, delivery_note, updated_at')
+            .eq('product_id', id)
+            .maybeSingle()
+          if (specsError && !/relation .* does not exist/i.test(specsError.message)) console.error('Digital specs load failed:', specsError)
+          if (specsData && active) setDigitalSpecs(specsData as ProductDigitalSpecs)
+        }
 
         if (productData) {
           const { data: sellerData } = await supabase
@@ -441,6 +453,8 @@ export default function ProductDetail() {
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">
             {product.description || 'কোনো বিবরণ দেওয়া হয়নি।'}
           </p>
+
+          {product.is_digital && digitalSpecs && Object.keys(digitalSpecs.specifications ?? {}).length > 0 && <section className="mt-4 border border-outline bg-surface p-4"><h2 className="text-sm font-semibold text-ink-900">পণ্যের গুরুত্বপূর্ণ তথ্য</h2><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(digitalSpecs.specifications).map(([key, value]) => <div key={key} className="border-b border-outline/70 pb-2"><p className="text-xs text-ink-400">{key.replaceAll('_', ' ')}</p><p className="mt-0.5 break-words text-sm font-medium text-ink-800">{typeof value === 'boolean' ? value ? 'হ্যাঁ' : 'না' : Array.isArray(value) ? value.join(', ') : String(value)}</p></div>)}</div><div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-600"><span className="border border-outline px-2 py-1">Region: {digitalSpecs.region_code}</span>{digitalSpecs.subscription_period && <span className="border border-outline px-2 py-1">মেয়াদ: {digitalSpecs.subscription_period}</span>}{digitalSpecs.warranty_period && <span className="border border-outline px-2 py-1">Warranty: {digitalSpecs.warranty_period}</span>}{digitalSpecs.auto_delivery_enabled && <span className="border border-brand-200 bg-brand-50 px-2 py-1 text-brand-700">Automatic delivery</span>}</div>{digitalSpecs.delivery_note && <p className="mt-3 border-l-2 border-brand-500 pl-3 text-xs leading-5 text-ink-600">{digitalSpecs.delivery_note}</p>}</section>}
 
           <div className="mt-4 rounded-xl bg-bg p-4 text-xs leading-relaxed text-ink-600">
             <p className="font-medium text-ink-900">অর্ডার নীতি</p>

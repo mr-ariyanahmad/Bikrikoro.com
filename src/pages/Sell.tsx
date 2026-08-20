@@ -9,7 +9,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { ImageUploader } from '@/components/ImageUploader'
 import { uploadProductImages } from '@/lib/storage'
 import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
-import type { Category } from '@/types/product'
+import type { DigitalCategoryTemplate, ProductDigitalSpecs } from '@/types/product'
 import { isYouTubeUrl } from '@/lib/youtube'
 
 interface LocalImage {
@@ -21,6 +21,14 @@ interface LocalImage {
 type DigitalContent = {
   delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
   delivery_text: string
+}
+
+type ListingOptionsPayload = {
+  options?: ProductDigitalSpecs | null
+  content?: DigitalContent | null
+  availableKeyCount?: number
+  added?: number
+  error?: string
 }
 
 async function digitalContentRequest(body: Record<string, unknown>) {
@@ -49,13 +57,33 @@ async function sellerProductRequest(body: Record<string, unknown>) {
   return payload
 }
 
+async function sellerListingOptionsRequest(body: Record<string, unknown>) {
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+  const response = await fetch('/api/seller-listing-options', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => ({})) as ListingOptionsPayload
+  if (!response.ok) throw new Error(payload.error || 'লিস্টিং-এর অতিরিক্ত তথ্য সেভ করা যায়নি।')
+  return payload
+}
+
+function hasSpecValue(value: unknown) {
+  if (typeof value === 'boolean') return true
+  if (typeof value === 'number') return Number.isFinite(value)
+  if (Array.isArray(value)) return value.length > 0
+  return typeof value === 'string' ? value.trim().length > 0 : Boolean(value)
+}
+
 export default function Sell() {
   const { id } = useParams<{ id: string }>()
   const isEditing = Boolean(id)
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryTemplates, setCategoryTemplates] = useState<DigitalCategoryTemplate[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
@@ -66,6 +94,18 @@ export default function Sell() {
   const [videoUrl, setVideoUrl] = useState('')
   const [digitalDeliveryType, setDigitalDeliveryType] = useState<DigitalContent['delivery_type']>('INSTRUCTIONS')
   const [digitalDeliveryText, setDigitalDeliveryText] = useState('')
+  const [specifications, setSpecifications] = useState<Record<string, unknown>>({})
+  const [autoDeliveryEnabled, setAutoDeliveryEnabled] = useState(true)
+  const [deactivateWhenOutOfStock, setDeactivateWhenOutOfStock] = useState(false)
+  const [stockMode, setStockMode] = useState<'UNLIMITED' | 'QUANTITY' | 'KEY_POOL'>('UNLIMITED')
+  const [stockQuantity, setStockQuantity] = useState('')
+  const [fulfillmentWindowMinutes, setFulfillmentWindowMinutes] = useState('')
+  const [regionCode, setRegionCode] = useState('GLOBAL')
+  const [subscriptionPeriod, setSubscriptionPeriod] = useState('')
+  const [warrantyPeriod, setWarrantyPeriod] = useState('')
+  const [deliveryNote, setDeliveryNote] = useState('')
+  const [availableKeyCount, setAvailableKeyCount] = useState(0)
+  const [keyBatchText, setKeyBatchText] = useState('')
   const [loadingExisting, setLoadingExisting] = useState(isEditing)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,15 +116,36 @@ export default function Sell() {
 
   useEffect(() => {
     let active = true
-    supabase
-      .from('categories')
-      .select('*')
-      .order('sort_order')
-      .then(({ data }) => {
-        if (!active) return
-        setCategories(data ?? [])
-        if (data && data.length > 0) setCategoryId((current) => current || data[0].id)
-      })
+    const loadTemplates = async () => {
+      const [{ data, error: templateError }, { data: categoryRows }] = await Promise.all([
+        supabase.from('digital_category_templates').select('category_id, name_en, description_bn, icon_key, parent_category_id, fields, sort_order, is_active').eq('is_active', true).order('sort_order'),
+        supabase.from('categories').select('id, name, sort_order').order('sort_order'),
+      ])
+      if (!active) return
+      const categoryNames = new Map((categoryRows ?? []).map((category) => [category.id, category.name]))
+      if (!templateError && data && data.length > 0) {
+        const templates = data.map((template) => ({ ...template, name_bn: categoryNames.get(template.category_id) ?? template.category_id })) as DigitalCategoryTemplate[]
+        setCategoryTemplates(templates)
+        setCategoryId((current) => current || templates[0].category_id)
+        return
+      }
+      if (!active) return
+      const fallback = (categoryRows ?? []).map((category) => ({
+        category_id: category.id,
+        name_bn: category.name,
+        name_en: '',
+        description_bn: '',
+                  icon_key: 'Package',
+          parent_category_id: null,
+
+        fields: [],
+        sort_order: category.sort_order,
+        is_active: true,
+      })) as DigitalCategoryTemplate[]
+      setCategoryTemplates(fallback)
+      if (fallback.length > 0) setCategoryId((current) => current || fallback[0].category_id)
+    }
+    void loadTemplates()
     return () => { active = false }
   }, [])
 
@@ -125,6 +186,16 @@ export default function Sell() {
     setCondition(draft.condition)
     setDigitalDeliveryType(draft.digitalDeliveryType)
     setDigitalDeliveryText(draft.digitalDeliveryText)
+    setSpecifications(draft.specifications)
+    setAutoDeliveryEnabled(draft.autoDeliveryEnabled)
+    setDeactivateWhenOutOfStock(draft.deactivateWhenOutOfStock)
+    setStockMode(draft.stockMode)
+    setStockQuantity(draft.stockQuantity)
+    setFulfillmentWindowMinutes(draft.fulfillmentWindowMinutes)
+    setRegionCode(draft.regionCode)
+    setSubscriptionPeriod(draft.subscriptionPeriod)
+    setWarrantyPeriod(draft.warrantyPeriod)
+    setDeliveryNote(draft.deliveryNote)
     setImages(draft.images.map((url) => ({ url })))
     setVideoUrl(draft.videoUrl)
     setDraftMessage('আগের অসম্পূর্ণ ডিজিটাল ড্রাফট লোড হয়েছে।')
@@ -155,14 +226,31 @@ export default function Sell() {
       setImages((data.images ?? []).map((url: string) => ({ url })))
       setVideoUrl(data.video_url || '')
       try {
-        const payload = await digitalContentRequest({ action: 'get', productId: id })
+        const [payload, optionsPayload] = await Promise.all([
+          digitalContentRequest({ action: 'get', productId: id }),
+          sellerListingOptionsRequest({ action: 'get', productId: id }),
+        ])
         const delivery = payload.content
         if (delivery) {
           setDigitalDeliveryType(delivery.delivery_type)
           setDigitalDeliveryText(delivery.delivery_text || '')
         }
+        const options = optionsPayload.options
+        if (options) {
+          setSpecifications(options.specifications || {})
+          setAutoDeliveryEnabled(options.auto_delivery_enabled)
+          setDeactivateWhenOutOfStock(options.deactivate_when_out_of_stock)
+          setStockMode(options.stock_mode)
+          setStockQuantity(options.stock_quantity ? String(options.stock_quantity) : '')
+          setFulfillmentWindowMinutes(options.fulfillment_window_minutes ? String(options.fulfillment_window_minutes) : '')
+          setRegionCode(options.region_code || 'GLOBAL')
+          setSubscriptionPeriod(options.subscription_period || '')
+          setWarrantyPeriod(options.warranty_period || '')
+          setDeliveryNote(options.delivery_note || '')
+          setAvailableKeyCount(optionsPayload.availableKeyCount ?? 0)
+        }
       } catch (contentError) {
-        console.error('Digital delivery content load failed:', contentError)
+        console.error('Digital delivery options load failed:', contentError)
         setError(contentError instanceof Error ? contentError.message : 'ডেলিভারি তথ্য লোড করা যায়নি।')
       } finally {
         if (active) setLoadingExisting(false)
@@ -187,6 +275,16 @@ export default function Sell() {
       freeReturn: false,
       digitalDeliveryType,
       digitalDeliveryText,
+      specifications,
+      autoDeliveryEnabled,
+      deactivateWhenOutOfStock,
+      stockMode,
+      stockQuantity,
+      fulfillmentWindowMinutes,
+      regionCode,
+      subscriptionPeriod,
+      warrantyPeriod,
+      deliveryNote,
       location: '',
       images: images.filter((image) => !image.uploading).map((image) => image.url),
       videoUrl,
@@ -230,15 +328,32 @@ export default function Sell() {
     })
   }
 
+  const handleAddLicenseKeys = async () => {
+    if (!id || !keyBatchText.trim()) return
+    try {
+      const payload = await sellerListingOptionsRequest({ action: 'add-keys', productId: id, keys: keyBatchText.split(/\\r?\\n/).map((value) => value.trim()).filter(Boolean) })
+      setAvailableKeyCount((count) => count + Number(payload.added ?? 0))
+      setKeyBatchText('')
+      setError(`${payload.added ?? 0}টি key inventory-তে যোগ হয়েছে।`)
+    } catch (keyError) {
+      setError(keyError instanceof Error ? keyError.message : 'Key inventory সেভ করা যায়নি।')
+    }
+  }
+
+  const selectedTemplate = categoryTemplates.find((template) => template.category_id === categoryId)
+  const missingRequiredFields = (selectedTemplate?.fields ?? []).filter((field) => field.required && !hasSpecValue(specifications[field.key]))
   const isValid =
     digitalVerified &&
     title.trim().length >= 5 &&
     Number(price) > 0 &&
     Boolean(categoryId) &&
+    missingRequiredFields.length === 0 &&
     digitalDeliveryText.trim().length >= 3 &&
     images.length > 0 &&
     !images.some((image) => image.uploading) &&
-    (!videoUrl.trim() || isYouTubeUrl(videoUrl))
+    (!videoUrl.trim() || isYouTubeUrl(videoUrl)) &&
+    (stockMode !== 'QUANTITY' || Number(stockQuantity) > 0) &&
+    (stockMode !== 'KEY_POOL' || digitalDeliveryType === 'LICENSE_KEY')
 
   const handleSubmit = async () => {
     if (!user || !isValid || digitalVerificationLoading) return
@@ -279,6 +394,20 @@ export default function Sell() {
         productId: savedProductId,
         deliveryType: digitalDeliveryType,
         deliveryText: digitalDeliveryText.trim(),
+      })
+      await sellerListingOptionsRequest({
+        action: 'save',
+        productId: savedProductId,
+        specifications,
+        autoDeliveryEnabled,
+        deactivateWhenOutOfStock,
+        stockMode,
+        stockQuantity: Number(stockQuantity || 0),
+        fulfillmentWindowMinutes: Number(fulfillmentWindowMinutes || 0),
+        regionCode,
+        subscriptionPeriod,
+        warrantyPeriod,
+        deliveryNote,
       })
 
       clearListingDraft()
@@ -364,13 +493,43 @@ export default function Sell() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <BrandSelect label="ক্যাটাগরি" value={categoryId} options={categories.map((category) => ({ value: category.id, label: category.name }))} onChange={setCategoryId} placeholder="ক্যাটাগরি বেছে নিন" disabled={categories.length === 0} />
+          <BrandSelect label="ডিজিটাল ক্যাটাগরি" value={categoryId} options={categoryTemplates.map((template) => ({ value: template.category_id, label: template.name_bn }))} onChange={(value) => { setCategoryId(value); setSpecifications({}) }} placeholder="ডিজিটাল ক্যাটাগরি বেছে নিন" disabled={categoryTemplates.length === 0} />
           <div><label className="mb-1.5 block text-sm font-medium text-ink-900">অবস্থা</label><div className="flex border border-outline p-1">{(['NEW', 'USED'] as const).map((value) => <button key={value} type="button" onClick={() => setCondition(value)} className={`flex-1 py-2 text-base font-medium ${condition === value ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>{value === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</button>)}</div></div>
         </div>
 
+        {selectedTemplate && <section className="border border-brand-200 bg-brand-50/40 p-4">
+          <div className="flex items-start gap-3"><ShieldCheck size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">{selectedTemplate.name_bn} specification</p><p className="mt-1 text-xs leading-5 text-ink-600">{selectedTemplate.description_bn || 'এই category-এর গুরুত্বপূর্ণ তথ্য buyer-এর জন্য পরিষ্কারভাবে দিন।'}</p></div></div>
+          {selectedTemplate.fields.length > 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{selectedTemplate.fields.map((field) => {
+            const rawValue = specifications[field.key]
+            const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean' ? rawValue : ''
+            const setValue = (next: unknown) => setSpecifications((current) => ({ ...current, [field.key]: next }))
+            if (field.type === 'select') return <BrandSelect key={field.key} label={`${field.label_bn}${field.required ? ' *' : ''}`} value={String(value)} options={(field.options ?? []).map((option) => ({ value: option, label: option }))} onChange={setValue} placeholder="বেছে নিন" />
+            if (field.type === 'textarea') return <label key={field.key} className="text-sm text-ink-700 sm:col-span-2"><span className="mb-1.5 block font-medium text-ink-900">{field.label_bn}{field.required ? ' *' : ''}</span><textarea value={String(value)} onChange={(event) => setValue(event.target.value)} rows={3} className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            if (field.type === 'number') return <label key={field.key} className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{field.label_bn}{field.required ? ' *' : ''}</span><input type="number" value={value === '' ? '' : String(value)} onChange={(event) => setValue(event.target.value ? Number(event.target.value) : '')} className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            if (field.type === 'boolean') return <button key={field.key} type="button" aria-pressed={value === true} onClick={() => setValue(value !== true)} className={`flex min-h-11 items-center justify-between border px-3 py-2.5 text-left text-sm ${value === true ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-600'}`}><span>{field.label_bn}{field.required ? ' *' : ''}</span><span className="text-xs font-semibold">{value === true ? 'হ্যাঁ' : 'না'}</span></button>
+            return <label key={field.key} className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">{field.label_bn}{field.required ? ' *' : ''}</span><input type="text" value={String(value)} onChange={(event) => setValue(event.target.value)} className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+          })}</div> : <p className="mt-3 text-xs text-ink-500">এই category-এর specification template এখনো admin configure করেনি।</p>}
+          {missingRequiredFields.length > 0 && <p className="mt-3 border border-warning/30 bg-warning/5 p-2.5 text-xs text-warning">Required field পূরণ করুন: {missingRequiredFields.map((field) => field.label_bn).join(', ')}</p>}
+        </section>}
+
+        <section className="border border-outline bg-surface p-4">
+          <div className="flex items-start gap-3"><KeyRound size={19} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">Delivery, stock ও seller terms</p><p className="mt-1 text-xs leading-5 text-ink-600">Z2U-style listing-এর মতো buyer-কে region, মেয়াদ, warranty, stock এবং delivery expectation পরিষ্কারভাবে জানান।</p></div></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <BrandSelect label="ডেলিভারি পদ্ধতি" value={digitalDeliveryType} options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]} onChange={(value) => setDigitalDeliveryType(value as DigitalContent['delivery_type'])} />
+            <BrandSelect label="স্টক মডেল" value={stockMode} options={[{ value: 'UNLIMITED', label: 'Unlimited / delivery text' }, { value: 'QUANTITY', label: 'Fixed quantity' }, { value: 'KEY_POOL', label: 'License key pool' }]} onChange={(value) => setStockMode(value as 'UNLIMITED' | 'QUANTITY' | 'KEY_POOL')} />
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Region code</span><input value={regionCode} onChange={(event) => setRegionCode(event.target.value.toUpperCase())} placeholder="GLOBAL বা BD" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">মেয়াদ / subscription period</span><input value={subscriptionPeriod} onChange={(event) => setSubscriptionPeriod(event.target.value)} placeholder="যেমন: ৩০ দিন / Lifetime" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Warranty / replacement period</span><input value={warrantyPeriod} onChange={(event) => setWarrantyPeriod(event.target.value)} placeholder="যেমন: ৭ দিন বা নেই" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Fulfillment window (মিনিট)</span><input type="number" min="0" value={fulfillmentWindowMinutes} onChange={(event) => setFulfillmentWindowMinutes(event.target.value)} placeholder="Auto delivery হলে ০" className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+            {stockMode === 'QUANTITY' && <label className="text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Available quantity</span><input type="number" min="1" value={stockQuantity} onChange={(event) => setStockQuantity(event.target.value)} className="w-full border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>}
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" aria-pressed={autoDeliveryEnabled} onClick={() => setAutoDeliveryEnabled((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${autoDeliveryEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>Automatic delivery: <strong>{autoDeliveryEnabled ? 'চালু' : 'বন্ধ'}</strong></button><button type="button" aria-pressed={deactivateWhenOutOfStock} onClick={() => setDeactivateWhenOutOfStock((value) => !value)} className={`border px-3 py-2.5 text-left text-sm ${deactivateWhenOutOfStock ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600'}`}>Stock শেষ হলে listing: <strong>{deactivateWhenOutOfStock ? 'অপ্রকাশিত হবে' : 'চালু থাকবে'}</strong></button></div>
+          {stockMode === 'KEY_POOL' && <div className="mt-4 border border-brand-200 bg-brand-50/50 p-3"><p className="text-xs font-semibold text-brand-700">Available key: {availableKeyCount}</p><p className="mt-1 text-xs text-ink-600">প্রতি লাইনে একটি key লিখে existing listing-এ batch inventory যোগ করুন। Key public product page-এ দেখানো হবে না।</p>{isEditing ? <><textarea value={keyBatchText} onChange={(event) => setKeyBatchText(event.target.value)} rows={4} placeholder="KEY-001\nKEY-002\nKEY-003" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><button type="button" onClick={() => void handleAddLicenseKeys()} disabled={!keyBatchText.trim()} className="mt-2 border border-brand-500 px-3 py-2 text-base font-semibold text-brand-700 disabled:opacity-50">Key inventory যোগ করুন</button></> : <p className="mt-2 text-xs text-ink-600">লিস্টিং প্রথমে save করার পরে edit page থেকে key pool যোগ করুন।</p>}</div>}
+          <label className="mt-4 block text-sm text-ink-700"><span className="mb-1.5 block font-medium text-ink-900">Buyer-এর জন্য delivery note / tutorial (ঐচ্ছিক)</span><textarea value={deliveryNote} onChange={(event) => setDeliveryNote(event.target.value)} rows={3} placeholder="Payment-এর পরে কীভাবে access বা redeem করবে তা লিখুন।" className="w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></label>
+        </section>
+
         <div className="border border-brand-200 bg-brand-50/60 p-4">
-          <BrandSelect label="ডিজিটাল ডেলিভারি" value={digitalDeliveryType} options={[{ value: 'INSTRUCTIONS', label: 'ব্যবহারের নির্দেশনা' }, { value: 'LICENSE_KEY', label: 'লাইসেন্স / এক্টিভেশন কী' }, { value: 'DOWNLOAD_LINK', label: 'ডাউনলোড লিংক' }]} onChange={(value) => setDigitalDeliveryType(value as DigitalContent['delivery_type'])} />
-          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-brand-700">{digitalDeliveryType === 'LICENSE_KEY' ? <KeyRound size={16} /> : digitalDeliveryType === 'DOWNLOAD_LINK' ? <Link2 size={16} /> : <ShieldCheck size={16} />} Payment সফল হলে buyer কী পাবে তা লিখুন</div>
+          <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-brand-700">{digitalDeliveryType === 'LICENSE_KEY' ? <KeyRound size={16} /> : digitalDeliveryType === 'DOWNLOAD_LINK' ? <Link2 size={16} /> : <ShieldCheck size={16} />} Payment সফল হলে buyer কী পাবে তা লিখুন</div>
           <textarea value={digitalDeliveryText} onChange={(event) => setDigitalDeliveryText(event.target.value)} rows={5} placeholder="গোপন key, access instructions অথবা নিরাপদ download link লিখুন। পাবলিক ছবি URL এখানে দেবেন না।" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" />
           <p className="mt-2 text-xs leading-relaxed text-ink-600">এই তথ্য শুধু সংশ্লিষ্ট buyer ও seller-এর authenticated order view-তে দেখানো হবে।</p>
         </div>
