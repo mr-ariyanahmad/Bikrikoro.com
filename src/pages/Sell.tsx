@@ -36,6 +36,19 @@ async function digitalContentRequest(body: Record<string, unknown>) {
   return payload
 }
 
+async function sellerProductRequest(body: Record<string, unknown>) {
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+  const response = await fetch('/api/seller-product', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => ({})) as { error?: string; productId?: string }
+  if (!response.ok) throw new Error(payload.error || 'পণ্য সেভ করা যায়নি।')
+  return payload
+}
+
 export default function Sell() {
   const { id } = useParams<{ id: string }>()
   const isEditing = Boolean(id)
@@ -246,45 +259,20 @@ export default function Sell() {
         video_url: videoUrl.trim() || null,
       }
 
-      const result = isEditing
-        ? await supabase.rpc('seller_update_product', {
-            p_seller_id: user.uid,
-            p_product_id: id,
-            p_title: payload.title,
-            p_description: payload.description,
-            p_price: payload.price,
-            p_original_price: payload.original_price,
-            p_category_id: payload.category_id,
-            p_condition: payload.condition,
-            p_location: '',
-            p_images: payload.images,
-            p_is_digital: true,
-            p_supports_cod: false,
-            p_free_delivery: false,
-            p_fast_delivery: false,
-            p_free_return: false,
-            p_video_url: payload.video_url,
-          })
-        : await supabase.rpc('seller_create_product', {
-            p_seller_id: user.uid,
-            p_title: payload.title,
-            p_description: payload.description,
-            p_price: payload.price,
-            p_original_price: payload.original_price,
-            p_category_id: payload.category_id,
-            p_condition: payload.condition,
-            p_location: '',
-            p_images: payload.images,
-            p_is_digital: true,
-            p_supports_cod: false,
-            p_free_delivery: false,
-            p_fast_delivery: false,
-            p_free_return: false,
-            p_video_url: payload.video_url,
-          })
-      if (result.error) throw result.error
+      const result = await sellerProductRequest({
+        action: isEditing ? 'update' : 'create',
+        productId: isEditing ? id : undefined,
+        title: payload.title,
+        description: payload.description,
+        price: payload.price,
+        originalPrice: payload.original_price,
+        categoryId: payload.category_id,
+        condition: payload.condition,
+        images: payload.images,
+        videoUrl: payload.video_url,
+      })
 
-      const savedProductId = id ?? result.data
+      const savedProductId = result.productId
       if (!savedProductId) throw new Error('সেভ হওয়া পণ্যের ID পাওয়া যায়নি।')
       await digitalContentRequest({
         action: 'save',

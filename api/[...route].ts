@@ -12,6 +12,7 @@ import productPreview from '../server/api/product-preview.js'
 import profileBootstrap from '../server/api/profile-bootstrap.js'
 import sellerVerificationStatus from '../server/api/seller-verification-status.js'
 import sellerDigitalContent from '../server/api/seller-digital-content.js'
+import sellerProduct from '../server/api/seller-product.js'
 import sitemap from '../server/api/sitemap.xml.js'
 import verificationDocument from '../server/api/verification-document.js'
 import walletWithdrawal from '../server/api/wallet-withdrawal.js'
@@ -32,6 +33,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'profile-bootstrap': profileBootstrap,
   'seller-verification-status': sellerVerificationStatus,
   'seller-digital-content': sellerDigitalContent,
+  'seller-product': sellerProduct,
   'sitemap.xml': sitemap,
   'verification-document': verificationDocument,
   'wallet-withdrawal': walletWithdrawal,

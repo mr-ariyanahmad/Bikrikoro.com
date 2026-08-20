@@ -84,6 +84,21 @@ create index if not exists idx_products_digital_category
   on public.products(category_id, created_at desc)
   where is_digital = true and is_hidden = false and approval_status = 'APPROVED';
 
+-- Browser clients must not bypass seller eligibility and digital-only RPC validation.
+drop policy if exists "Anyone can create a listing" on public.products;
+drop policy if exists "Sellers can update their own listings" on public.products;
+drop policy if exists "Sellers can delete their own listings" on public.products;
+create policy "Product inserts are server-only"
+  on public.products for insert with check (false);
+create policy "Product updates are server-only"
+  on public.products for update using (false) with check (false);
+create policy "Product deletes are server-only"
+  on public.products for delete using (false);
+
+-- Remove the legacy no-video overload; otherwise a caller could still invoke it
+-- with p_is_digital = false and bypass the new digital-only contract.
+drop function if exists public.seller_create_product(text, text, text, numeric, numeric, text, text, text, text[], boolean, boolean, boolean, boolean, boolean);
+
 -- ---------------------------------------------------------------------
 -- 4) Digital-only seller listing RPCs.
 -- ---------------------------------------------------------------------
@@ -108,6 +123,15 @@ declare
   v_product_id uuid;
   v_video_url text := nullif(trim(coalesce(p_video_url, '')), '');
 begin
+  if not exists (select 1 from public.profiles where id = p_seller_id) then
+    raise exception 'Seller profile not found';
+  end if;
+  if not exists (
+    select 1 from public.seller_registrations
+    where user_id = p_seller_id and listing_mode = 'DIGITAL' and status = 'APPROVED'
+  ) then
+    raise exception 'Digital listing requires an approved digital seller verification';
+  end if;
   if coalesce(p_is_digital, false) is not true then
     raise exception 'DIGITAL_ONLY_MARKETPLACE: physical listings are disabled';
   end if;
@@ -116,6 +140,9 @@ begin
   end if;
   if p_condition not in ('NEW', 'USED') then
     raise exception 'Invalid product condition';
+  end if;
+  if coalesce(array_length(p_images, 1), 0) < 1 then
+    raise exception 'At least one product image is required';
   end if;
   if v_video_url is not null and v_video_url !~* '^https?://(www\\.)?(youtube\\.com|youtu\\.be)/' then
     raise exception 'Only YouTube video URLs are supported';
@@ -154,6 +181,12 @@ create or replace function public.seller_update_product(
   p_video_url text default null
 ) returns uuid as $$
 begin
+  if not exists (
+    select 1 from public.seller_registrations
+    where user_id = p_seller_id and listing_mode = 'DIGITAL' and status = 'APPROVED'
+  ) then
+    raise exception 'Digital listing requires an approved digital seller verification';
+  end if;
   if coalesce(p_is_digital, false) is not true then
     raise exception 'DIGITAL_ONLY_MARKETPLACE: physical listings are disabled';
   end if;
@@ -162,6 +195,9 @@ begin
   end if;
   if p_condition not in ('NEW', 'USED') then
     raise exception 'Invalid product condition';
+  end if;
+  if coalesce(array_length(p_images, 1), 0) < 1 then
+    raise exception 'At least one product image is required';
   end if;
   if p_video_url is not null and trim(p_video_url) <> ''
      and p_video_url !~* '^https?://(www\\.)?(youtube\\.com|youtu\\.be)/' then
@@ -883,6 +919,15 @@ begin
   );
 end;
 $$ language plpgsql security definer stable set search_path = public, pg_temp;
+
+revoke all on function public.seller_create_product(text, text, text, numeric, numeric, text, text, text, text[], boolean, boolean, boolean, boolean, boolean, text) from public;
+grant execute on function public.seller_create_product(text, text, text, numeric, numeric, text, text, text, text[], boolean, boolean, boolean, boolean, boolean, text) to service_role;
+revoke all on function public.seller_update_product(text, uuid, text, text, numeric, numeric, text, text, text, text[], boolean, boolean, boolean, boolean, boolean, text) from public;
+grant execute on function public.seller_update_product(text, uuid, text, text, numeric, numeric, text, text, text, text[], boolean, boolean, boolean, boolean, boolean, text) to service_role;
+revoke all on function public.seller_upsert_digital_content(text, uuid, text, text) from public;
+grant execute on function public.seller_upsert_digital_content(text, uuid, text, text) to service_role;
+revoke all on function public.seller_clear_digital_content(text, uuid) from public;
+grant execute on function public.seller_clear_digital_content(text, uuid) to service_role;
 
 revoke all on function public.admin_moderate_product(text, uuid, text) from public;
 grant execute on function public.admin_moderate_product(text, uuid, text) to service_role;
