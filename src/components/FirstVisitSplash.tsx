@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowLeft, ArrowRight, BadgeCheck, BellRing, CheckCircle2, MapPin, Search, ShieldCheck, ShoppingBag, Sparkles, Store } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BadgeCheck, BellRing, CheckCircle2, Search, ShieldCheck, ShoppingBag, Sparkles, Store } from 'lucide-react'
 import { WELCOME_SPLASH_REPLAY_EVENT, WELCOME_SPLASH_STORAGE_KEY } from '@/lib/welcomeSplash'
 
 const scenes = [
@@ -20,12 +20,12 @@ const scenes = [
     id: 'discover',
     eyebrow: 'সহজে খুঁজে নিন',
     title: ['আপনার পছন্দের পণ্য', 'কয়েক মুহূর্তেই'],
-    description: 'Category, location, price এবং product type দিয়ে খুঁজুন। Compare করুন এবং আপনার পছন্দের পণ্য save করে রাখুন।',
+    description: 'Category, price এবং product type দিয়ে digital product খুঁজুন। Compare করুন এবং আপনার পছন্দের listing save করে রাখুন।',
     icon: Search,
     highlights: [
       { label: 'Smart search', icon: Search },
       { label: 'Category filter', icon: ShoppingBag },
-      { label: 'কাছের seller', icon: MapPin },
+      { label: 'বিশ্বস্ত seller', icon: Store },
       { label: 'সহজ comparison', icon: CheckCircle2 },
     ],
   },
@@ -193,11 +193,11 @@ function VisualPanel({ scene, icon: SceneIcon }: { scene: SceneId; icon: typeof 
 }
 
 function MarketplaceVisual() {
-  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><ShoppingBag size={18} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-ink-500 sm:text-xs">আজকের marketplace</p><p className="truncate text-sm font-bold text-ink-900 sm:text-base">পছন্দের পণ্য খুঁজুন</p></div><Sparkles size={18} className="shrink-0 text-brand-500" /></div><div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:gap-3"><MiniCard label="Digital" value="সহজ delivery" icon={<CreditBadge />} /><MiniCard label="Physical" value="নিরাপদ order" icon={<Store size={19} />} /></div><div className="mt-2 flex items-center gap-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-white sm:mt-3 sm:px-4 sm:py-3"><CheckCircle2 size={17} className="shrink-0 text-brand-100" /><p className="text-xs font-semibold sm:text-sm">এক জায়গায় পণ্য, seller এবং নিরাপদ লেনদেন</p></div></>
+  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><ShoppingBag size={18} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-ink-500 sm:text-xs">ডিজিটাল marketplace</p><p className="truncate text-sm font-bold text-ink-900 sm:text-base">পছন্দের digital product খুঁজুন</p></div><Sparkles size={18} className="shrink-0 text-brand-500" /></div><div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:gap-3"><MiniCard label="Category" value="বাছাই করুন" icon={<CreditBadge />} /><MiniCard label="Delivery" value="দ্রুত access" icon={<Store size={19} />} /></div><div className="mt-2 flex items-center gap-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-white sm:mt-3 sm:px-4 sm:py-3"><CheckCircle2 size={17} className="shrink-0 text-brand-100" /><p className="text-xs font-semibold sm:text-sm">এক জায়গায় digital product, seller ও নিরাপদ payment</p></div></>
 }
 
 function DiscoverVisual() {
-  return <><div className="flex items-center gap-2 rounded-2xl border border-brand-100 bg-white p-3 text-ink-500 shadow-sm"><Search size={17} className="shrink-0 text-brand-600" /><span className="truncate text-xs">আপনি কী খুঁজছেন?</span><span className="ml-auto rounded-lg bg-brand-500 px-2.5 py-1.5 text-[10px] font-bold text-white">খুঁজুন</span></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="Category" value="বাছাই" icon={<ShoppingBag size={16} />} /><MiniCard label="Location" value="কাছাকাছি" icon={<MapPin size={16} />} /><MiniCard label="Price" value="তুলনা" icon={<CheckCircle2 size={16} />} /></div><div className="mt-2 flex items-center justify-between rounded-2xl border border-brand-100 bg-white p-3"><div><p className="text-[10px] font-semibold text-ink-500">আপনার জন্য পছন্দ</p><p className="mt-0.5 text-xs font-bold text-brand-700">সঠিক পণ্য সহজে বাছাই করুন</p></div><BadgeCheck size={21} className="text-brand-600" /></div></>
+  return <><div className="flex items-center gap-2 rounded-2xl border border-brand-100 bg-white p-3 text-ink-500 shadow-sm"><Search size={17} className="shrink-0 text-brand-600" /><span className="truncate text-xs">আপনি কী খুঁজছেন?</span><span className="ml-auto rounded-lg bg-brand-500 px-2.5 py-1.5 text-[10px] font-bold text-white">খুঁজুন</span></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="Category" value="বাছাই" icon={<ShoppingBag size={16} />} /><MiniCard label="Seller" value="বিশ্বস্ত" icon={<Store size={16} />} /><MiniCard label="Price" value="তুলনা" icon={<CheckCircle2 size={16} />} /></div><div className="mt-2 flex items-center justify-between rounded-2xl border border-brand-100 bg-white p-3"><div><p className="text-[10px] font-semibold text-ink-500">আপনার জন্য পছন্দ</p><p className="mt-0.5 text-xs font-bold text-brand-700">সঠিক পণ্য সহজে বাছাই করুন</p></div><BadgeCheck size={21} className="text-brand-600" /></div></>
 }
 
 function SecureVisual() {

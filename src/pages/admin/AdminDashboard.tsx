@@ -70,7 +70,7 @@ export default function AdminDashboard() {
 
         <AdminTableCard>
           <div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">অপারেশন হেলথ</h2><p className="mt-0.5 text-xs text-slate-500">আজকের গুরুত্বপূর্ণ queue</p></div>
-          <div className="space-y-3 p-5"><HealthRow label="অপেক্ষমাণ পেমেন্ট/অর্ডার" value={stats.pending} href="/admin/orders" tone="amber" /><HealthRow label="ডিসপিউট রিভিউ" value={stats.disputes} href="/admin/disputes" tone="red" /><HealthRow label="সেলার আবেদন" value={stats.sellers} href="/admin/sellers" tone="blue" /><HealthRow label="সিস্টেম স্ট্যাটাস" value="OK" href="/admin/system-status" tone="green" /></div>
+          <div className="space-y-3 p-5"><HealthRow label="অপেক্ষমাণ পেমেন্ট/অর্ডার" value={stats.pending} href="/admin/orders" tone="amber" /><HealthRow label="ডিসপিউট রিভিউ" value={stats.disputes} href="/admin/disputes" tone="red" /><HealthRow label="সেলার আবেদন" value={stats.sellers} href="/admin/sellers" tone="blue" /></div>
         </AdminTableCard>
       </div>
     </AdminShell>
