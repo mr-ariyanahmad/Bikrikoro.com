@@ -11,10 +11,10 @@ begin;
 
 -- Chat rows are no longer read or written directly from the browser. All chat
 -- access goes through the Firebase-verified /api/chat gateway.
-drop policy if exists "Chat threads are publicly readable" on public.chat_threads;
-drop policy if exists "Users can create chat threads" on public.chat_threads;
-drop policy if exists "Chat messages are publicly readable" on public.chat_messages;
-drop policy if exists "Users can send chat messages" on public.chat_messages;
+drop policy if exists "Participants can read their threads" on public.chat_threads;
+drop policy if exists "Participants can create/update their threads" on public.chat_threads;
+drop policy if exists "Participants can read thread messages" on public.chat_messages;
+drop policy if exists "Participants can send messages" on public.chat_messages;
 
 revoke all on table public.chat_threads from public, anon, authenticated;
 revoke all on table public.chat_messages from public, anon, authenticated;
