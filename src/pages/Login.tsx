@@ -17,6 +17,7 @@ function socialAuthMessage(error: unknown) {
   const code = (error as { code?: string }).code
   if (code === 'auth/unauthorized-domain') return 'এই ওয়েবসাইটটি Firebase-এ অনুমোদিত নয়।'
   if (code === 'auth/account-exists-with-different-credential') return 'এই ইমেইল দিয়ে আগে অন্য পদ্ধতিতে অ্যাকাউন্ট খোলা আছে। সেই পদ্ধতিতে লগইন করুন।'
+  if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু login session তৈরি হয়নি। আবার চেষ্টা করুন।'
   if (code === 'auth/popup-closed-by-user') return 'লগইন উইন্ডো বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
   if (code === 'auth/popup-blocked' || code === 'auth/internal-error' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/timeout') {
     return 'লগইন উইন্ডো খোলা যায়নি। Browser-এর popup অনুমতি চালু করে আবার চেষ্টা করুন।'
@@ -63,9 +64,8 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Redirect failures are kept in the console for diagnosis, but internal
-    // Firebase details are not rendered on the public login screen.
-    if (authError) setError(null)
+    // Keep redirect failures actionable without exposing internal Firebase details.
+    if (authError) setError(socialAuthMessage({ code: authError }))
   }, [authError])
 
   if (user) {

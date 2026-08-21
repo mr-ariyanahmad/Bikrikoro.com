@@ -86,24 +86,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
-      if (firebaseUser) setAuthError(null)
+      if (firebaseUser) {
+        window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
+        window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
+        setAuthError(null)
+      }
       setLoading(false)
     })
-    void setPersistence(auth, browserLocalPersistence)
-      .then(() => getRedirectResult(auth))
+
+    // Do not make redirect-result recovery depend on persistence setup. On
+    // mobile browsers, persistence can reject or resolve after the callback;
+    // waiting for it first can skip getRedirectResult and lose the session.
+    void setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn('Firebase persistence setup failed during auth bootstrap:', error)
+    })
+    void getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
+          setUser(result.user)
           window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
           window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
-        } else if ((window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) || window.sessionStorage.getItem(FACEBOOK_REDIRECT_PENDING_KEY)) && !auth.currentUser) {
-          window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
-          window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
-          setAuthError('auth/redirect-session-not-found')
+          setAuthError(null)
+          setLoading(false)
         }
       })
       .catch((error) => {
         const code = (error as { code?: string }).code ?? 'auth/redirect-failed'
-        console.warn('Google redirect sign-in failed:', code, error)
+        console.warn('Firebase redirect sign-in failed:', code, error)
         setAuthError(code)
       })
     return unsubscribe
