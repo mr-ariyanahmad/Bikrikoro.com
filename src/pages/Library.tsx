@@ -17,7 +17,7 @@ export default function Library() {
       .then(setItems)
       .catch((err) => {
         console.error('digital library load failed:', err)
-        setError('ডিজিটাল লাইব্রেরি লোড করা যায়নি। নতুন migration প্রয়োগ করা হয়েছে কি না যাচাই করুন।')
+        setError('ডিজিটাল লাইব্রেরি লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
       })
       .finally(() => setLoading(false))
   }, [user])

@@ -64,14 +64,14 @@ export default function SellerVerification() {
       try {
         setStatusLoadError(null)
         const idToken = await auth.currentUser?.getIdToken()
-        if (!idToken) throw new Error('Firebase session পাওয়া যায়নি।')
+        if (!idToken) throw new Error('আপনার সেশন পাওয়া যায়নি। আবার লগইন করুন।')
         const response = await fetch('/api/seller-verification-status', { headers: { Authorization: `Bearer ${idToken}` } })
         const payload = await response.json().catch(() => ({})) as { error?: string; registration?: SellerRegistration | null }
         if (!response.ok) throw new Error(payload.error || `Verification status load failed (HTTP ${response.status})`)
         if (!active) return
         const registration = payload.registration ?? null
         setExisting(registration?.status === 'REJECTED' ? null : registration)
-        setPreviousRejectionNote(registration?.status === 'REJECTED' ? registration.admin_note || 'Admin review থেকে পরিবর্তন চাওয়া হয়েছে।' : null)
+        setPreviousRejectionNote(registration?.status === 'REJECTED' ? registration.admin_note || 'আপনার আবেদনে কিছু পরিবর্তন দরকার।' : null)
         if (registration?.status !== 'REJECTED' && registration?.document_path) setDocPreviewUrl(await getVerificationDocUrl(registration.document_path))
       } catch (loadError) {
         console.error('Seller verification load failed:', loadError)
@@ -88,7 +88,7 @@ export default function SellerVerification() {
     if (!businessType) return
     setLoadingRequirements(true); setRequirementsError(null); setFiles({})
     const fallback = FALLBACK_REQUIREMENTS_BY_TYPE[businessType]
-    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : fallback)).catch(() => { setRequirementsError('এই seller type-এর checklist server থেকে আসেনি। Migration 027 না চলা পর্যন্ত local type-specific checklist দেখানো হচ্ছে।'); setRequirements(fallback) }).finally(() => setLoadingRequirements(false))
+    getSellerDocumentRequirements(listingMode, businessType, sector).then((data) => setRequirements(data.length ? data : fallback)).catch(() => { setRequirementsError('এই seller type-এর checklist লোড করা যায়নি। নিচের প্রয়োজনীয় কাগজপত্রের তালিকা অনুসরণ করুন।'); setRequirements(fallback) }).finally(() => setLoadingRequirements(false))
   }, [businessType, listingMode, sector])
 
   const requiredRequirements = useMemo(() => requirements.filter((item) => item.required), [requirements])

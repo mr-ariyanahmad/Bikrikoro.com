@@ -122,7 +122,6 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
               <span className="text-sm font-medium text-brand-700">আমরা গ্রহণ করি</span>
             </div>
             <div className="mt-4"><PaymentMethodBadges methods={paymentMethods} /></div>
-            <p className="mt-3 text-xs leading-5 text-ink-400">Payment brand-গুলো checkout সুবিধার তথ্য হিসেবে দেখানো হয়েছে। চূড়ান্ত লেনদেন UddoktaPay-এর payment page-এ হবে।</p>
           </section>
           <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">Settings ও Help</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
         </div>

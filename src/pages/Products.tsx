@@ -45,7 +45,7 @@ export default function Products() {
         supabase.from('categories').select('*').order('sort_order'),
       ])
       if (templateError || !templates || templates.length === 0) {
-        if (categoryError) setNotice(`ক্যাটাগরি লোড করা যায়নি: ${categoryError.message}`)
+        if (categoryError) setNotice('ক্যাটাগরি লোড করা যাচ্ছে না।')
         setCategories((legacyCategories ?? []) as Category[])
         return
       }
@@ -62,7 +62,7 @@ export default function Products() {
     async function load() {
       if (!supabaseConfigured) {
         setProducts([])
-        setNotice('লাইভ digital product data দেখতে Supabase configuration প্রয়োজন।')
+        setNotice('পণ্য লোড করা যাচ্ছে না।')
         setLoading(false)
         return
       }
@@ -106,7 +106,7 @@ export default function Products() {
         console.error('Digital products load failed:', loadError)
         if (!cancelled) {
           setProducts([])
-          setNotice('Digital products এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+          setNotice('পণ্য এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -141,7 +141,7 @@ export default function Products() {
   }
 
   const shareCurrentSearch = async () => {
-    try { await navigator.clipboard.writeText(window.location.href); setNotice('এই filter link কপি হয়েছে।') } catch { setNotice('Filter link কপি করা যায়নি।') }
+    try { await navigator.clipboard.writeText(window.location.href); setNotice('এই ফিল্টারের লিংক কপি হয়েছে।') } catch { setNotice('ফিল্টারের লিংক কপি করা যায়নি।') }
   }
 
   const changeView = (next: 'grid' | 'list') => { setViewMode(next); localStorage.setItem('bikrikoro:products-view', next) }
@@ -173,7 +173,7 @@ export default function Products() {
       <CategoryPills categories={categories} selectedId={categoryId} onSelect={handleCategorySelect} />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-base text-ink-700">
-        <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি digital product পাওয়া গেছে`}</span>
+        <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি ডিজিটাল পণ্য পাওয়া গেছে`}</span>
         <div className="flex items-center gap-1.5"><button type="button" onClick={saveCurrentSearch} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><BookmarkPlus size={14} />সার্চ সেভ</button><button type="button" onClick={() => void shareCurrentSearch()} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><Share2 size={14} />শেয়ার</button><button type="button" onClick={() => changeView('grid')} className={`p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button type="button" onClick={() => changeView('list')} className={`p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
       </div>
       {notice && <p className="mt-2 border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">{notice}</p>}
@@ -181,7 +181,7 @@ export default function Products() {
       <div className={`mt-3 grid gap-3 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'}`}>
         {loading ? Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/4] animate-pulse bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
       </div>
-      {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-700">এই filter-এ কোনো digital product পাওয়া যায়নি।</p>}
+      {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-700">এই ফিল্টারে কোনো ডিজিটাল পণ্য পাওয়া যায়নি।</p>}
     </Layout>
   )
 }

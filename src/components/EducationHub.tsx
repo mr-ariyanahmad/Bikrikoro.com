@@ -35,7 +35,7 @@ const CONFIG: Record<EducationType, HubConfig> = {
     actionPath: '/products',
     illustrationTitle: 'Buyer journey',
     illustrationText: 'খোঁজা থেকে confirmation পর্যন্ত',
-    emptyText: 'User Education-এর chapter এখনো admin panel-এ প্রকাশ করা হয়নি।',
+    emptyText: 'এই গাইডে এখনো কোনো অধ্যায় নেই।',
   },
   SELLER_EDU: {
     eyebrow: 'Seller learning path',
@@ -52,7 +52,7 @@ const CONFIG: Record<EducationType, HubConfig> = {
     actionPath: '/become-seller',
     illustrationTitle: 'Seller journey',
     illustrationText: 'Verification থেকে payout পর্যন্ত',
-    emptyText: 'Seller Education-এর chapter এখনো admin panel-এ প্রকাশ করা হয়নি।',
+    emptyText: 'এই গাইডে এখনো কোনো অধ্যায় নেই।',
   },
 }
 

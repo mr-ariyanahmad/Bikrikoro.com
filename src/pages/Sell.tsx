@@ -442,7 +442,7 @@ export default function Sell() {
         <div className="mx-auto max-w-xl border border-brand-200 bg-brand-50 p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={34} />
           <h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification প্রয়োজন</h1>
-          <p className="mt-2 text-sm leading-6 text-ink-700">নিরাপদ digital marketplace-এ listing প্রকাশের আগে seller identity ও business information admin review করে approve করবেন।</p>
+          <p className="mt-2 text-sm leading-6 text-ink-700">পণ্য প্রকাশের আগে আপনার seller identity ও ব্যবসায়িক তথ্য যাচাই করা প্রয়োজন।</p>
           <button type="button" onClick={() => navigate('/become-seller')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">Verification শুরু করুন</button>
         </div>
       </Layout>

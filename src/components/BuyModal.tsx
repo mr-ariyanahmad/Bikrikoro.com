@@ -122,7 +122,7 @@ export function BuyModal({
             {error && <p className="border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p>}
 
             <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !acceptedPolicy || !product.is_digital} className="w-full bg-brand-500 py-3 text-base font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'পেমেন্ট পেজে নিয়ে যাচ্ছে...' : 'বিকাশ/নগদ/রকেট দিয়ে পেমেন্ট করুন'}</button>
-            <p className="text-center text-xs text-ink-500">UddoktaPay-এর নিরাপদ পেমেন্ট পেজে নিয়ে যাওয়া হবে। Dispute থাকলে admin review শেষ না হওয়া পর্যন্ত escrow release হবে না।</p>
+            <p className="text-center text-xs text-ink-500">পেমেন্ট সম্পন্ন হলে পণ্যটি আপনার ডিজিটাল লাইব্রেরিতে পাওয়া যাবে।</p>
           </div>
         </div>
       </div>

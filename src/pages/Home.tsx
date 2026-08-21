@@ -31,7 +31,7 @@ export default function Home() {
     let active = true
     async function load() {
       if (!supabaseConfigured) {
-        setCheckInMessage('লাইভ পণ্য data দেখতে Supabase configuration প্রয়োজন।')
+        setCheckInMessage('পণ্য এখন লোড করা যাচ্ছে না।')
         setLoading(false)
         return
       }
@@ -89,7 +89,7 @@ export default function Home() {
 
   const checkIn = async () => {
     if (!user) { navigate('/login'); return }
-    if (!supabaseConfigured) { setCheckInMessage('Daily check-in চালু করতে Supabase configuration প্রয়োজন।'); return }
+    if (!supabaseConfigured) { setCheckInMessage('ডেইলি চেক-ইন এখন চালু করা যাচ্ছে না।'); return }
     if (checkedIn || checkInLoading) return
     setCheckInLoading(true)
     setCheckInMessage(null)
@@ -97,7 +97,7 @@ export default function Home() {
       const { data, error } = await supabase.rpc('claim_daily_checkin', { p_user_id: user.uid })
       const result = Array.isArray(data) ? data[0] : data
       if (error || !result) {
-        setCheckInMessage('Daily check-in চালু করা যাচ্ছে না। Supabase migration 020 ও 022 প্রয়োগ করা আছে কি না দেখুন।')
+        setCheckInMessage('ডেইলি চেক-ইন এখন চালু করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
         return
       }
       setRewardCoins(Number(result.total_coins ?? rewardCoins))
