@@ -10,19 +10,17 @@ import { getAuth, type Auth } from 'firebase/auth'
  */
 const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
 const firebaseProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
-const currentHost = typeof window !== 'undefined' ? window.location.hostname : ''
-const productionHost = currentHost === 'www.bikrikoro.com' || currentHost === 'bikrikoro.com'
-const defaultFirebaseAuthDomain = firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : configuredAuthDomain
+const firebaseAuthDomain = configuredAuthDomain || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : '')
 
 /**
- * Keep production on Firebase's default auth domain. Its OAuth redirect URI is
- * already registered by Firebase, so mobile users do not need to edit Google
- * Cloud settings. Preview/local environments continue to use the configured
- * domain so existing development setups remain unchanged.
+ * Keep the configured branded auth domain (currently auth.bikrikoro.com) in
+ * every environment so Google and Facebook show BikriKoro.com. The default
+ * Firebase domain is only a missing-configuration fallback; changing authDomain
+ * must never change Firebase project identity or existing user UIDs.
  */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: productionHost ? defaultFirebaseAuthDomain : configuredAuthDomain,
+  authDomain: firebaseAuthDomain,
   projectId: firebaseProjectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
