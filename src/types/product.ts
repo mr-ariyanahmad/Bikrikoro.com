@@ -63,8 +63,8 @@ export interface Product {
   free_delivery?: boolean
   fast_delivery?: boolean
   free_return?: boolean
-  latitude: number | null
-  longitude: number | null
+  latitude?: number | null
+  longitude?: number | null
   created_at: string
   approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'
   approval_note?: string

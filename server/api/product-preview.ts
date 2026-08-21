@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
   const { data: product } = await supabase
-    .from('products')
+    .from('public_products')
     .select('title, description, price, location, images, video_url, condition')
     .eq('id', id)
     .maybeSingle()

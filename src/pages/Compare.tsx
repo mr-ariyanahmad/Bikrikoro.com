@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { formatTaka } from '@/lib/format'
 import { getComparedProductIds, removeCompared } from '@/lib/compare'
 import type { Product } from '@/types/product'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 const rows: Array<{ label: string; get: (product: Product) => string }> = [
   { label: 'দাম', get: (product) => formatTaka(product.price) },
@@ -32,7 +33,7 @@ export default function Compare() {
         return
       }
       try {
-        const { data, error } = await supabase.from('products').select('*').in('id', ids)
+        const { data, error } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('id', ids)
         if (error) throw error
         if (!cancelled) {
           const byId = new Map((data ?? []).map((product) => [product.id, product as Product]))

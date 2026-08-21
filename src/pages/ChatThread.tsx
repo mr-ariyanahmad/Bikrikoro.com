@@ -3,6 +3,7 @@ import { Package, Send } from 'lucide-react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { chatRequest } from '@/lib/chat'
+import { PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
@@ -50,7 +51,7 @@ export default function ChatThreadPage() {
       setLoading(false)
 
       if (threadData.product_id) {
-        const { data: productData, error: productError } = await supabase.from('products').select('title').eq('id', threadData.product_id).maybeSingle()
+        const { data: productData, error: productError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select('title').eq('id', threadData.product_id).maybeSingle()
         if (productError) console.warn('Chat product context load failed:', productError)
         setProductTitle(productData?.title ?? '')
       }

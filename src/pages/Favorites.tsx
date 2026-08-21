@@ -7,6 +7,7 @@ import { Layout } from '@/components/Layout'
 import { BrandSelect } from '@/components/BrandSelect'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product } from '@/types/product'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 export default function Favorites() {
   const { user } = useAuth()
@@ -43,7 +44,7 @@ export default function Favorites() {
           setProducts([])
           return
         }
-        const { data, error: productsError } = await supabase.from('products').select('*').in('id', ids)
+        const { data, error: productsError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('id', ids)
         if (productsError) throw productsError
         if (active) setProducts(data ?? [])
       } catch (error) {

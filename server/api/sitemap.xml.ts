@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (supabaseUrl && supabaseAnonKey) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const [{ data: products }, { data: blogs }, { data: sellers }] = await Promise.all([
-      supabase.from('products').select('id, created_at').eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }).limit(5000),
+      supabase.from('public_products').select('id, created_at').order('created_at', { ascending: false }).limit(5000),
       supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: null }),
       supabase.from('profiles').select('shop_username, updated_at, created_at').not('shop_username', 'is', null).eq('is_blocked', false).limit(5000),
     ])

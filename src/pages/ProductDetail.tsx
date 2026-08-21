@@ -17,6 +17,7 @@ import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
 import { SITE_URL } from '@/lib/site'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -63,7 +64,7 @@ export default function ProductDetail() {
 
     async function load() {
       try {
-        const { data: productData, error: productError } = await supabase.from('products').select('*').eq('id', id).maybeSingle()
+        const { data: productData, error: productError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('id', id).maybeSingle()
         if (productError) throw productError
         if (!active) return
         setProduct(productData as Product | null)
@@ -93,7 +94,6 @@ export default function ProductDetail() {
             if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
           })
           void trackProductView(productData.id)
-          supabase.from('products').update({ view_count: productData.view_count + 1 }).eq('id', id).then(() => undefined)
         }
       } catch (error) {
         console.error('Product detail load failed:', error)

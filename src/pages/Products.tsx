@@ -8,6 +8,7 @@ import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
 import { BrandSelect } from '@/components/BrandSelect'
 import type { Product, Category } from '@/types/product'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
@@ -76,11 +77,8 @@ export default function Products() {
           return
         }
         let request = supabase
-          .from('products')
-          .select('*')
-          .eq('is_digital', true)
-          .eq('is_hidden', false)
-          .eq('approval_status', 'APPROVED')
+          .from(PUBLIC_PRODUCT_TABLE)
+          .select(PUBLIC_PRODUCT_FIELDS)
         if (categoryId) request = request.eq('category_id', categoryId)
         if (debouncedQuery.trim()) request = request.ilike('title', `%${debouncedQuery.trim()}%`)
         if (condition !== 'all') request = request.eq('condition', condition)

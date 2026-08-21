@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Clock3, Flame, Search, Sparkles, Tag, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { formatTaka } from '@/lib/format'
 import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
 import type { Category } from '@/types/product'
@@ -71,11 +72,9 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     const timer = window.setTimeout(async () => {
       setLoading(true)
       const { data, error } = await supabase
-        .from('products')
+        .from(PUBLIC_PRODUCT_TABLE)
         .select('id, title, price, images, category_id')
         .eq('is_digital', true)
-        .eq('is_hidden', false)
-        .eq('approval_status', 'APPROVED')
         .ilike('title', `%${term}%`)
         .order('created_at', { ascending: false })
         .limit(8)

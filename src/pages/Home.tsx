@@ -12,6 +12,7 @@ import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, PromoBanner } from '@/types/product'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 export default function Home() {
   const { user } = useAuth()
@@ -40,7 +41,7 @@ export default function Home() {
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
           supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
-          supabase.from('products').select('*').eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }).limit(12),
+          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('created_at', { ascending: false }).limit(12),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {

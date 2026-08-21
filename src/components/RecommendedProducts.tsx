@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product } from '@/types/product'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 type Mode =
   | { type: 'related'; categoryId: string; excludeProductId: string }
@@ -29,14 +30,15 @@ export function RecommendedProducts({ title, mode, limit = 8 }: { title: string;
             if (!cancelled) setProducts([])
             return
           }
-          const { data } = await supabase.from('products').select('*').in('id', mode.productIds)
-          const byId = new Map((data ?? []).map((product) => [product.id, product]))
+          const { data } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('id', mode.productIds)
+          const rows = (data ?? []) as Product[]
+          const byId = new Map(rows.map((product) => [product.id, product]))
           const ordered = mode.productIds.map((id) => byId.get(id)).filter((product): product is Product => Boolean(product))
           if (!cancelled) setProducts(ordered)
           return
         }
 
-        let request = supabase.from('products').select('*')
+        let request = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS)
         if (mode.type === 'related') request = request.eq('category_id', mode.categoryId).neq('id', mode.excludeProductId)
         if (mode.type === 'seller') request = request.eq('seller_id', mode.sellerId).neq('id', mode.excludeProductId)
         request = mode.type === 'popular' ? request.order('view_count', { ascending: false }) : request.order('created_at', { ascending: false })

@@ -12,6 +12,7 @@ import { getUserFeatureStatus, toggleSellerFollow } from '@/lib/publicFeatures'
 import { formatDate } from '@/lib/format'
 import { shopUrl } from '@/lib/shopProfile'
 import { SITE_URL } from '@/lib/site'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import type { Product, Profile } from '@/types/product'
 import type { Review } from '@/types/order'
 
@@ -19,7 +20,6 @@ type PublicSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 's
 type PublicReview = Pick<Review, 'id' | 'product_id' | 'product_title' | 'buyer_name' | 'rating' | 'comment' | 'created_at'>
 type ProductFilter = 'ALL' | 'POPULAR' | 'LATEST' | 'LOWEST' | 'HIGHEST'
 
-const PUBLIC_PRODUCT_FIELDS = 'id, title, description, price, original_price, images, video_url, category_id, condition, location, is_digital, seller_id, view_count, is_escrow_protected, supports_cod, free_delivery, fast_delivery, free_return, latitude, longitude, created_at, approval_status, is_hidden'
 const PUBLIC_REVIEW_FIELDS = 'id, product_id, product_title, buyer_name, rating, comment, created_at'
 
 export default function SellerProfile() {
@@ -55,7 +55,7 @@ export default function SellerProfile() {
         }
         const sellerId = sellerData.id
         const [productsRes, reviewsRes, featureStatus] = await Promise.all([
-          supabase.from('products').select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', sellerId).eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }),
+          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', sellerId).eq('is_digital', true).order('created_at', { ascending: false }),
           supabase.from('reviews').select(PUBLIC_REVIEW_FIELDS).eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(20),
           userId ? getUserFeatureStatus(null, sellerId, null) : Promise.resolve({ alertEnabled: false, following: false }),
         ])
