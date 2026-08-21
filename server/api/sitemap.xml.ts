@@ -17,6 +17,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
 type BlogSitemapRow = { slug?: string | null; published_at?: string | null; updated_at?: string | null }
+type SellerSitemapRow = { shop_username?: string | null; updated_at?: string | null; created_at?: string | null }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -33,12 +34,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let productUrls: { loc: string; lastmod: string }[] = []
   let blogUrls: { loc: string; lastmod: string }[] = []
+  let sellerUrls: { loc: string; lastmod: string }[] = []
 
   if (supabaseUrl && supabaseAnonKey) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    const [{ data: products }, { data: blogs }] = await Promise.all([
-      supabase.from('products').select('id, created_at').order('created_at', { ascending: false }).limit(5000),
+    const [{ data: products }, { data: blogs }, { data: sellers }] = await Promise.all([
+      supabase.from('products').select('id, created_at').eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }).limit(5000),
       supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: null }),
+      supabase.from('profiles').select('shop_username, updated_at, created_at').not('shop_username', 'is', null).eq('is_blocked', false).limit(5000),
     ])
 
     productUrls = (products ?? []).map((p) => ({
@@ -51,6 +54,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!slug || !date) return []
       return [{ loc: `${site}/blog/${encodeURIComponent(slug)}`, lastmod: new Date(date).toISOString().split('T')[0] }]
     })
+    sellerUrls = (sellers as SellerSitemapRow[] | null ?? []).flatMap((seller: SellerSitemapRow) => {
+      const username = seller.shop_username?.trim()
+      const date = seller.updated_at || seller.created_at
+      if (!username || !date) return []
+      return [{ loc: `${site}/seller/${encodeURIComponent(username)}`, lastmod: new Date(date).toISOString().split('T')[0] }]
+    })
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -58,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ${staticUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join('\n')}
 ${productUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n')}
 ${blogUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n')}
+${sellerUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`).join('\n')}
 </urlset>`
 
   res.setHeader('Content-Type', 'application/xml')

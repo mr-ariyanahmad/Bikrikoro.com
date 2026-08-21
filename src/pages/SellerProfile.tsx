@@ -10,14 +10,15 @@ import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { findOrCreateThread } from '@/lib/chat'
 import { toggleSellerFollow } from '@/lib/publicFeatures'
 import { formatDate } from '@/lib/format'
+import { shopUrl } from '@/lib/shopProfile'
+import { SITE_URL } from '@/lib/site'
 import type { Product, Profile } from '@/types/product'
 import type { Review } from '@/types/order'
 
-type PublicSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'shop_description' | 'is_verified' | 'rating' | 'review_count' | 'created_at'>
+type PublicSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'shop_description' | 'shop_username' | 'shop_cover_url' | 'is_verified' | 'rating' | 'review_count' | 'created_at'> & { follower_count: number; product_count: number; total_views: number }
 type PublicReview = Pick<Review, 'id' | 'product_id' | 'product_title' | 'buyer_name' | 'rating' | 'comment' | 'created_at'>
 type ProductFilter = 'ALL' | 'POPULAR' | 'LATEST' | 'LOWEST' | 'HIGHEST'
 
-const PUBLIC_PROFILE_FIELDS = 'id, name, photo_url, shop_name, shop_description, is_verified, rating, review_count, created_at'
 const PUBLIC_PRODUCT_FIELDS = 'id, title, description, price, original_price, images, video_url, category_id, condition, location, is_digital, seller_id, view_count, is_escrow_protected, supports_cod, free_delivery, fast_delivery, free_return, latitude, longitude, created_at, approval_status, is_hidden'
 const PUBLIC_REVIEW_FIELDS = 'id, product_id, product_title, buyer_name, rating, comment, created_at'
 
@@ -44,18 +45,24 @@ export default function SellerProfile() {
     setLoadError(null)
     async function load() {
       try {
-        const [sellerRes, productsRes, reviewsRes, followRes] = await Promise.all([
-          supabase.from('profiles').select(PUBLIC_PROFILE_FIELDS).eq('id', id).maybeSingle(),
-          supabase.from('products').select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', id).eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }),
-          supabase.from('reviews').select(PUBLIC_REVIEW_FIELDS).eq('seller_id', id).order('created_at', { ascending: false }).limit(20),
-          userId ? supabase.from('seller_follows').select('seller_id').eq('user_id', userId).eq('seller_id', id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+        const { data: sellerRpcData, error: sellerError } = await supabase.rpc('get_public_seller_profile', { p_lookup: id })
+        if (sellerError) throw sellerError
+        const sellerData = (Array.isArray(sellerRpcData) ? sellerRpcData[0] : sellerRpcData) as PublicSeller | null
+        if (!sellerData) {
+          if (active) setSeller(null)
+          return
+        }
+        const sellerId = sellerData.id
+        const [productsRes, reviewsRes, followRes] = await Promise.all([
+          supabase.from('products').select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', sellerId).eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }),
+          supabase.from('reviews').select(PUBLIC_REVIEW_FIELDS).eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(20),
+          userId ? supabase.from('seller_follows').select('seller_id').eq('user_id', userId).eq('seller_id', sellerId).maybeSingle() : Promise.resolve({ data: null, error: null }),
         ])
-        if (sellerRes.error) throw sellerRes.error
         if (productsRes.error) throw productsRes.error
         if (reviewsRes.error) throw reviewsRes.error
         if (followRes.error && followRes.error.code !== 'PGRST116') throw followRes.error
         if (!active) return
-        setSeller(sellerRes.data as PublicSeller | null)
+        setSeller(sellerData)
         setProducts((productsRes.data ?? []) as Product[])
         setReviews((reviewsRes.data ?? []) as PublicReview[])
         setFollowing(Boolean(followRes.data))
@@ -83,16 +90,17 @@ export default function SellerProfile() {
     })
   }, [filter, products, query])
 
-  const totalViews = products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0)
+  const totalViews = seller?.total_views ?? products.reduce((sum, product) => sum + Number(product.view_count ?? 0), 0)
   const yearsOnPlatform = seller ? yearsSince(seller.created_at) : 0
   const reviewAverage = seller && seller.review_count > 0 ? seller.rating.toFixed(1) : '—'
 
   const handleFollow = async () => {
-    if (!id) return
+    if (!seller) return
     if (!user) { navigate('/login'); return }
     try {
-      const next = await toggleSellerFollow(user.uid, id)
+      const next = await toggleSellerFollow(user.uid, seller.id)
       setFollowing(next)
+      setSeller((current) => current ? { ...current, follower_count: Math.max(0, current.follower_count + (next ? 1 : -1)) } : current)
       setActionMessage(next ? 'এই shop follow করা হয়েছে।' : 'এই shop follow তালিকা থেকে সরানো হয়েছে।')
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : 'Shop follow করা যায়নি।')
@@ -100,11 +108,11 @@ export default function SellerProfile() {
   }
 
   const handleChat = async () => {
-    if (!id) return
+    if (!seller) return
     if (!user) { navigate('/login'); return }
-    if (user.uid === id) { setActionMessage('নিজের shop-এ chat করা যাবে না।'); return }
+    if (user.uid === seller.id) { setActionMessage('নিজের shop-এ chat করা যাবে না।'); return }
     try {
-      const threadId = await findOrCreateThread(user.uid, id, null)
+      const threadId = await findOrCreateThread(user.uid, seller.id, null)
       navigate(`/chat/${threadId}`)
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : 'Chat শুরু করা যায়নি।')
@@ -133,12 +141,19 @@ export default function SellerProfile() {
       <Helmet>
         <title>{`${shopName} — BikriKoro.Com`}</title>
         <meta name="description" content={seller.shop_description?.trim() || `${shopName}-এর verified digital shop ও product দেখুন BikriKoro-তে।`} />
+        <link rel="canonical" href={`${SITE_URL}${shopUrl(seller.shop_username, seller.id)}`} />
+        <meta property="og:type" content="profile" />
+        <meta property="og:title" content={`${shopName} — BikriKoro`} />
+        <meta property="og:description" content={seller.shop_description?.trim() || `${shopName}-এর digital shop দেখুন BikriKoro-তে।`} />
+        <meta property="og:url" content={`${SITE_URL}${shopUrl(seller.shop_username, seller.id)}`} />
+        {seller.photo_url && <meta property="og:image" content={seller.photo_url} />}
+        <meta name="twitter:card" content="summary_large_image" />
       </Helmet>
       <div className="mx-auto w-full max-w-7xl pb-24">
         <Link to="/products" className="mb-4 inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-semibold text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><ArrowLeft size={17} />ফিরে যান</Link>
         <section className="overflow-hidden border border-brand-100 bg-surface shadow-sm">
-          <div className="relative h-36 overflow-hidden bg-gradient-to-r from-brand-800 via-brand-600 to-emerald-300 sm:h-48"><div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, white 0, transparent 28%), radial-gradient(circle at 85% 45%, white 0, transparent 24%)' }} /><div className="absolute bottom-3 left-4 text-xs font-bold uppercase tracking-[0.2em] text-white/80">BikriKoro digital shop</div></div>
-          <div className="relative px-4 pb-5 sm:px-7"><div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end"><div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden border-4 border-white bg-brand-100 text-3xl font-bold text-brand-700 shadow-md sm:h-28 sm:w-28">{seller.photo_url ? <img src={seller.photo_url} alt={`${shopName} shop`} className="h-full w-full object-cover" /> : shopName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight text-ink-900">{shopName}</h1>{seller.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><BadgeCheck size={14} />যাচাইকৃত seller</span>}</div>{seller.name && seller.name !== shopName && <p className="mt-1 text-sm text-ink-500">মালিক: {seller.name}</p>}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-600"><span className="inline-flex items-center gap-1">{seller.review_count > 0 ? <><Star size={15} className="fill-amber-400 text-amber-400" />{reviewAverage} · {seller.review_count}টি রিভিউ</> : 'এখনো কোনো রিভিউ নেই'}</span><span className="inline-flex items-center gap-1"><Package size={15} />{products.length}টি digital product</span><span className="inline-flex items-center gap-1"><Clock3 size={15} />{formatDate(seller.created_at)} থেকে</span></div></div><div className="flex flex-wrap gap-2 sm:justify-end"><button type="button" onClick={() => void handleFollow()} className={`inline-flex items-center justify-center gap-2 border px-3 py-2.5 text-base font-semibold transition ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-700 hover:border-brand-500 hover:text-brand-700'}`}><Heart size={16} className={following ? 'fill-brand-500 text-brand-500' : ''} />{following ? 'Follow করা আছে' : 'শপ অনুসরণ করুন'}</button><button type="button" onClick={() => void handleChat()} className="inline-flex items-center justify-center gap-2 border border-brand-500 bg-brand-500 px-3 py-2.5 text-base font-semibold text-white transition hover:bg-brand-600"><MessageCircle size={16} />চ্যাট করুন</button></div></div>
+          <div className="relative h-36 overflow-hidden bg-gradient-to-r from-brand-800 via-brand-600 to-emerald-300 sm:h-48">{seller.shop_cover_url ? <img src={seller.shop_cover_url} alt="" className="h-full w-full object-cover" /> : <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, white 0, transparent 28%), radial-gradient(circle at 85% 45%, white 0, transparent 24%)' }} />}<div className="absolute bottom-3 left-4 text-xs font-bold uppercase tracking-[0.2em] text-white/80">BikriKoro digital shop</div></div>
+          <div className="relative px-4 pb-5 sm:px-7"><div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end"><div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden border-4 border-white bg-brand-100 text-3xl font-bold text-brand-700 shadow-md sm:h-28 sm:w-28">{seller.photo_url ? <img src={seller.photo_url} alt={`${shopName} shop`} className="h-full w-full object-cover" /> : shopName.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight text-ink-900">{shopName}</h1>{seller.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><BadgeCheck size={14} />যাচাইকৃত seller</span>}</div>{seller.name && seller.name !== shopName && <p className="mt-1 text-sm text-ink-500">মালিক: {seller.name}</p>}<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-600"><span className="inline-flex items-center gap-1">{seller.review_count > 0 ? <><Star size={15} className="fill-amber-400 text-amber-400" />{reviewAverage} · {seller.review_count}টি রিভিউ</> : 'এখনো কোনো রিভিউ নেই'}</span><span className="inline-flex items-center gap-1"><Package size={15} />{seller.product_count}টি digital product</span><span className="inline-flex items-center gap-1"><Users size={15} />{seller.follower_count} জন অনুসরণ</span><span className="inline-flex items-center gap-1"><Clock3 size={15} />{formatDate(seller.created_at)} থেকে</span></div></div><div className="flex flex-wrap gap-2 sm:justify-end"><button type="button" onClick={() => void handleFollow()} className={`inline-flex items-center justify-center gap-2 border px-3 py-2.5 text-base font-semibold transition ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-700 hover:border-brand-500 hover:text-brand-700'}`}><Heart size={16} className={following ? 'fill-brand-500 text-brand-500' : ''} />{following ? 'Follow করা আছে' : 'শপ অনুসরণ করুন'}</button><button type="button" onClick={() => void handleChat()} className="inline-flex items-center justify-center gap-2 border border-brand-500 bg-brand-500 px-3 py-2.5 text-base font-semibold text-white transition hover:bg-brand-600"><MessageCircle size={16} />চ্যাট করুন</button></div></div>
           </div>
         </section>
 
@@ -146,7 +161,7 @@ export default function SellerProfile() {
 
         <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.7fr)]">
           <div className="border border-outline bg-surface p-5 shadow-sm sm:p-6"><div className="flex items-center gap-2"><ShieldCheck size={20} className="text-brand-600" /><h2 className="text-lg font-bold text-ink-900">শপের বিশ্বাসযোগ্যতা</h2></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4"><TrustItem label="সেলার যাচাই" value={seller.is_verified ? 'যাচাইকৃত' : 'যাচাই করা হয়নি'} ok={seller.is_verified} /><TrustItem label="ডিজিটাল পণ্য" value={products.length > 0 ? 'সক্রিয়' : 'নেই'} ok={products.length > 0} /><TrustItem label="রিভিউ" value={seller.review_count > 0 ? `${seller.review_count}টি` : 'নেই'} ok={seller.review_count > 0} /><TrustItem label="BikriKoro-তে" value={yearsOnPlatform > 0 ? `${yearsOnPlatform} বছর` : 'নতুন'} ok={yearsOnPlatform > 0} /></div></div>
-          <div className="border border-brand-100 bg-brand-50 p-5 shadow-sm sm:p-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">শপের সারাংশ</p><div className="mt-4 grid grid-cols-2 gap-3"><Stat label="রেটিং" value={reviewAverage} icon={Star} /><Stat label="পণ্য" value={String(products.length)} icon={Package} /><Stat label="মোট দেখা" value={String(totalViews)} icon={Eye} /><Stat label="রিভিউ" value={String(seller.review_count)} icon={Users} /></div></div>
+          <div className="border border-brand-100 bg-brand-50 p-5 shadow-sm sm:p-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">শপের সারাংশ</p><div className="mt-4 grid grid-cols-2 gap-3"><Stat label="রেটিং" value={reviewAverage} icon={Star} /><Stat label="পণ্য" value={String(seller.product_count)} icon={Package} /><Stat label="মোট দেখা" value={String(totalViews)} icon={Eye} /><Stat label="অনুসরণকারী" value={String(seller.follower_count)} icon={Users} /></div></div>
         </section>
 
         <section className="mt-5 border border-outline bg-surface p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">শপ সম্পর্কে</p><h2 className="mt-1 text-xl font-bold text-ink-900">সেলার সম্পর্কে</h2></div><div className="flex gap-2"><button type="button" onClick={() => void handleShare()} className="inline-flex items-center gap-2 border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700"><Share2 size={15} />শেয়ার করুন</button><button type="button" onClick={() => setReportOpen(true)} className="inline-flex items-center gap-2 border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-error hover:text-error"><Flag size={15} />অভিযোগ জানান</button></div></div><p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-7 text-ink-600">{seller.shop_description?.trim() || 'এই শপ সম্পর্কে কোনো বিবরণ নেই।'}</p></section>

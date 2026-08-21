@@ -80,6 +80,8 @@ export interface Profile {
   photo_url: string | null
   shop_name?: string | null
   shop_description?: string | null
+  shop_username?: string | null
+  shop_cover_url?: string | null
   is_verified: boolean
   rating: number
   review_count: number

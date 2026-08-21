@@ -11,6 +11,7 @@ import pendingOrder from '../server/api/pending-order.js'
 import productPreview from '../server/api/product-preview.js'
 import profileBootstrap from '../server/api/profile-bootstrap.js'
 import sellerVerificationStatus from '../server/api/seller-verification-status.js'
+import sellerProfile from '../server/api/seller-profile.js'
 import sellerDigitalContent from '../server/api/seller-digital-content.js'
 import sellerProduct from '../server/api/seller-product.js'
 import sellerListingOptions from '../server/api/seller-listing-options.js'
@@ -33,6 +34,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'product-preview': productPreview,
   'profile-bootstrap': profileBootstrap,
   'seller-verification-status': sellerVerificationStatus,
+  'seller-profile': sellerProfile,
   'seller-digital-content': sellerDigitalContent,
   'seller-product': sellerProduct,
   'seller-listing-options': sellerListingOptions,

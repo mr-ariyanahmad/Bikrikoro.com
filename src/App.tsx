@@ -182,6 +182,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/seller/:username" element={<SellerProfile />} />
       <Route path="/sellers/:id" element={<SellerProfile />} />
       <Route path="/settings" element={<SettingsHub />} />
       <Route path="/help" element={<PublicContentPage type="HELP" />} />

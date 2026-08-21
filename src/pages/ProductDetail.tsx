@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BadgeCheck, Bell, Flag, MessageCircleQuestion, Play, UserPlus } from 'lucide-react'
+import { Bell, Flag, MessageCircleQuestion, Play } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { BuyModal } from '@/components/BuyModal'
 import { RecommendedProducts } from '@/components/RecommendedProducts'
+import { SellerShopCard } from '@/components/SellerShopCard'
 import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
@@ -26,6 +27,7 @@ export default function ProductDetail() {
   const [digitalSpecs, setDigitalSpecs] = useState<ProductDigitalSpecs | null>(null)
   const [seller, setSeller] = useState<Profile | null>(null)
   const [sellerBadges, setSellerBadges] = useState<Array<{ badge_key: string; badge_label: string }>>([])
+  const [sellerStats, setSellerStats] = useState({ followerCount: 0, productCount: 0 })
   const [activeMedia, setActiveMedia] = useState(0)
   const [videoPlaying, setVideoPlaying] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -79,11 +81,14 @@ export default function ProductDetail() {
         if (productData) {
           const { data: sellerData } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, name, photo_url, shop_name, shop_description, shop_username, shop_cover_url, is_verified, rating, review_count, created_at')
             .eq('id', productData.seller_id)
             .maybeSingle()
           if (!active) return
-          setSeller(sellerData)
+          setSeller(sellerData as Profile | null)
+          const { data: sellerPublicData } = await supabase.rpc('get_public_seller_profile', { p_lookup: productData.seller_id })
+          const sellerPublic = Array.isArray(sellerPublicData) ? sellerPublicData[0] : sellerPublicData
+          if (active) setSellerStats({ followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) })
           supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => {
             if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
           })
@@ -222,6 +227,7 @@ export default function ProductDetail() {
     try {
       const nextFollowing = await toggleSellerFollow(user.uid, product.seller_id)
       setFollowingSeller(nextFollowing)
+      setSellerStats((current) => ({ ...current, followerCount: Math.max(0, current.followerCount + (nextFollowing ? 1 : -1)) }))
       setFeatureMessage(nextFollowing ? 'Seller follow করা হয়েছে।' : 'Seller follow বন্ধ হয়েছে।')
     } catch (error) {
       setFeatureMessage(error instanceof Error ? `Seller follow চালু করা যায়নি: ${error.message}` : 'Seller follow চালু করা যায়নি।')
@@ -469,34 +475,7 @@ export default function ProductDetail() {
             </ul>
           </div>
 
-          {seller && (
-            <Link
-              to={`/sellers/${seller.id}`}
-              className="mt-6 flex items-center gap-3 rounded-xl border border-outline p-4 hover:border-brand-500/40"
-            >
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-100 font-semibold text-brand-700">
-                {seller.photo_url ? <img src={seller.photo_url} alt={`${seller.shop_name || seller.name || 'Seller'} shop`} className="h-full w-full object-cover" loading="lazy" /> : (seller.name.charAt(0) || '?')}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-sm font-medium text-ink-900">{seller.name || 'বিক্রেতা'}</p>
-                  {seller.is_verified && (
-                    <span className="text-xs text-info" title="যাচাইকৃত বিক্রেতা">
-                      ✓
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-ink-300">
-                  {seller.review_count > 0
-                    ? `★ ${seller.rating} (${seller.review_count} রিভিউ)`
-                    : 'এখনো কোনো রিভিউ নেই'}
-                </p>
-                {sellerBadges.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{sellerBadges.slice(0, 3).map((badge) => <span key={badge.badge_key} className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-1 text-[11px] font-semibold text-brand-700"><BadgeCheck size={12} />{badge.badge_label}</span>)}</div>}
-              </div>
-              <span className="shrink-0 text-xs font-medium text-brand-600">প্রোফাইল দেখুন →</span>
-            </Link>
-          )}
-          {seller && <button type="button" onClick={handleFollow} className={`mt-2 inline-flex items-center gap-2 rounded-none border px-3 py-2 text-sm font-semibold ${followingSeller ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}><UserPlus size={16} />{followingSeller ? 'Seller follow করা আছে' : 'Seller follow করুন'}</button>}
+          {seller && <div className="mt-6"><SellerShopCard seller={seller} followerCount={sellerStats.followerCount} productCount={sellerStats.productCount} badges={sellerBadges} following={followingSeller} onFollow={() => void handleFollow()} /></div>}
 
           <section className="mt-6 rounded-2xl border border-outline bg-surface p-4">
             <div className="flex items-center gap-2"><MessageCircleQuestion size={19} className="text-brand-600" /><h2 className="font-semibold text-ink-900">প্রশ্ন ও উত্তর</h2></div>

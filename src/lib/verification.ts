@@ -44,10 +44,12 @@ export async function submitSellerRegistrationV2(params: {
   phone: string
   nidOrBusinessNumber: string
   businessName: string | null
+  shopName: string
+  shopUsername: string
   address: string
   documents: Array<{ document_type: string; document_path: string }>
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('submit_seller_registration_v2', {
+  const { data, error } = await supabase.rpc('submit_seller_registration_v3', {
     p_user_id: params.userId,
     p_listing_mode: params.listingMode,
     p_business_type: params.businessType,
@@ -56,6 +58,8 @@ export async function submitSellerRegistrationV2(params: {
     p_phone: params.phone,
     p_nid_or_business_number: params.nidOrBusinessNumber,
     p_business_name: params.businessName,
+    p_shop_name: params.shopName,
+    p_shop_username: params.shopUsername,
     p_address: params.address,
     p_documents: params.documents,
   })
