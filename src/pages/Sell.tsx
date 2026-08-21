@@ -430,7 +430,6 @@ export default function Sell() {
           <ShieldCheck className="mx-auto text-brand-600" size={32} />
           <h1 className="mt-3 text-lg font-bold text-ink-900">এই physical listing archive করা হয়েছে</h1>
           <p className="mt-2 text-sm leading-6 text-ink-600">BikriKoro এখন শুধু digital product marketplace। পুরনো রেকর্ড history ও admin audit-এর জন্য সংরক্ষিত আছে।</p>
-          <button type="button" onClick={() => navigate('/my-listings')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">My Listings-এ ফিরুন</button>
         </div>
       </Layout>
     )

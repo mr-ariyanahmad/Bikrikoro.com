@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 
@@ -51,9 +50,6 @@ export default function ForgotPassword() {
           {sent ? (
             <div className="mt-6 rounded-xl bg-brand-50 p-4 text-center text-sm leading-relaxed text-brand-700">
               রিসেট লিংক পাঠানোর অনুরোধ গ্রহণ করা হয়েছে। Email/Password অ্যাকাউন্ট হলে ইনবক্স ও spam folder দেখুন। না এলে Firebase Console-এর Users তালিকায় এই ইমেইলের provider যাচাই করুন।
-              <Link to="/login" className="mt-3 block font-semibold underline">
-                লগইনে ফিরে যান
-              </Link>
             </div>
           ) : (
             <div className="mt-6 space-y-3">
@@ -77,9 +73,6 @@ export default function ForgotPassword() {
               >
                 {loading ? 'পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}
               </button>
-              <Link to="/login" className="block text-center text-sm font-medium text-ink-600 hover:text-brand-600">
-                লগইনে ফিরে যান
-              </Link>
             </div>
           )}
         </div>

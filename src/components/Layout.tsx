@@ -78,6 +78,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
               <span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span>
             </Link>
 
+            <div className="hidden shrink-0 sm:block"><BackButton fallbackTo={backFallback} label={backLabel} /></div>
             <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
 
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
@@ -93,7 +94,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
             </div>
           </div>
 
-          <div className="border-t border-outline/70 py-2.5 sm:hidden"><SearchBar compact /></div>
+          <div className="flex items-center gap-2 border-t border-outline/70 py-2.5 sm:hidden"><BackButton fallbackTo={backFallback} label={backLabel} /><div className="min-w-0 flex-1"><SearchBar compact /></div></div>
 
           <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
             <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
@@ -103,7 +104,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button type="button" onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}
         </div>
       </header>
-      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}><BackButton fallbackTo={backFallback} label={backLabel} />{children}</main>
+      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
       {!hideFooter && <footer className="border-t border-outline bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
           <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>

@@ -16,7 +16,7 @@ export function BackButton({ fallbackTo = '/', label = 'ফিরে যান' 
     <button
       type="button"
       onClick={goBack}
-      className="mb-5 inline-flex items-center gap-2 rounded-xl border border-outline bg-surface px-3 py-2 text-sm font-semibold text-ink-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
+      className="inline-flex shrink-0 items-center gap-2 border border-outline bg-surface px-3 py-2 text-base font-semibold text-ink-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
       aria-label={label}
     >
       <ArrowLeft size={16} />

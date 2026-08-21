@@ -111,6 +111,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-outline bg-surface/95 px-4 shadow-sm backdrop-blur md:px-8">
             <div className="flex items-center gap-3">
+              <BackButton fallbackTo="/admin" />
               <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-outline p-2 text-ink-700 md:hidden" aria-label="অ্যাডমিন মেনু খুলুন"><Menu size={20} /></button>
               <div>
                 <p className="text-xs font-medium text-ink-400">BikriKoro.Com</p>
@@ -123,7 +124,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </div>
           </header>
           <main className="w-full flex-1 p-4 sm:p-6 md:p-8">
-            <div className="mx-auto max-w-7xl"><BackButton fallbackTo="/admin" />{children}</div>
+            <div className="mx-auto max-w-7xl">{children}</div>
           </main>
         </div>
       </div>

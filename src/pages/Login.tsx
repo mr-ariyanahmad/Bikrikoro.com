@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Home, ShoppingBag } from 'lucide-react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Home, ShoppingBag } from 'lucide-react'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import type { ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 
@@ -13,7 +13,6 @@ function toE164(bdLocalNumber: string): string {
 
 export default function Login() {
   const { user, sendOtp, verifyOtp, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithFacebook, authError } = useAuth()
-  const navigate = useNavigate()
   const location = useLocation()
   const requestedPath = typeof location.state?.from === 'string' ? location.state.from : null
   const storedPath = typeof window !== 'undefined' ? window.sessionStorage.getItem('bikrikoro:auth-return-to') : null
@@ -132,12 +131,9 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
   return `${provider} দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
 }
 
-  const goBack = () => { if (window.history.length > 1) navigate(-1); else navigate('/products') }
-
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-16 sm:px-5">
       <div className="absolute inset-x-4 top-4 mx-auto flex max-w-sm items-center justify-between gap-2 sm:inset-x-5">
-        <button onClick={goBack} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-outline bg-surface px-3 py-2 text-sm font-semibold text-ink-700 shadow-sm hover:border-brand-500 hover:text-brand-700"><ArrowLeft size={17} />ফিরে যান</button>
         <div className="flex items-center gap-2"><Link to="/products" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-outline bg-surface px-3 py-2 text-sm font-semibold text-ink-700 shadow-sm hover:border-brand-500 hover:text-brand-700"><ShoppingBag size={16} />প্রোডাক্ট</Link><Link to="/" aria-label="হোমে যান" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-outline bg-surface text-ink-700 shadow-sm hover:border-brand-500 hover:text-brand-700"><Home size={17} /></Link></div>
       </div>
       <div className="w-full max-w-sm">
