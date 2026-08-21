@@ -1,5 +1,5 @@
 import { getMessaging, getToken, isSupported } from 'firebase/messaging'
-import { app, auth } from '@/lib/firebase'
+import { app, auth, firebaseConfigured } from '@/lib/firebase'
 
 export type PushRegistrationResult =
   | { status: 'registered'; token: string }
@@ -9,6 +9,8 @@ export async function registerPushToken(userId: string, options: { requestPermis
   if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
     return { status: 'unsupported' }
   }
+
+  if (!firebaseConfigured || !app) return { status: 'missing-config' }
 
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY
   if (!vapidKey) {

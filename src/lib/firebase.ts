@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { initializeApp, type FirebaseApp } from 'firebase/app'
+import { getAuth, type Auth } from 'firebase/auth'
 
 /**
  * MUST point at the SAME Firebase project as the Android app
@@ -7,10 +7,6 @@ import { getAuth } from 'firebase/auth'
  * (profiles, orders, wallet_*) keys users by Firebase uid as text, not
  * Supabase auth. A different Firebase project here would mean every
  * login gets a uid with no matching data anywhere.
- *
- * Get these values from Firebase Console → Project settings → General →
- * "Your apps" → Web app (add one if none exists yet — it's free, just a
- * config object, no extra billing).
  */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -22,20 +18,28 @@ const firebaseConfig = {
 }
 
 export const firebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId)
+
+let configuredApp: FirebaseApp | null = null
+if (firebaseConfigured) configuredApp = initializeApp(firebaseConfig)
+
+function createUnavailableAuth(): Auth {
+  return new Proxy({ currentUser: null, languageCode: 'bn' } as unknown as Auth, {
+    get(target, property, receiver) {
+      if (property === 'currentUser' || property === 'languageCode') return Reflect.get(target, property, receiver)
+      throw new Error('Firebase configuration is missing')
+    },
+  })
+}
+
+/**
+ * When Firebase variables are absent, this is deliberately a no-op object—not
+ * a fake Firebase project. AuthContext checks firebaseConfigured before
+ * subscribing, while guarded actions receive a clear not-configured error.
+ */
+export const app = configuredApp
+export const auth: Auth = configuredApp ? getAuth(configuredApp) : createUnavailableAuth()
+if (firebaseConfigured) auth.languageCode = 'bn'
+
 if (!firebaseConfigured) {
-  console.warn('Firebase is not configured. Public pages remain available, but login and account features require VITE_FIREBASE_* variables.')
+  console.warn('Firebase is not configured. Login and account features are disabled until VITE_FIREBASE_* variables are provided.')
 }
-
-const localFallbackConfig = {
-  apiKey: 'AIzaSyBikriKoroLocalPlaceholder000000000',
-  authDomain: 'bikrikoro-local.invalid',
-  projectId: 'bikrikoro-local',
-  storageBucket: 'bikrikoro-local.appspot.com',
-  messagingSenderId: '000000000000',
-  appId: '1:000000000000:web:0000000000000000000000',
-}
-
-export const app = initializeApp(firebaseConfigured ? firebaseConfig : localFallbackConfig)
-export const auth = getAuth(app)
-// Keep Firebase's built-in account emails aligned with the Bengali-first UI.
-auth.languageCode = 'bn'

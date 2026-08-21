@@ -37,6 +37,7 @@ import Blog from '@/pages/Blog'
 import BlogPost from '@/pages/BlogPost'
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 import { SiteMeta } from '@/components/SiteMeta'
+import { ConfigurationNotice } from '@/components/ConfigurationNotice'
 
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'))
@@ -508,6 +509,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <SiteMeta />
+          <ConfigurationNotice />
           <FirstVisitSplash>
             <AppRoutes />
           </FirstVisitSplash>
