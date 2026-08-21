@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import adminRpc from '../server/api/admin-rpc.js'
+import adminHealth from '../server/api/admin-health.js'
 import adminSellerVerifications from '../server/api/admin-seller-verifications.js'
 import agentRouter from '../server/api/agent-router.js'
 import notificationEvents from '../server/api/notification-events.js'
@@ -26,6 +27,7 @@ type ApiHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise
 
 const HANDLERS: Record<string, ApiHandler> = {
   'admin-rpc': adminRpc,
+  'admin-health': adminHealth,
   'admin-seller-verifications': adminSellerVerifications,
   'agent-router': agentRouter,
   'notification-events': notificationEvents,
