@@ -8,9 +8,20 @@ import { getAuth, type Auth } from 'firebase/auth'
  * Supabase auth. A different Firebase project here would mean every
  * login gets a uid with no matching data anywhere.
  */
+const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
+const currentHost = typeof window !== 'undefined' ? window.location.hostname : ''
+const sameOriginAuthHost = currentHost === 'www.bikrikoro.com' || currentHost === 'bikrikoro.com'
+
+/**
+ * Firebase redirect sign-in needs the helper iframe and the app to share an
+ * origin on browsers that partition third-party storage. The Vercel rewrites
+ * in vercel.json proxy /__/auth and /__/firebase to the same Firebase project,
+ * so production uses the public app origin while previews/local development
+ * continue to use VITE_FIREBASE_AUTH_DOMAIN.
+ */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: sameOriginAuthHost ? currentHost : configuredAuthDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,

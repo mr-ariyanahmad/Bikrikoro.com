@@ -31,6 +31,8 @@
     }
   ],
   "rewrites": [
+    { "source": "/__/auth/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/auth/:path*" },
+    { "source": "/__/firebase/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/firebase/:path*" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
     { "source": "/seller/:username", "destination": "/api/seller-preview?username=:username" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
