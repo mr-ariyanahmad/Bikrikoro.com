@@ -57,22 +57,35 @@ const CONFIG: Record<EducationType, HubConfig> = {
 }
 
 function parseSections(body: string): { intro: string[]; sections: Section[] } {
-  const normalizedBody = body.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const blocks = normalizedBody.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
+  const lines = body.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map((line) => line.trim())
   const intro: string[] = []
   const sections: Section[] = []
   let current: Section | null = null
-  for (const block of blocks) {
-      const headingMatch = block.match(/^(?:[০-৯0-9]+)[.)]\s*(.+?)(?:\n|$)/)
+  let paragraphLines: string[] = []
+
+  const flushParagraph = () => {
+    const paragraph = paragraphLines.join('\n').trim()
+    if (paragraph) {
+      if (current) current.paragraphs.push(paragraph)
+      else intro.push(paragraph)
+    }
+    paragraphLines = []
+  }
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^(?:[০-৯0-9]+)[.)]\s*(.+)$/)
     if (headingMatch) {
+      flushParagraph()
       if (current) sections.push(current)
       current = { heading: headingMatch[1].trim(), paragraphs: [] }
-    } else if (current) {
-      current.paragraphs.push(block)
+    } else if (line) {
+      paragraphLines.push(line)
     } else {
-      intro.push(block)
+      flushParagraph()
     }
   }
+
+  flushParagraph()
   if (current) sections.push(current)
   return { intro, sections }
 }
