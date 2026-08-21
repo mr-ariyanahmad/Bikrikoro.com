@@ -128,6 +128,7 @@ function socialAuthErrorMessage(provider: string, code?: string | null) {
   if (code === 'auth/operation-not-supported-in-this-environment') return `এই browser-এ ${provider} login সম্পূর্ণ করা যাচ্ছে না। Brave browser-এর Shields বা third-party cookie blocking সাময়িকভাবে বন্ধ করে আবার চেষ্টা করুন।`
   if (code === 'auth/invalid-continue-uri' || code === 'auth/invalid-redirect-uri') return 'Firebase OAuth redirect configuration সঠিক নয়। Authorized domains ও Firebase web app settings যাচাই করুন।'
   if (code === 'auth/redirect-session-not-found') return `${provider} account নির্বাচন হয়েছে, কিন্তু Firebase session তৈরি হয়নি। Authorized domains, browser cookie/storage settings এবং Vercel Firebase environment variables যাচাই করুন।`
+  if (code === 'auth/internal-error') return `${provider} login callback সম্পূর্ণ হয়নি। মোবাইলে redirect flow দিয়ে আবার চেষ্টা করুন; না হলে Firebase Authorized domains ও Google provider settings যাচাই করুন।`
   return `${provider} দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
 }
 
