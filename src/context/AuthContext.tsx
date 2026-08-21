@@ -42,6 +42,13 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
 const FACEBOOK_REDIRECT_PENDING_KEY = 'bikrikoro:facebook-redirect-pending'
 
+function shouldFallbackFromPopup(code?: string) {
+  return code === 'auth/popup-blocked'
+    || code === 'auth/operation-not-supported-in-this-environment'
+    || code === 'auth/popup-closed-by-user'
+    || code === 'auth/internal-error'
+}
+
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
 // uses on Android too, so there's no visible captcha widget for the user.
@@ -164,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+      if (shouldFallbackFromPopup(code)) {
         window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
         await signInWithRedirect(auth, googleProvider)
         return
@@ -188,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signInWithPopup(auth, facebookProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/popup-closed-by-user') {
+      if (shouldFallbackFromPopup(code)) {
         window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
         await signInWithRedirect(auth, facebookProvider)
         return

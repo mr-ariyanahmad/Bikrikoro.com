@@ -13,6 +13,17 @@ function toE164(bdLocalNumber: string): string {
   return `+880${digits}`
 }
 
+function socialAuthMessage(error: unknown) {
+  const code = (error as { code?: string }).code
+  if (code === 'auth/unauthorized-domain') return 'এই ওয়েবসাইটটি Firebase-এ অনুমোদিত নয়।'
+  if (code === 'auth/account-exists-with-different-credential') return 'এই ইমেইল দিয়ে আগে অন্য পদ্ধতিতে অ্যাকাউন্ট খোলা আছে। সেই পদ্ধতিতে লগইন করুন।'
+  if (code === 'auth/popup-closed-by-user') return 'লগইন উইন্ডো বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
+  if (code === 'auth/popup-blocked' || code === 'auth/internal-error' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/timeout') {
+    return 'লগইন উইন্ডো খোলা যায়নি। Browser-এর popup অনুমতি চালু করে আবার চেষ্টা করুন।'
+  }
+  return 'লগইন করা যায়নি। আবার চেষ্টা করুন।'
+}
+
 function waitForSocialAuth<T>(promise: Promise<T>): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<T>((_, reject) => {
@@ -116,7 +127,7 @@ export default function Login() {
       await waitForSocialAuth(loginWithGoogle())
     } catch (err) {
       console.error('Google login failed:', err)
-      setError(null)
+      setError(socialAuthMessage(err))
     } finally {
       setGoogleLoading(false)
     }
@@ -129,7 +140,7 @@ export default function Login() {
       await waitForSocialAuth(loginWithFacebook())
     } catch (err) {
       console.error('Facebook login failed:', err)
-      setError(null)
+      setError(socialAuthMessage(err))
     } finally {
       setFacebookLoading(false)
     }
