@@ -16,7 +16,6 @@ import {
   signInWithPhoneNumber,
   GoogleAuthProvider,
   FacebookAuthProvider,
-  signInWithPopup,
   type ConfirmationResult,
   type User as FirebaseUser,
 } from 'firebase/auth'
@@ -41,21 +40,6 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
 const FACEBOOK_REDIRECT_PENDING_KEY = 'bikrikoro:facebook-redirect-pending'
-
-function shouldFallbackFromPopup(code?: string) {
-  return code === 'auth/popup-blocked'
-    || code === 'auth/operation-not-supported-in-this-environment'
-    || code === 'auth/popup-closed-by-user'
-    || code === 'auth/internal-error'
-}
-
-function shouldUseRedirectFirst() {
-  if (typeof window === 'undefined') return false
-  const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false
-  const noHover = window.matchMedia?.('(hover: none)').matches ?? false
-  const touchDevice = navigator.maxTouchPoints > 0
-  return coarsePointer || noHover || touchDevice || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-}
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -173,32 +157,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Authentication → Sign-in method → Google (same project as the
   // phone/email sign-in already used here). Also add this site's domain
   // (e.g. bikrikoro.com and localhost) under Authorized domains, or the
-  // popup will fail with auth/unauthorized-domain.
+  // redirect will fail with auth/unauthorized-domain.
   const googleProvider = new GoogleAuthProvider()
   googleProvider.setCustomParameters({ prompt: 'select_account' })
   const loginWithGoogle = async () => {
     ensureFirebaseConfigured()
     setAuthError(null)
-    void setPersistence(auth, browserLocalPersistence).catch((error) => {
-      console.warn('Firebase persistence setup failed before Google login:', error)
-    })
-    if (shouldUseRedirectFirst()) {
-      window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
-      await signInWithRedirect(auth, googleProvider)
-      return
-    }
     try {
-      // Desktop keeps the popup call directly inside the user gesture.
-      await signInWithPopup(auth, googleProvider)
+      await setPersistence(auth, browserLocalPersistence)
     } catch (error) {
-      const code = (error as { code?: string }).code
-      if (shouldFallbackFromPopup(code)) {
-        window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
-        await signInWithRedirect(auth, googleProvider)
-        return
-      }
-      throw error
+      console.warn('Firebase persistence setup failed before Google redirect:', error)
     }
+    window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
+    await signInWithRedirect(auth, googleProvider)
   }
 
   const facebookProvider = new FacebookAuthProvider()
@@ -206,27 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithFacebook = async () => {
     ensureFirebaseConfigured()
     setAuthError(null)
-    void setPersistence(auth, browserLocalPersistence).catch((error) => {
-      console.warn('Firebase persistence setup failed before Facebook login:', error)
-    })
-    if (shouldUseRedirectFirst()) {
-      window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
-      await signInWithRedirect(auth, facebookProvider)
-      return
-    }
     try {
-      // Desktop uses popup-first; blocked or unsupported popup environments
-      // fall back to redirect, and getRedirectResult restores the session.
-      await signInWithPopup(auth, facebookProvider)
+      await setPersistence(auth, browserLocalPersistence)
     } catch (error) {
-      const code = (error as { code?: string }).code
-      if (shouldFallbackFromPopup(code)) {
-        window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
-        await signInWithRedirect(auth, facebookProvider)
-        return
-      }
-      throw error
+      console.warn('Firebase persistence setup failed before Facebook redirect:', error)
     }
+    window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
+    await signInWithRedirect(auth, facebookProvider)
   }
 
   const logout = () => firebaseSignOut(auth)

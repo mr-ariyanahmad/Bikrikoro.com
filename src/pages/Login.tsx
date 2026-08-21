@@ -20,7 +20,7 @@ function socialAuthMessage(error: unknown) {
   if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু login session তৈরি হয়নি। আবার চেষ্টা করুন।'
   if (code === 'auth/popup-closed-by-user') return 'লগইন উইন্ডো বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
   if (code === 'auth/popup-blocked' || code === 'auth/internal-error' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/timeout') {
-    return 'লগইন উইন্ডো খোলা যায়নি। Browser-এর popup অনুমতি চালু করে আবার চেষ্টা করুন।'
+    return 'লগইন শুরু করা যায়নি। আবার চেষ্টা করুন।'
   }
   return 'লগইন করা যায়নি। আবার চেষ্টা করুন।'
 }
