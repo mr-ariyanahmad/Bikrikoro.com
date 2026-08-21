@@ -121,7 +121,9 @@ export default function SellerProfile() {
   }
 
   const handleShare = async () => {
-    const url = window.location.href
+    const shareUrl = new URL(window.location.href)
+    shareUrl.searchParams.set('preview', 'shop-image-v2')
+    const url = shareUrl.toString()
     try {
       if (navigator.share) await navigator.share({ title: `${shopName} | BikriKoro`, text: `${shopName}-এর digital shop দেখুন।`, url })
       else if (navigator.clipboard) { await navigator.clipboard.writeText(url); setActionMessage('Shop link কপি হয়েছে।') }
