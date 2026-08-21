@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
-type Body = { action?: 'create' | 'create_wallet' | 'cancel'; productId?: string; deliveryAddress?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
+type Body = { action?: 'create' | 'create_wallet' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
 
 function supabaseErrorMessage(error: unknown) {
@@ -33,15 +33,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = getServiceSupabase()
     if (input.action === 'create' || input.action === 'create_wallet') {
       if (!input.productId) throw new Error('Digital product is required')
-      const digitalDeliveryAddress = ''
       const walletPayment = input.action === 'create_wallet'
       const result = walletPayment
         ? input.couponCode?.trim()
-          ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
-          : await supabase.rpc('create_order_wallet_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_delivery_email: input.deliveryEmail?.trim() || null })
+          ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
+          : await supabase.rpc('create_order_wallet_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null })
         : input.couponCode?.trim()
-          ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
-          : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: digitalDeliveryAddress, p_delivery_email: input.deliveryEmail?.trim() || null })
+          ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
+          : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null })
       if (result.error) throw result.error
       res.status(200).json({ orderId: result.data, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
       return

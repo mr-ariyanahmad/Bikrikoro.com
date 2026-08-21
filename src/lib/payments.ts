@@ -5,7 +5,6 @@ import { auth } from '@/lib/firebase'
 export async function createPendingOrder(params: {
   productId: string
   buyerId: string
-  deliveryAddress: string
   deliveryEmail?: string
   couponCode?: string
 }): Promise<string> {
@@ -14,7 +13,7 @@ export async function createPendingOrder(params: {
   const response = await fetch('/api/pending-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ action: 'create', productId: params.productId, deliveryAddress: params.deliveryAddress, deliveryEmail: params.deliveryEmail?.trim() || undefined, couponCode: params.couponCode?.trim() || undefined }),
+    body: JSON.stringify({ action: 'create', productId: params.productId, deliveryEmail: params.deliveryEmail?.trim() || undefined, couponCode: params.couponCode?.trim() || undefined }),
   })
   const result = await response.json().catch(() => ({})) as { orderId?: string; error?: string }
   if (!response.ok || !result.orderId) throw new Error(result.error || `Order creation failed (HTTP ${response.status})`)
@@ -25,7 +24,6 @@ export async function createPendingOrder(params: {
 export async function createWalletOrder(params: {
   productId: string
   buyerId: string
-  deliveryAddress: string
   deliveryEmail?: string
   couponCode?: string
 }): Promise<string> {
@@ -34,7 +32,7 @@ export async function createWalletOrder(params: {
   const response = await fetch('/api/pending-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ action: 'create_wallet', productId: params.productId, deliveryAddress: params.deliveryAddress, deliveryEmail: params.deliveryEmail?.trim() || undefined, couponCode: params.couponCode?.trim() || undefined }),
+    body: JSON.stringify({ action: 'create_wallet', productId: params.productId, deliveryEmail: params.deliveryEmail?.trim() || undefined, couponCode: params.couponCode?.trim() || undefined }),
   })
   const result = await response.json().catch(() => ({})) as { orderId?: string; error?: string }
   if (!response.ok || !result.orderId) throw new Error(result.error || `Wallet order failed (HTTP ${response.status})`)

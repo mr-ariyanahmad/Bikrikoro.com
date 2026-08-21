@@ -18,7 +18,7 @@ export function BuyModal({
   onClose: () => void
 }) {
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(product.is_digital ? null : 'এই listing physical হওয়ায় digital checkout-এর জন্য available নয়।')
+  const [error, setError] = useState<string | null>(null)
   const [couponCode, setCouponCode] = useState('')
   const [coupon, setCoupon] = useState<CouponPreview | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
@@ -66,10 +66,6 @@ export function BuyModal({
   }
 
   const handleSubmit = async () => {
-    if (!product.is_digital) {
-      setError('শুধু digital product checkout করা যাবে।')
-      return
-    }
     if (!acceptedPolicy) {
       setError('অর্ডার করতে প্রাইভেসি পলিসি ও রিফান্ড নীতি মেনে নেওয়া আবশ্যক।')
       return
@@ -92,7 +88,7 @@ export function BuyModal({
 
     let orderId: string | null = null
     try {
-      const orderParams = { productId: product.id, buyerId, deliveryAddress: '', deliveryEmail: requiresDeliveryEmail ? deliveryEmail.trim() : undefined, couponCode: coupon?.valid ? coupon.normalized_code : undefined }
+      const orderParams = { productId: product.id, buyerId, deliveryEmail: requiresDeliveryEmail ? deliveryEmail.trim() : undefined, couponCode: coupon?.valid ? coupon.normalized_code : undefined }
       orderId = paymentMethod === 'WALLET' ? await createWalletOrder(orderParams) : await createPendingOrder(orderParams)
       if (paymentMethod === 'ONLINE') {
         const paymentUrl = await startUddoktaPayCheckout(orderId)

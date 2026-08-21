@@ -1,23 +1,5 @@
-import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
-import type { DisputeReason, PaymentMethod } from '@/types/order'
-
-/** Backed by supabase/migrations/009_tier1_....sql create_order_atomic(). */
-export async function createOrder(params: {
-  productId: string
-  buyerId: string
-  deliveryAddress: string
-  paymentMethod: PaymentMethod
-}): Promise<string> {
-  const { data, error } = await supabase.rpc('create_order_atomic', {
-    p_product_id: params.productId,
-    p_buyer_id: params.buyerId,
-    p_delivery_address: params.deliveryAddress,
-    p_payment_method: params.paymentMethod,
-  })
-  if (error) throw error
-  return data as string
-}
+import type { DisputeReason } from '@/types/order'
 
 async function callOrderAction(action: string, payload: Record<string, unknown>) {
   if (!auth.currentUser) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
