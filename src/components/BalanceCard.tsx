@@ -19,8 +19,8 @@ export function BalanceCard({
         {spendable === null ? '···' : formatTaka(spendable)}
       </p>
       <div className="mt-3 space-y-1 text-xs text-brand-50/80">
-        <p>Wallet balance: {balance === null ? '···' : formatTaka(balance)}</p>
-        {reserved > 0 && <p>Reserved payout: {formatTaka(reserved)}</p>}
+        <p>ওয়ালেটের ব্যালেন্স: {balance === null ? '···' : formatTaka(balance)}</p>
+        {reserved > 0 && <p>আটকে রাখা অর্থ: {formatTaka(reserved)}</p>}
       </div>
       <button
         onClick={onWithdrawClick}

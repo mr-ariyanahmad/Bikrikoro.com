@@ -20,7 +20,7 @@ export default function MyListings() {
   const load = useCallback(async () => {
     if (!user) return
     const { data, error } = await supabase.rpc('seller_list_products', { p_seller_id: user.uid })
-    if (error) setMessage('আপনার লিস্টিং লোড করা যায়নি। Seller approval migration প্রয়োগ করা হয়েছে কি না দেখুন।')
+    if (error) setMessage('আপনার লিস্টিং লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
     setProducts((data ?? []) as Product[])
     setLoading(false)
   }, [user])
@@ -32,14 +32,14 @@ export default function MyListings() {
   const handleDuplicate = async (product: Product) => {
     if (!user) return
     if (!product.is_digital) {
-      setMessage('পুরনো physical listing archive করা আছে; নতুন করে copy বা publish করা যাবে না।')
+      setMessage('পুরনো তালিকাটি সংরক্ষিত আছে; নতুন করে কপি বা প্রকাশ করা যাবে না।')
       return
     }
     setDuplicatingId(product.id)
     setMessage(null)
     const idToken = await auth.currentUser?.getIdToken()
     if (!idToken) {
-      setMessage('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+      setMessage('আপনার Firebase সেশন পাওয়া যায়নি। আবার লগইন করুন।')
       setDuplicatingId(null)
       return
     }
@@ -51,7 +51,7 @@ export default function MyListings() {
     const optionsPayload = await optionsResponse.json().catch(() => ({})) as { options?: Record<string, unknown> | null; error?: string }
     const digitalContent = contentPayload.content
     if (!contentResponse.ok || !optionsResponse.ok) {
-      setMessage(contentPayload.error || optionsPayload.error || 'ডিজিটাল listing তথ্য পড়া যায়নি; copy করা বন্ধ রাখা হয়েছে।')
+      setMessage(contentPayload.error || optionsPayload.error || 'ডিজিটাল তালিকার তথ্য পড়া যায়নি; কপি করা বন্ধ রাখা হয়েছে।')
       setDuplicatingId(null)
       return
     }
@@ -63,7 +63,7 @@ export default function MyListings() {
     const productPayload = await productResponse.json().catch(() => ({})) as { productId?: string; error?: string }
     const newProductId = productPayload.productId
     if (!productResponse.ok || !newProductId) {
-      setMessage(`লিস্টিং copy করা যায়নি: ${productPayload.error || 'অজানা সমস্যা'}`)
+      setMessage(`লিস্টিং কপি করা যায়নি: ${productPayload.error || 'অজানা সমস্যা'}`)
       setDuplicatingId(null)
       return
     }
@@ -71,7 +71,7 @@ export default function MyListings() {
       const saveResponse = await fetch('/api/seller-digital-content', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, deliveryType: digitalContent.delivery_type, deliveryText: digitalContent.delivery_text }) })
       if (!saveResponse.ok) {
         await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
-        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু digital delivery তথ্য copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
+        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু ডিজিটাল ডেলিভারির তথ্য কপি হয়নি; নিরাপত্তার জন্য তালিকাটি সংরক্ষণ করা হয়েছে।')
         setDuplicatingId(null)
         return
       }
@@ -81,14 +81,14 @@ export default function MyListings() {
       const saveOptionsResponse = await fetch('/api/seller-listing-options', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, specifications: options.specifications, autoDeliveryEnabled: options.auto_delivery_enabled, deactivateWhenOutOfStock: options.deactivate_when_out_of_stock, stockMode: options.stock_mode === 'KEY_POOL' ? 'UNLIMITED' : options.stock_mode, stockQuantity: options.stock_quantity, fulfillmentWindowMinutes: options.fulfillment_window_minutes, regionCode: options.region_code, subscriptionPeriod: options.subscription_period, warrantyPeriod: options.warranty_period, deliveryNote: options.delivery_note }) })
       if (!saveOptionsResponse.ok) {
         await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
-        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু structured listing options copy হয়নি; নিরাপত্তার জন্য listing archive করা হয়েছে।')
+        setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু তালিকার অতিরিক্ত তথ্য কপি হয়নি; নিরাপত্তার জন্য তালিকাটি সংরক্ষণ করা হয়েছে।')
         setDuplicatingId(null)
         return
       }
     }
     const { data: createdProduct } = await supabase.rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: newProductId })
     setProducts((prev) => [createdProduct as Product, ...prev])
-    setMessage('লিস্টিং copy হয়েছে। Edit করে publish করার আগে তথ্য যাচাই করুন।')
+    setMessage('লিস্টিং কপি হয়েছে। সম্পাদনা করে প্রকাশের আগে তথ্য যাচাই করুন।')
     setDuplicatingId(null)
   }
 
@@ -97,10 +97,10 @@ export default function MyListings() {
     setDeletingId(productId)
     const { error } = await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: productId })
     if (error) {
-      setMessage(`লিস্টিং archive করা যায়নি: ${error.message}`)
+      setMessage(`লিস্টিং সংরক্ষণ করা যায়নি: ${error.message}`)
     } else {
       setProducts((prev) => prev.map((product) => product.id === productId ? { ...product, is_hidden: true } : product))
-      setMessage('লিস্টিং archive হয়েছে। এটি customer-এর public catalogue-এ আর দেখা যাবে না।')
+      setMessage('লিস্টিং সংরক্ষণ করা হয়েছে। এটি ক্রেতাদের তালিকায় আর দেখা যাবে না।')
     }
     setDeletingId(null)
   }
@@ -171,7 +171,7 @@ export default function MyListings() {
                   disabled={duplicatingId === product.id || !product.is_digital}
                   className="border border-outline px-3 py-1.5 text-base font-medium text-brand-600 hover:border-brand-500 disabled:opacity-50"
                 >
-                  {duplicatingId === product.id ? '...' : product.is_digital ? 'কপি' : 'archive'}
+                  {duplicatingId === product.id ? '...' : product.is_digital ? 'কপি' : 'সংরক্ষিত'}
                 </button>
                 <button
                   onClick={() => setDeleteTarget(product)}
@@ -185,7 +185,7 @@ export default function MyListings() {
           ))
         )}
       </div>
-      <BrandedDialog open={Boolean(deleteTarget)} title="লিস্টিং মুছে ফেলবেন?" tone="danger" onClose={() => setDeleteTarget(null)} actions={<><DialogButton onClick={() => setDeleteTarget(null)} variant="outline">বাতিল</DialogButton><DialogButton onClick={async () => { if (deleteTarget) { await handleDelete(deleteTarget.id); setDeleteTarget(null) } }} tone="danger">মুছে ফেলুন</DialogButton></>}><p>এই listing আর ফিরিয়ে আনা যাবে না। ক্রেতাদের সামনে এটি আর দেখা যাবে না।</p></BrandedDialog>
+      <BrandedDialog open={Boolean(deleteTarget)} title="লিস্টিং মুছে ফেলবেন?" tone="danger" onClose={() => setDeleteTarget(null)} actions={<><DialogButton onClick={() => setDeleteTarget(null)} variant="outline">বাতিল</DialogButton><DialogButton onClick={async () => { if (deleteTarget) { await handleDelete(deleteTarget.id); setDeleteTarget(null) } }} tone="danger">মুছে ফেলুন</DialogButton></>}><p>এই তালিকা আর ফিরিয়ে আনা যাবে না। ক্রেতাদের সামনে এটি আর দেখা যাবে না।</p></BrandedDialog>
     </Layout>
   )
 }

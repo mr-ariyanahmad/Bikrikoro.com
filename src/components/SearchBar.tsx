@@ -157,7 +157,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       </>}
 
       {!showDiscovery && loading && <div className="flex items-center gap-2 px-4 py-5 text-sm text-ink-500"><Sparkles size={16} className="animate-pulse text-brand-600" />ডিজিটাল পণ্য খোঁজা হচ্ছে...</div>}
-      {!showDiscovery && !loading && suggestions.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো digital product পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য keyword দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
+      {!showDiscovery && !loading && suggestions.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো ডিজিটাল পণ্য পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য শব্দ দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
       {!showDiscovery && suggestions.length > 0 && <div>
         {Object.entries(groupedSuggestions).map(([categoryLabel, items]) => <section key={categoryLabel} className="border-b border-outline last:border-0">
           <div className="flex items-center justify-between bg-bg px-3.5 py-2"><p className="text-sm font-semibold text-ink-900">{categoryLabel}</p><span className="text-xs text-ink-400">{items.length}টি ফলাফল</span></div>

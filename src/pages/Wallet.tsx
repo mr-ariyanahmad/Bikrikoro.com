@@ -48,8 +48,8 @@ export default function Wallet() {
       const idToken = await currentUser.getIdToken()
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) })
       const payload = await response.json().catch(() => ({})) as { error?: string; warning?: string | null; balance?: WalletBalance; ledger?: WalletLedgerEntry[]; withdrawalSummary?: WalletWithdrawalSummary | null; withdrawals?: WithdrawalRequest[] }
-      if (!response.ok) throw new Error(payload.error || `Wallet load failed (HTTP ${response.status})`)
-      if (!payload.balance) throw new Error('Wallet balance পাওয়া যায়নি।')
+      if (!response.ok) throw new Error(payload.error || `ওয়ালেট লোড করা যায়নি (HTTP ${response.status})`)
+      if (!payload.balance) throw new Error('ওয়ালেটের ব্যালেন্স পাওয়া যায়নি।')
       setBalance(payload.balance)
       setEntries(payload.ledger ?? [])
       setWithdrawalSummary(payload.withdrawalSummary ?? null)

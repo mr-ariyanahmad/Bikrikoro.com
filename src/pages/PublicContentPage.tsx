@@ -14,14 +14,14 @@ type ContentRow = { id: string; title: string; slug: string; excerpt: string; bo
 type PageMeta = { title: string; subtitle: string; icon: typeof BookOpen }
 
 const COPY: Record<ContentType, PageMeta> = {
-  ABOUT: { title: 'আমাদের সম্পর্কে', subtitle: 'BikriKoro.Com-এর উদ্দেশ্য ও নিরাপদ marketplace নীতি।', icon: ShieldCheck },
+  ABOUT: { title: 'আমাদের সম্পর্কে', subtitle: 'BikriKoro.Com-এর উদ্দেশ্য ও নিরাপদ বাজারের নীতি।', icon: ShieldCheck },
   PRIVACY: { title: 'প্রাইভেসি পলিসি', subtitle: 'আপনার তথ্য কীভাবে ব্যবহৃত ও সুরক্ষিত হয়।', icon: ShieldCheck },
-  CONTACT: { title: 'যোগাযোগ ও সাপোর্ট', subtitle: 'অর্ডার, account বা seller সমস্যায় আমাদের জানান।', icon: Mail },
-  HELP: { title: 'Help Center', subtitle: 'কেনাকাটা, বিক্রি, payment, delivery ও account নিয়ে দ্রুত উত্তর।', icon: CircleHelp },
+  CONTACT: { title: 'যোগাযোগ ও সাপোর্ট', subtitle: 'অর্ডার, অ্যাকাউন্ট বা বিক্রেতা-সংক্রান্ত সমস্যায় আমাদের জানান।', icon: Mail },
+  HELP: { title: 'সহায়তা কেন্দ্র', subtitle: 'কেনাকাটা, বিক্রি, পেমেন্ট, ডেলিভারি ও অ্যাকাউন্ট নিয়ে দ্রুত উত্তর।', icon: CircleHelp },
   FAQ: { title: 'সাধারণ প্রশ্নের উত্তর', subtitle: 'BikriKoro ব্যবহারের গুরুত্বপূর্ণ প্রশ্নগুলো এক জায়গায়।', icon: CircleHelp },
-  USER_EDU: { title: 'User Education Hub', subtitle: 'নিরাপদে কেনাকাটা ও account ব্যবহারের গাইড।', icon: BookOpen },
-  SELLER_EDU: { title: 'Seller Education Hub', subtitle: 'ভালো listing, দ্রুত delivery ও বিশ্বস্ত seller profile তৈরির গাইড।', icon: BookOpen },
-  RETURN_POLICY: { title: 'Return ও Refund Policy', subtitle: 'পণ্য না মিললে কীভাবে সহায়তা পাবেন।', icon: FileText },
+  USER_EDU: { title: 'ক্রেতা শিক্ষা', subtitle: 'নিরাপদে কেনাকাটা ও অ্যাকাউন্ট ব্যবহারের গাইড।', icon: BookOpen },
+  SELLER_EDU: { title: 'বিক্রেতা শিক্ষা', subtitle: 'ভালো তালিকা তৈরি, দ্রুত ডেলিভারি ও বিশ্বস্ত বিক্রেতার প্রোফাইল তৈরির গাইড।', icon: BookOpen },
+  RETURN_POLICY: { title: 'ফেরত ও অর্থ ফেরত নীতি', subtitle: 'পণ্য না মিললে কীভাবে সহায়তা পাবেন।', icon: FileText },
   TERMS: { title: 'ব্যবহারের শর্ত', subtitle: 'BikriKoro ব্যবহার করার আগে গুরুত্বপূর্ণ নিয়মগুলো জানুন।', icon: FileText },
 }
 

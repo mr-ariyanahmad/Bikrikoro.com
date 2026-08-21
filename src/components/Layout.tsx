@@ -27,7 +27,7 @@ const ACCOUNT_LINKS: NavItem[] = [
   { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
   { to: '/addresses', label: 'সেভড ঠিকানা', icon: MapPin },
   { to: '/saved-searches', label: 'সেভড সার্চ', icon: BookmarkPlus },
-  { to: '/settings', label: 'Settings ও Help', icon: Settings2 },
+  { to: '/settings', label: 'সেটিংস ও সহায়তা', icon: Settings2 },
   { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
@@ -98,7 +98,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
 
           <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
             <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
-            <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />Settings ও Help</Link><div className="relative"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div>
+            <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />সেটিংস ও সহায়তা</Link><div className="relative"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div>
           </nav>
 
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button type="button" onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}
@@ -108,7 +108,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
       {!hideFooter && <footer className="border-t border-outline bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
           <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>
-          <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">Settings ও Help</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
+          <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">সেটিংস ও সহায়তা</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
         </div>
       </footer>}
     </div>

@@ -30,6 +30,6 @@ export function FaqAccordion({ items }: { items: FAQItem[] }) {
         </div>
       })}
     </div>
-    <p className="text-xs text-ink-500">প্রশ্নের উত্তর না পেলে Help Center বা order detail-এর support option ব্যবহার করুন।</p>
+    <p className="text-xs text-ink-500">প্রশ্নের উত্তর না পেলে সহায়তা কেন্দ্র বা অর্ডারের বিস্তারিত পৃষ্ঠার সহায়তা অপশন ব্যবহার করুন।</p>
   </div>
 }

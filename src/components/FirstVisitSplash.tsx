@@ -7,65 +7,65 @@ const scenes = [
     id: 'marketplace',
     eyebrow: 'BikriKoro.Com-এ স্বাগতম',
     title: ['কেনাকাটা হোক সহজ,', 'বিক্রি হোক নিশ্চিন্তে'],
-    description: 'ভালো পণ্য খুঁজুন, বিশ্বাসযোগ্য seller বেছে নিন এবং নিরাপদে order করুন—সবকিছু এক জায়গায়।',
+    description: 'ভালো পণ্য খুঁজুন, বিশ্বাসযোগ্য বিক্রেতা বেছে নিন এবং নিরাপদে অর্ডার করুন—সবকিছু এক জায়গায়।',
     icon: ShoppingBag,
     highlights: [
       { label: 'সহজে খুঁজুন', icon: Search },
       { label: 'নিরাপদ লেনদেন', icon: ShieldCheck },
-      { label: 'বিশ্বাসযোগ্য seller', icon: Store },
-      { label: 'সব update সময়মতো', icon: BellRing },
+      { label: 'বিশ্বাসযোগ্য বিক্রেতা', icon: Store },
+      { label: 'সব খবর সময়মতো', icon: BellRing },
     ],
   },
   {
     id: 'discover',
     eyebrow: 'সহজে খুঁজে নিন',
     title: ['আপনার পছন্দের পণ্য', 'কয়েক মুহূর্তেই'],
-    description: 'Category, price এবং product type দিয়ে digital product খুঁজুন। Compare করুন এবং আপনার পছন্দের listing save করে রাখুন।',
+    description: 'বিভাগ, দাম ও পণ্যের ধরন দিয়ে ডিজিটাল পণ্য খুঁজুন। তুলনা করুন এবং পছন্দের তালিকায় রেখে দিন।',
     icon: Search,
     highlights: [
-      { label: 'Smart search', icon: Search },
-      { label: 'Category filter', icon: ShoppingBag },
-      { label: 'বিশ্বস্ত seller', icon: Store },
-      { label: 'সহজ comparison', icon: CheckCircle2 },
+      { label: 'স্মার্ট খোঁজ', icon: Search },
+      { label: 'বিভাগ অনুযায়ী খোঁজ', icon: ShoppingBag },
+      { label: 'বিশ্বস্ত বিক্রেতা', icon: Store },
+      { label: 'সহজ তুলনা', icon: CheckCircle2 },
     ],
   },
   {
     id: 'secure',
     eyebrow: 'নিরাপদ লেনদেন',
     title: ['আপনার order থাকুক', 'সুরক্ষিত ও স্বচ্ছ'],
-    description: 'Payment থেকে delivery পর্যন্ত প্রতিটি ধাপে order status, support এবং dispute information পরিষ্কারভাবে দেখতে পারবেন।',
+    description: 'পেমেন্ট থেকে ডেলিভারি পর্যন্ত প্রতিটি ধাপে অর্ডারের অবস্থা, সহায়তা এবং অভিযোগের তথ্য পরিষ্কারভাবে দেখতে পারবেন।',
     icon: ShieldCheck,
     highlights: [
-      { label: 'Secure payment', icon: ShieldCheck },
-      { label: 'Order tracking', icon: ShoppingBag },
-      { label: 'Escrow protection', icon: CheckCircle2 },
-      { label: 'দ্রুত support', icon: BellRing },
+      { label: 'নিরাপদ পেমেন্ট', icon: ShieldCheck },
+      { label: 'অর্ডার অনুসরণ', icon: ShoppingBag },
+      { label: 'নিরাপদ অর্থ সংরক্ষণ', icon: CheckCircle2 },
+      { label: 'দ্রুত সহায়তা', icon: BellRing },
     ],
   },
   {
     id: 'seller',
-    eyebrow: 'বিশ্বাসযোগ্য seller',
+    eyebrow: 'বিশ্বাসযোগ্য বিক্রেতা',
     title: ['ভালো seller-কে', 'সহজে চিনে নিন'],
-    description: 'Verification badge, rating, review এবং seller profile দেখে সিদ্ধান্ত নিন। আপনার ব্যবসার ধরন অনুযায়ী seller journey শুরু করুন।',
+    description: 'যাচাই ব্যাজ, রেটিং, মতামত এবং বিক্রেতার প্রোফাইল দেখে সিদ্ধান্ত নিন। আপনার ব্যবসার ধরন অনুযায়ী বিক্রির যাত্রা শুরু করুন।',
     icon: Store,
     highlights: [
-      { label: 'Verified badge', icon: BadgeCheck },
-      { label: 'সত্যিকারের review', icon: CheckCircle2 },
-      { label: 'Seller profile', icon: Store },
-      { label: 'Seller guide', icon: ShoppingBag },
+      { label: 'যাচাই ব্যাজ', icon: BadgeCheck },
+      { label: 'সত্যিকারের মতামত', icon: CheckCircle2 },
+      { label: 'বিক্রেতার প্রোফাইল', icon: Store },
+      { label: 'বিক্রেতার নির্দেশিকা', icon: ShoppingBag },
     ],
   },
   {
     id: 'notifications',
     eyebrow: 'সব খবর সময়মতো',
     title: ['BikriKoro-এর সাথে', 'যুক্ত থাকুন'],
-    description: 'Order, payment, chat, verification, wallet এবং গুরুত্বপূর্ণ marketplace update-এর খবর পেতে notification চালু রাখুন।',
+    description: 'অর্ডার, পেমেন্ট, বার্তা, যাচাই, ওয়ালেট এবং গুরুত্বপূর্ণ বাজারের খবর পেতে নোটিফিকেশন চালু রাখুন।',
     icon: BellRing,
     highlights: [
-      { label: 'Order update', icon: ShoppingBag },
-      { label: 'Chat message', icon: BellRing },
-      { label: 'Payment alert', icon: CheckCircle2 },
-      { label: 'Wallet activity', icon: ShieldCheck },
+      { label: 'অর্ডারের খবর', icon: ShoppingBag },
+      { label: 'বার্তার খবর', icon: BellRing },
+      { label: 'পেমেন্টের সতর্কতা', icon: CheckCircle2 },
+      { label: 'ওয়ালেটের কার্যক্রম', icon: ShieldCheck },
     ],
   },
 ] as const
@@ -193,23 +193,23 @@ function VisualPanel({ scene, icon: SceneIcon }: { scene: SceneId; icon: typeof 
 }
 
 function MarketplaceVisual() {
-  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><ShoppingBag size={18} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-ink-500 sm:text-xs">ডিজিটাল marketplace</p><p className="truncate text-sm font-bold text-ink-900 sm:text-base">পছন্দের digital product খুঁজুন</p></div><Sparkles size={18} className="shrink-0 text-brand-500" /></div><div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:gap-3"><MiniCard label="Category" value="বাছাই করুন" icon={<CreditBadge />} /><MiniCard label="Delivery" value="দ্রুত access" icon={<Store size={19} />} /></div><div className="mt-2 flex items-center gap-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-white sm:mt-3 sm:px-4 sm:py-3"><CheckCircle2 size={17} className="shrink-0 text-brand-100" /><p className="text-xs font-semibold sm:text-sm">এক জায়গায় digital product, seller ও নিরাপদ payment</p></div></>
+  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><ShoppingBag size={18} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-ink-500 sm:text-xs">ডিজিটাল বাজার</p><p className="truncate text-sm font-bold text-ink-900 sm:text-base">পছন্দের ডিজিটাল পণ্য খুঁজুন</p></div><Sparkles size={18} className="shrink-0 text-brand-500" /></div><div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:gap-3"><MiniCard label="বিভাগ" value="বাছাই করুন" icon={<CreditBadge />} /><MiniCard label="ডেলিভারি" value="দ্রুত প্রবেশাধিকার" icon={<Store size={19} />} /></div><div className="mt-2 flex items-center gap-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-white sm:mt-3 sm:px-4 sm:py-3"><CheckCircle2 size={17} className="shrink-0 text-brand-100" /><p className="text-xs font-semibold sm:text-sm">এক জায়গায় ডিজিটাল পণ্য, বিক্রেতা ও নিরাপদ পেমেন্ট</p></div></>
 }
 
 function DiscoverVisual() {
-  return <><div className="flex items-center gap-2 rounded-2xl border border-brand-100 bg-white p-3 text-ink-500 shadow-sm"><Search size={17} className="shrink-0 text-brand-600" /><span className="truncate text-xs">আপনি কী খুঁজছেন?</span><span className="ml-auto rounded-lg bg-brand-500 px-2.5 py-1.5 text-[10px] font-bold text-white">খুঁজুন</span></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="Category" value="বাছাই" icon={<ShoppingBag size={16} />} /><MiniCard label="Seller" value="বিশ্বস্ত" icon={<Store size={16} />} /><MiniCard label="Price" value="তুলনা" icon={<CheckCircle2 size={16} />} /></div><div className="mt-2 flex items-center justify-between rounded-2xl border border-brand-100 bg-white p-3"><div><p className="text-[10px] font-semibold text-ink-500">আপনার জন্য পছন্দ</p><p className="mt-0.5 text-xs font-bold text-brand-700">সঠিক পণ্য সহজে বাছাই করুন</p></div><BadgeCheck size={21} className="text-brand-600" /></div></>
+  return <><div className="flex items-center gap-2 rounded-2xl border border-brand-100 bg-white p-3 text-ink-500 shadow-sm"><Search size={17} className="shrink-0 text-brand-600" /><span className="truncate text-xs">আপনি কী খুঁজছেন?</span><span className="ml-auto rounded-lg bg-brand-500 px-2.5 py-1.5 text-[10px] font-bold text-white">খুঁজুন</span></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="বিভাগ" value="বাছাই" icon={<ShoppingBag size={16} />} /><MiniCard label="বিক্রেতা" value="বিশ্বস্ত" icon={<Store size={16} />} /><MiniCard label="দাম" value="তুলনা" icon={<CheckCircle2 size={16} />} /></div><div className="mt-2 flex items-center justify-between rounded-2xl border border-brand-100 bg-white p-3"><div><p className="text-[10px] font-semibold text-ink-500">আপনার জন্য পছন্দ</p><p className="mt-0.5 text-xs font-bold text-brand-700">সঠিক পণ্য সহজে বাছাই করুন</p></div><BadgeCheck size={21} className="text-brand-600" /></div></>
 }
 
 function SecureVisual() {
-  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><ShieldCheck size={28} /></div><div><p className="text-sm font-bold text-ink-900">Payment সুরক্ষিত</p><p className="mt-0.5 text-[10px] text-ink-500">Order নিশ্চিত না হওয়া পর্যন্ত</p></div><CheckCircle2 size={20} className="ml-auto text-brand-600" /></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="Payment" value="নিরাপদ" icon={<ShieldCheck size={16} />} /><MiniCard label="Order" value="ট্র্যাক" icon={<ShoppingBag size={16} />} /><MiniCard label="Support" value="সহায়তা" icon={<BellRing size={16} />} /></div><div className="mt-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white">Payment থেকে delivery পর্যন্ত স্বচ্ছতা</div></>
+  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600"><ShieldCheck size={28} /></div><div><p className="text-sm font-bold text-ink-900">পেমেন্ট সুরক্ষিত</p><p className="mt-0.5 text-[10px] text-ink-500">অর্ডার নিশ্চিত না হওয়া পর্যন্ত</p></div><CheckCircle2 size={20} className="ml-auto text-brand-600" /></div><div className="mt-2 grid grid-cols-3 gap-2"><MiniCard label="পেমেন্ট" value="নিরাপদ" icon={<ShieldCheck size={16} />} /><MiniCard label="অর্ডার" value="অনুসরণ" icon={<ShoppingBag size={16} />} /><MiniCard label="সহায়তা" value="সহায়তা" icon={<BellRing size={16} />} /></div><div className="mt-2 rounded-2xl bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white">পেমেন্ট থেকে ডেলিভারি পর্যন্ত স্বচ্ছতা</div></>
 }
 
 function SellerVisual() {
-  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Store size={22} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-ink-900">Verified seller</p><div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-brand-700"><BadgeCheck size={13} />পরিচয় যাচাইকৃত</div></div><span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">বিশ্বাস</span></div><div className="mt-2 grid grid-cols-2 gap-2"><MiniCard label="Rating" value="ভালো review" icon={<BadgeCheck size={17} />} /><MiniCard label="Seller Hub" value="শিখুন" icon={<Store size={17} />} /></div><div className="mt-2 rounded-2xl border border-brand-100 bg-white p-3 text-xs leading-5 text-ink-600">আপনার ব্যবসার ধরন অনুযায়ী সঠিক verification এবং seller guide পাবেন।</div></>
+  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Store size={22} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-ink-900">যাচাই করা বিক্রেতা</p><div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-brand-700"><BadgeCheck size={13} />পরিচয় যাচাইকৃত</div></div><span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">বিশ্বাস</span></div><div className="mt-2 grid grid-cols-2 gap-2"><MiniCard label="রেটিং" value="ভালো মতামত" icon={<BadgeCheck size={17} />} /><MiniCard label="বিক্রেতা শিক্ষা" value="শিখুন" icon={<Store size={17} />} /></div><div className="mt-2 rounded-2xl border border-brand-100 bg-white p-3 text-xs leading-5 text-ink-600">আপনার ব্যবসার ধরন অনুযায়ী সঠিক যাচাই এবং বিক্রির নির্দেশিকা পাবেন।</div></>
 }
 
 function NotificationVisual() {
-  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><BellRing size={22} /><span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-amber-400" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-ink-900">সব update সময়মতো</p><p className="mt-1 truncate text-[10px] text-ink-500">Order, chat, payment ও wallet</p></div></div><div className="mt-2 space-y-1.5"><NotificationRow title="Payment update" text="আপনার payment নিরাপদে গ্রহণ হয়েছে" /><NotificationRow title="Seller message" text="আপনার প্রশ্নের উত্তর এসেছে" /><NotificationRow title="Order status" text="আপনার order পথে আছে" /></div></>
+  return <><div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm sm:p-4"><div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><BellRing size={22} /><span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-amber-400" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-ink-900">সব খবর সময়মতো</p><p className="mt-1 truncate text-[10px] text-ink-500">অর্ডার, বার্তা, পেমেন্ট ও ওয়ালেট</p></div></div><div className="mt-2 space-y-1.5"><NotificationRow title="পেমেন্টের খবর" text="আপনার পেমেন্ট নিরাপদে গ্রহণ হয়েছে" /><NotificationRow title="বিক্রেতার বার্তা" text="আপনার প্রশ্নের উত্তর এসেছে" /><NotificationRow title="অর্ডারের অবস্থা" text="আপনার অর্ডার পথে আছে" /></div></>
 }
 
 function MiniCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {

@@ -428,8 +428,8 @@ export default function Sell() {
       <Layout wide>
         <div className="mx-auto max-w-xl border border-outline bg-surface p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={32} />
-          <h1 className="mt-3 text-lg font-bold text-ink-900">এই physical listing archive করা হয়েছে</h1>
-          <p className="mt-2 text-sm leading-6 text-ink-600">BikriKoro এখন শুধু digital product marketplace। পুরনো রেকর্ড history ও admin audit-এর জন্য সংরক্ষিত আছে।</p>
+          <h1 className="mt-3 text-lg font-bold text-ink-900">এই পুরনো তালিকাটি সংরক্ষণ করা হয়েছে</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-600">BikriKoro এখন শুধু ডিজিটাল পণ্যের বাজার। পুরনো তালিকাটি আপনার রেকর্ডের জন্য সংরক্ষিত আছে।</p>
         </div>
       </Layout>
     )
@@ -440,9 +440,9 @@ export default function Sell() {
       <Layout wide>
         <div className="mx-auto max-w-xl border border-brand-200 bg-brand-50 p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={34} />
-          <h1 className="mt-3 text-lg font-bold text-ink-900">Digital Seller Verification প্রয়োজন</h1>
-          <p className="mt-2 text-sm leading-6 text-ink-700">পণ্য প্রকাশের আগে আপনার seller identity ও ব্যবসায়িক তথ্য যাচাই করা প্রয়োজন।</p>
-          <button type="button" onClick={() => navigate('/become-seller')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">Verification শুরু করুন</button>
+          <h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল বিক্রেতার যাচাই প্রয়োজন</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-700">পণ্য প্রকাশের আগে আপনার বিক্রেতার পরিচয় ও ব্যবসায়িক তথ্য যাচাই করা প্রয়োজন।</p>
+          <button type="button" onClick={() => navigate('/become-seller')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">যাচাই শুরু করুন</button>
         </div>
       </Layout>
     )
