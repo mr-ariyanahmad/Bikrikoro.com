@@ -1,4 +1,4 @@
-import { ArrowLeft, Home } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 export function BackButton({ fallbackTo = '/', label = 'ফিরে যান' }: { fallbackTo?: string; label?: string }) {
@@ -16,12 +16,10 @@ export function BackButton({ fallbackTo = '/', label = 'ফিরে যান' 
     <button
       type="button"
       onClick={goBack}
-      className="inline-flex shrink-0 items-center gap-2 border border-outline bg-surface px-3 py-2 text-base font-semibold text-ink-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center border border-outline bg-surface p-2.5 text-ink-700 shadow-sm transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
       aria-label={label}
     >
-      <ArrowLeft size={16} />
-      <span>{label}</span>
-      {location.pathname === '/login' || location.pathname === '/become-seller' ? <Home size={14} className="text-ink-300" /> : null}
+      <ArrowLeft size={19} strokeWidth={2} />
     </button>
   )
 }
