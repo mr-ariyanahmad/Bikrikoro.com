@@ -10,9 +10,17 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;')
 }
 
+function publicSiteUrl(req: VercelRequest) {
+  const forwardedHost = req.headers['x-forwarded-host']
+  const rawHost = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host
+  const host = rawHost?.split(',')[0]?.trim().toLowerCase()
+  if (host === 'bikrikoro.com' || host === 'www.bikrikoro.com') return 'https://www.bikrikoro.com'
+  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com').replace(/\/+$/, '')
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const username = typeof req.query.username === 'string' ? req.query.username.trim().toLowerCase() : ''
-  const site = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com'
+  const site = publicSiteUrl(req)
   const canonical = `${site}/seller/${encodeURIComponent(username)}`
   const fallbackImage = `${site}/icon-512.png`
   const supabaseUrl = process.env.VITE_SUPABASE_URL
