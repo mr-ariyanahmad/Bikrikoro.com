@@ -237,7 +237,7 @@ export default function ProductDetail() {
     if (!user) { navigate('/login'); return }
     if (!questionText.trim()) return
     try {
-      await askProductQuestion(user.uid, product.id, questionText.trim())
+      await askProductQuestion(product.id, questionText.trim())
       setQuestionText('')
       setFeatureMessage('আপনার প্রশ্ন জমা হয়েছে। বিক্রেতা উত্তর দিলে এখানে দেখা যাবে।')
       setQuestions(await listProductQuestions(product.id))
@@ -267,7 +267,7 @@ export default function ProductDetail() {
   const handleReport = async () => {
     if (!user) { navigate('/login'); return }
     try {
-      await reportProduct(user.uid, product.id, reportReason, reportDetails)
+      await reportProduct(product.id, reportReason, reportDetails)
       setShowReport(false)
       setReportDetails('')
       setFeatureMessage('অভিযোগ জমা হয়েছে। আমাদের দল এটি পর্যালোচনা করবে।')

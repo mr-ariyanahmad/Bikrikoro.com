@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 
-export type ProductQuestion = { id: string; product_id: string; asker_id: string; question: string; answer: string | null; created_at: string; answered_at: string | null }
+export type ProductQuestion = { id: string; product_id: string; asker_id?: string; question: string; answer: string | null; created_at: string; answered_at: string | null }
+export const PUBLIC_PRODUCT_QUESTIONS_TABLE = 'public_product_questions' as 'product_questions'
+const PUBLIC_PRODUCT_QUESTIONS_FIELDS = 'id, product_id, question, answer, answered_at, created_at' as const
 export type UserFeatureStatus = { alertEnabled: boolean; following: boolean }
 
 type UserFeaturePayload = {
@@ -41,20 +43,32 @@ export async function toggleSellerFollow(sellerId: string) {
   return Boolean(result.following)
 }
 
+async function productQuestionRequest<T extends { error?: string } = { error?: string }>(payload: Record<string, unknown>): Promise<T> {
+  const currentUser = auth.currentUser
+  if (!currentUser) throw new Error('এই কাজটি করতে আগে login করুন।')
+  const idToken = await currentUser.getIdToken()
+  const response = await fetch('/api/product-question', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const result = await response.json().catch(() => ({})) as T
+  if (!response.ok) throw new Error(result.error || `অনুরোধ ব্যর্থ হয়েছে (HTTP ${response.status})`)
+  return result
+}
+
 export async function listProductQuestions(productId: string) {
-  const { data, error } = await supabase.rpc('list_product_questions', { p_product_id: productId })
+  const { data, error } = await supabase.from(PUBLIC_PRODUCT_QUESTIONS_TABLE).select(PUBLIC_PRODUCT_QUESTIONS_FIELDS).eq('product_id', productId).order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as ProductQuestion[]
 }
 
-export async function askProductQuestion(askerId: string, productId: string, question: string) {
-  const { error } = await supabase.rpc('ask_product_question', { p_asker_id: askerId, p_product_id: productId, p_question: question })
-  if (error) throw error
+export async function askProductQuestion(productId: string, question: string) {
+  await productQuestionRequest({ action: 'ask', productId, question })
 }
 
-export async function reportProduct(reporterId: string, productId: string, reason: string, details: string) {
-  const { error } = await supabase.rpc('report_product', { p_reporter_id: reporterId, p_product_id: productId, p_reason: reason, p_details: details })
-  if (error) throw error
+export async function reportProduct(productId: string, reason: string, details: string) {
+  await productQuestionRequest({ action: 'report', productId, reason, details })
 }
 
 export async function answerProductQuestion(questionId: string, answer: string) {
