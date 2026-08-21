@@ -21,7 +21,8 @@ export interface Order {
   quantity: number
   seller_id: string
   buyer_id: string
-  delivery_address: string
+  delivery_address: string | null
+  delivery_email?: string | null
   payment_method: PaymentMethod | null
   status: OrderStatus
   escrow_fee: number

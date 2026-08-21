@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShieldCheck } from 'lucide-react'
 import { createPendingOrder, createWalletOrder, getWalletBalance, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
-import type { Product } from '@/types/product'
+import type { Product, ProductDigitalSpecs } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
 
 export function BuyModal({
   product,
+  digitalSpecs,
   buyerId,
   onClose,
 }: {
   product: Product
+  digitalSpecs?: ProductDigitalSpecs | null
   buyerId: string
   onClose: () => void
 }) {
@@ -24,6 +26,8 @@ export function BuyModal({
   const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'WALLET'>('ONLINE')
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [walletLoading, setWalletLoading] = useState(true)
+  const [deliveryEmail, setDeliveryEmail] = useState('')
+  const requiresDeliveryEmail = ['digital_game_accounts', 'digital_subscriptions', 'digital_topups'].includes(product.category_id) || Object.keys(digitalSpecs?.specifications ?? {}).some((key) => /email|gmail|recipient|account_email/i.test(key))
 
   useEffect(() => {
     let active = true
@@ -70,6 +74,14 @@ export function BuyModal({
       setError('অর্ডার করতে প্রাইভেসি পলিসি ও রিফান্ড নীতি মেনে নেওয়া আবশ্যক।')
       return
     }
+    if (requiresDeliveryEmail && !deliveryEmail.trim()) {
+      setError('এই পণ্যের digital delivery-এর জন্য email দিন।')
+      return
+    }
+    if (deliveryEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(deliveryEmail.trim())) {
+      setError('সঠিক email address দিন।')
+      return
+    }
     if (paymentMethod === 'WALLET' && !walletAffordable) {
       setPaymentMethod('ONLINE')
       setError(walletBalance === null ? 'Wallet balance পাওয়া যায়নি। অনলাইন পেমেন্ট বেছে নিন।' : `Wallet balance ${formatTaka(walletBalance)}; মোট প্রয়োজন ${formatTaka(total)}।`)
@@ -80,7 +92,7 @@ export function BuyModal({
 
     let orderId: string | null = null
     try {
-      const orderParams = { productId: product.id, buyerId, deliveryAddress: '', couponCode: coupon?.valid ? coupon.normalized_code : undefined }
+      const orderParams = { productId: product.id, buyerId, deliveryAddress: '', deliveryEmail: requiresDeliveryEmail ? deliveryEmail.trim() : undefined, couponCode: coupon?.valid ? coupon.normalized_code : undefined }
       orderId = paymentMethod === 'WALLET' ? await createWalletOrder(orderParams) : await createPendingOrder(orderParams)
       if (paymentMethod === 'ONLINE') {
         const paymentUrl = await startUddoktaPayCheckout(orderId)
@@ -109,6 +121,7 @@ export function BuyModal({
 
           <div className="mt-4 space-y-4">
             <div className="border border-brand-200 bg-brand-50 p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">ডিজিটাল পণ্য পেমেন্ট</p><p className="mt-1 text-xs leading-5 text-ink-700">পেমেন্ট সম্পন্ন হলে পণ্যটি আপনার ডিজিটাল লাইব্রেরিতে পাওয়া যাবে।</p></div></div></div>
+            {requiresDeliveryEmail && <div className="border border-outline bg-bg p-3"><label className="block text-sm font-semibold text-ink-900" htmlFor="delivery-email">ডেলিভারি email</label><p className="mt-1 text-xs leading-5 text-ink-500">এই পণ্যের তথ্য বা access আপনার email-এ পাঠানো হতে পারে।</p><input id="delivery-email" type="email" value={deliveryEmail} onChange={(event) => { setDeliveryEmail(event.target.value); setError(null) }} placeholder="আপনার email address" className="mt-3 w-full border border-outline bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500" /></div>}
 
             <div className="border border-outline bg-bg p-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট অপশন বেছে নিন</p><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'ONLINE' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">অনলাইন পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">বিকাশ, নগদ, রকেট বা কার্ড</span></button><button type="button" disabled={!walletAffordable} onClick={() => setPaymentMethod('WALLET')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'WALLET' ? 'border-brand-500 bg-brand-50 text-brand-700' : walletAffordable ? 'border-outline bg-surface text-ink-700 hover:border-brand-300' : 'cursor-not-allowed border-outline bg-bg text-ink-400'}`}><span className="block text-sm font-bold">Wallet পেমেন্ট</span><span className="mt-1 block text-xs">{walletLoading ? 'ব্যালেন্স দেখা হচ্ছে...' : walletAffordable ? `ব্যালেন্স ${formatTaka(walletBalance ?? 0)}` : `ব্যালেন্স কম — ${formatTaka(walletBalance ?? 0)}`}</span></button></div>{!walletLoading && !walletAffordable && <p className="mt-2 text-xs text-ink-500">Wallet দিয়ে পেমেন্ট করতে Wallet balance বাড়ান অথবা অনলাইন পেমেন্ট বেছে নিন।</p>}</div>
 
