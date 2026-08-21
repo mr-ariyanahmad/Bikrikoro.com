@@ -49,6 +49,12 @@ function shouldFallbackFromPopup(code?: string) {
     || code === 'auth/internal-error'
 }
 
+function shouldUseRedirectFirst() {
+  if (typeof window === 'undefined') return false
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false
+  return coarsePointer || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
 // uses on Android too, so there's no visible captcha widget for the user.
@@ -174,9 +180,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.warn('Firebase persistence setup failed before Google login:', error)
     })
+    if (shouldUseRedirectFirst()) {
+      window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
+      await signInWithRedirect(auth, googleProvider)
+      return
+    }
     try {
-      // Keep this call directly inside the user gesture so mobile browsers do
-      // not silently block the provider popup after an awaited operation.
+      // Desktop keeps the popup call directly inside the user gesture.
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
@@ -197,10 +207,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.warn('Firebase persistence setup failed before Facebook login:', error)
     })
+    if (shouldUseRedirectFirst()) {
+      window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
+      await signInWithRedirect(auth, facebookProvider)
+      return
+    }
     try {
-      // Popup-first avoids the cross-origin redirect helper on Vercel-hosted
-      // mobile browsers. If the browser blocks the popup, use redirect as a
-      // compatibility fallback and let getRedirectResult restore the session.
+      // Desktop uses popup-first; blocked or unsupported popup environments
+      // fall back to redirect, and getRedirectResult restores the session.
       await signInWithPopup(auth, facebookProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
