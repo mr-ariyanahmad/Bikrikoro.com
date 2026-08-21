@@ -3,6 +3,7 @@ import adminRpc from '../server/api/admin-rpc.js'
 import adminHealth from '../server/api/admin-health.js'
 import adminSellerVerifications from '../server/api/admin-seller-verifications.js'
 import agentRouter from '../server/api/agent-router.js'
+import chat from '../server/api/chat.js'
 import notificationEvents from '../server/api/notification-events.js'
 import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
@@ -30,6 +31,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'admin-health': adminHealth,
   'admin-seller-verifications': adminSellerVerifications,
   'agent-router': agentRouter,
+  chat,
   'notification-events': notificationEvents,
   'notification-push': notificationPush,
   notifications,

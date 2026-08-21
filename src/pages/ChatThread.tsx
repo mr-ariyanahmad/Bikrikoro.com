@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Package, Send } from 'lucide-react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { chatRequest } from '@/lib/chat'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
@@ -24,9 +25,8 @@ export default function ChatThreadPage() {
 
   const loadMessages = useCallback(async () => {
     if (!threadId || !uid) return
-    const { data, error: messagesError } = await supabase.rpc('list_my_chat_messages', { p_user_id: uid, p_thread_id: threadId })
-    if (messagesError) throw messagesError
-    setMessages(data ?? [])
+    const result = await chatRequest<{ messages?: ChatMessage[] }>({ action: 'messages', threadId })
+    setMessages(result.messages ?? [])
   }, [threadId, uid])
 
   useEffect(() => {
@@ -36,8 +36,16 @@ export default function ChatThreadPage() {
     }
 
     async function init() {
-      const { data: threadData, error: threadError } = await supabase.rpc('get_my_chat_thread', { p_user_id: uid, p_thread_id: threadId })
-      if (threadError || !threadData) { setError(threadError?.message || 'এই chat thread পাওয়া যায়নি।'); setLoading(false); return }
+      let threadData: ChatThread | null = null
+      try {
+        const result = await chatRequest<{ thread?: ChatThread }>({ action: 'thread', threadId })
+        threadData = result.thread ?? null
+      } catch (threadError) {
+        setError(threadError instanceof Error ? threadError.message : 'এই chat thread পাওয়া যায়নি।')
+        setLoading(false)
+        return
+      }
+      if (!threadData) { setError('এই chat thread পাওয়া যায়নি।'); setLoading(false); return }
       setThread(threadData)
       setLoading(false)
 
@@ -53,24 +61,22 @@ export default function ChatThreadPage() {
       setOtherName(profile?.name || 'ব্যবহারকারী')
 
       // Clear only the current participant's unread count through the secure RPC.
-      const { error: readError } = await supabase.rpc('mark_my_chat_thread_read', { p_user_id: uid, p_thread_id: threadId })
-      if (readError) console.warn('Chat unread count update failed:', readError)
+      try {
+        await chatRequest({ action: 'mark_read', threadId })
+      } catch (readError) {
+        console.warn('Chat unread count update failed:', readError)
+      }
 
       await loadMessages()
     }
     init().catch((initError) => { console.error('chat thread load failed:', initError); setError(initError instanceof Error ? initError.message : 'Chat লোড করা যায়নি। আবার চেষ্টা করুন।'); setLoading(false) })
 
-    const channel = supabase
-      .channel(`chat-${threadId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
-        loadMessages
-      )
-      .subscribe()
+    const poller = window.setInterval(() => {
+      void loadMessages().catch((pollError) => console.warn('Chat polling failed:', pollError))
+    }, 8000)
 
     return () => {
-      supabase.removeChannel(channel)
+      window.clearInterval(poller)
     }
   }, [threadId, uid, loadMessages])
 
@@ -86,8 +92,7 @@ export default function ChatThreadPage() {
     setError(null)
 
     try {
-      const { error: messageError } = await supabase.rpc('send_chat_message', { p_sender_id: uid, p_thread_id: thread.id, p_text: text })
-      if (messageError) throw messageError
+      await chatRequest({ action: 'send', threadId: thread.id, text })
       await loadMessages()
     } catch (sendError) {
       setInput(text)

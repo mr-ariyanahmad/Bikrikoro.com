@@ -163,7 +163,7 @@ export default function ProductDetail() {
     setStartingChat(true)
     setFeatureMessage(null)
     try {
-      const threadId = await findOrCreateThread(user.uid, product.seller_id, product.id)
+      const threadId = await findOrCreateThread(product.seller_id, product.id)
       navigate(`/chat/${threadId}`)
     } catch (error) {
       console.error('seller chat start failed:', error)

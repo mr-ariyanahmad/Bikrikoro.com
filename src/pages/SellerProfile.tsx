@@ -113,7 +113,7 @@ export default function SellerProfile() {
     if (!user) { navigate('/login'); return }
     if (user.uid === seller.id) { setActionMessage('নিজের shop-এ chat করা যাবে না।'); return }
     try {
-      const threadId = await findOrCreateThread(user.uid, seller.id, null)
+      const threadId = await findOrCreateThread(seller.id, null)
       navigate(`/chat/${threadId}`)
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : 'Chat শুরু করা যায়নি।')

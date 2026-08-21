@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { chatRequest } from '@/lib/chat'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
@@ -20,14 +21,9 @@ export default function ChatList() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc('list_my_chat_threads', { p_user_id: uid })
-    if (error) {
-      setThreads([])
-      setLoading(false)
-      return
-    }
-
-    const rows = (data ?? []) as ChatThread[]
+    try {
+      const result = await chatRequest<{ threads?: ChatThread[] }>({ action: 'list' })
+      const rows = result.threads ?? []
     const otherIds = [...new Set(rows.map((t) => (t.buyer_id === uid ? t.seller_id : t.buyer_id)))]
 
     const { data: profiles } = otherIds.length
@@ -35,25 +31,26 @@ export default function ChatList() {
       : { data: [] }
     const nameById = new Map((profiles ?? []).map((p) => [p.id, p.name]))
 
-    setThreads(
-      rows.map((t) => ({
-        ...t,
-        otherName: nameById.get(t.buyer_id === uid ? t.seller_id : t.buyer_id) || 'ব্যবহারকারী',
-      }))
-    )
-    setLoading(false)
+      setThreads(
+        rows.map((t) => ({
+          ...t,
+          otherName: nameById.get(t.buyer_id === uid ? t.seller_id : t.buyer_id) || 'ব্যবহারকারী',
+        }))
+      )
+    } catch {
+      setThreads([])
+    } finally {
+      setLoading(false)
+    }
   }, [uid])
 
   useEffect(() => {
-    load()
-    const channel = supabase
-      .channel(`chat-threads-${uid}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_threads' }, load)
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [uid, load])
+    void load()
+    const poller = window.setInterval(() => {
+      void load()
+    }, 12000)
+    return () => window.clearInterval(poller)
+  }, [load])
 
   const visibleThreads = useMemo(() => threads.filter((thread) => { const unread = thread.buyer_id === uid ? thread.buyer_unread_count : thread.seller_unread_count; return (view === 'all' || unread > 0) && (!query.trim() || thread.otherName.toLowerCase().includes(query.trim().toLowerCase()) || (thread.last_message ?? '').toLowerCase().includes(query.trim().toLowerCase())) }), [query, threads, uid, view])
 
