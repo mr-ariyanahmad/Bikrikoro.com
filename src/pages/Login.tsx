@@ -150,7 +150,7 @@ export default function Login() {
         <button
           type="button"
           onClick={handleGoogle}
-          disabled={googleLoading || facebookLoading}
+          disabled={googleLoading}
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -165,7 +165,7 @@ export default function Login() {
         <button
           type="button"
           onClick={handleFacebook}
-          disabled={googleLoading || facebookLoading}
+          disabled={facebookLoading}
           className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-900 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span aria-hidden="true" className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#1877F2] text-sm font-bold leading-none text-white">f</span>
