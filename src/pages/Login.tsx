@@ -4,11 +4,27 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import type { ConfirmationResult } from 'firebase/auth'
 import { useAuth } from '@/context/AuthContext'
 
+const SOCIAL_AUTH_TIMEOUT_MS = 20_000
+
 function toE164(bdLocalNumber: string): string {
   const digits = bdLocalNumber.replace(/\D/g, '')
   if (digits.startsWith('880')) return `+${digits}`
   if (digits.startsWith('0')) return `+88${digits}`
   return `+880${digits}`
+}
+
+function waitForSocialAuth<T>(promise: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error('Social authentication timed out') as Error & { code?: string }
+      error.code = 'auth/timeout'
+      reject(error)
+    }, SOCIAL_AUTH_TIMEOUT_MS)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
 }
 
 export default function Login() {
@@ -36,7 +52,9 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (authError) setError(socialAuthErrorMessage('সামাজিক', authError))
+    // Redirect failures are kept in the console for diagnosis, but internal
+    // Firebase details are not rendered on the public login screen.
+    if (authError) setError(null)
   }, [authError])
 
   if (user) {
@@ -95,11 +113,10 @@ export default function Login() {
     setError(null)
     setGoogleLoading(true)
     try {
-      await loginWithGoogle()
+      await waitForSocialAuth(loginWithGoogle())
     } catch (err) {
       console.error('Google login failed:', err)
-      const code = (err as { code?: string }).code
-      setError(socialAuthErrorMessage('Google', code))
+      setError(null)
     } finally {
       setGoogleLoading(false)
     }
@@ -109,28 +126,14 @@ export default function Login() {
     setError(null)
     setFacebookLoading(true)
     try {
-      await loginWithFacebook()
+      await waitForSocialAuth(loginWithFacebook())
     } catch (err) {
       console.error('Facebook login failed:', err)
-      const code = (err as { code?: string }).code
-      setError(socialAuthErrorMessage('Facebook', code))
+      setError(null)
     } finally {
       setFacebookLoading(false)
     }
   }
-
-function socialAuthErrorMessage(provider: string, code?: string | null) {
-  if (code === 'firebase/not-configured') return 'লগইন চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।'
-  if (code === 'auth/unauthorized-domain') return 'এই website domain Firebase-এ অনুমোদিত নয়। bikrikoro.com এবং www.bikrikoro.com Authorized domains-এ যোগ করুন।'
-  if (code === 'auth/account-exists-with-different-credential') return `এই ${provider} email আগে ফোন বা Email/Password দিয়ে নিবন্ধিত। আগে সেই পদ্ধতিতে login করে account linking করুন।`
-  if (code === 'auth/popup-closed-by-user') return `${provider} login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।`
-  if (code === 'auth/network-request-failed') return `ইন্টারনেট সংযোগ বা ${provider} service-এর সমস্যা হয়েছে।`
-  if (code === 'auth/operation-not-supported-in-this-environment') return `এই browser-এ ${provider} login সম্পূর্ণ করা যাচ্ছে না। Brave browser-এর Shields বা third-party cookie blocking সাময়িকভাবে বন্ধ করে আবার চেষ্টা করুন।`
-  if (code === 'auth/invalid-continue-uri' || code === 'auth/invalid-redirect-uri') return 'Firebase OAuth redirect configuration সঠিক নয়। Authorized domains ও Firebase web app settings যাচাই করুন।'
-  if (code === 'auth/redirect-session-not-found') return `${provider} account নির্বাচন হয়েছে, কিন্তু Firebase session তৈরি হয়নি। Authorized domains, browser cookie/storage settings এবং Vercel Firebase environment variables যাচাই করুন।`
-  if (code === 'auth/internal-error') return `${provider} login callback সম্পূর্ণ হয়নি। মোবাইলে redirect flow দিয়ে আবার চেষ্টা করুন; না হলে Firebase Authorized domains ও Google provider settings যাচাই করুন।`
-  return `${provider} দিয়ে লগইন করা যায়নি (${code ?? 'unknown-error'}) — Firebase settings যাচাই করুন।`
-}
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-bg px-4 py-16 sm:px-5">
