@@ -63,7 +63,7 @@ function parseSections(body: string): { intro: string[]; sections: Section[] } {
   const sections: Section[] = []
   let current: Section | null = null
   for (const block of blocks) {
-    const headingMatch = block.match(/^(?:[০-৯0-9]+)[.)]\s*(.+)$/)
+      const headingMatch = block.match(/^(?:[০-৯0-9]+)[.)]\s*(.+?)(?:\n|$)/)
     if (headingMatch) {
       if (current) sections.push(current)
       current = { heading: headingMatch[1].trim(), paragraphs: [] }
