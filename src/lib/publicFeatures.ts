@@ -2,17 +2,43 @@ import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 
 export type ProductQuestion = { id: string; product_id: string; asker_id: string; question: string; answer: string | null; created_at: string; answered_at: string | null }
+export type UserFeatureStatus = { alertEnabled: boolean; following: boolean }
 
-export async function toggleProductAlert(userId: string, productId: string, alertType: 'PRICE_DROP' | 'BACK_IN_STOCK') {
-  const { data, error } = await supabase.rpc('toggle_product_alert', { p_user_id: userId, p_product_id: productId, p_alert_type: alertType })
-  if (error) throw error
-  return Boolean(data)
+type UserFeaturePayload = {
+  action: 'status' | 'toggle_alert' | 'toggle_follow'
+  productId?: string
+  sellerId?: string
+  alertType?: 'PRICE_DROP' | 'BACK_IN_STOCK'
 }
 
-export async function toggleSellerFollow(userId: string, sellerId: string) {
-  const { data, error } = await supabase.rpc('toggle_seller_follow', { p_user_id: userId, p_seller_id: sellerId })
-  if (error) throw error
-  return Boolean(data)
+type UserFeatureResponse = Partial<UserFeatureStatus> & { enabled?: boolean; error?: string }
+
+async function userFeatureRequest<T extends UserFeatureResponse = UserFeatureResponse>(payload: UserFeaturePayload): Promise<T> {
+  const currentUser = auth.currentUser
+  if (!currentUser) throw new Error('এই কাজটি করতে আগে login করুন।')
+  const idToken = await currentUser.getIdToken()
+  const response = await fetch('/api/user-features', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const result = await response.json().catch(() => ({})) as UserFeatureResponse
+  if (!response.ok) throw new Error(result.error || `অনুরোধ ব্যর্থ হয়েছে (HTTP ${response.status})`)
+  return result as T
+}
+
+export async function getUserFeatureStatus(productId: string | null, sellerId: string | null, alertType: 'PRICE_DROP' | 'BACK_IN_STOCK' | null) {
+  return userFeatureRequest<UserFeatureStatus>({ action: 'status', productId: productId ?? undefined, sellerId: sellerId ?? undefined, alertType: alertType ?? undefined })
+}
+
+export async function toggleProductAlert(productId: string, alertType: 'PRICE_DROP' | 'BACK_IN_STOCK') {
+  const result = await userFeatureRequest<{ enabled?: boolean }>({ action: 'toggle_alert', productId, alertType })
+  return Boolean(result.enabled)
+}
+
+export async function toggleSellerFollow(sellerId: string) {
+  const result = await userFeatureRequest<{ following?: boolean }>({ action: 'toggle_follow', sellerId })
+  return Boolean(result.following)
 }
 
 export async function listProductQuestions(productId: string) {

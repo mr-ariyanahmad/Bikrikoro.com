@@ -8,7 +8,7 @@ import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { findOrCreateThread } from '@/lib/chat'
-import { toggleSellerFollow } from '@/lib/publicFeatures'
+import { getUserFeatureStatus, toggleSellerFollow } from '@/lib/publicFeatures'
 import { formatDate } from '@/lib/format'
 import { shopUrl } from '@/lib/shopProfile'
 import { SITE_URL } from '@/lib/site'
@@ -54,19 +54,18 @@ export default function SellerProfile() {
           return
         }
         const sellerId = sellerData.id
-        const [productsRes, reviewsRes, followRes] = await Promise.all([
+        const [productsRes, reviewsRes, featureStatus] = await Promise.all([
           supabase.from('products').select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', sellerId).eq('is_digital', true).eq('is_hidden', false).eq('approval_status', 'APPROVED').order('created_at', { ascending: false }),
           supabase.from('reviews').select(PUBLIC_REVIEW_FIELDS).eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(20),
-          userId ? supabase.from('seller_follows').select('seller_id').eq('user_id', userId).eq('seller_id', sellerId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+          userId ? getUserFeatureStatus(null, sellerId, null) : Promise.resolve({ alertEnabled: false, following: false }),
         ])
         if (productsRes.error) throw productsRes.error
         if (reviewsRes.error) throw reviewsRes.error
-        if (followRes.error && followRes.error.code !== 'PGRST116') throw followRes.error
         if (!active) return
         setSeller(sellerData)
         setProducts((productsRes.data ?? []) as Product[])
         setReviews((reviewsRes.data ?? []) as PublicReview[])
-        setFollowing(Boolean(followRes.data))
+        setFollowing(featureStatus.following)
       } catch (error) {
         console.error('Seller profile load failed:', error)
         if (active) setLoadError(error instanceof Error ? error.message : 'সেলার প্রোফাইল লোড করা যায়নি।')
@@ -99,7 +98,7 @@ export default function SellerProfile() {
     if (!seller) return
     if (!user) { navigate('/login'); return }
     try {
-      const next = await toggleSellerFollow(user.uid, seller.id)
+      const next = await toggleSellerFollow(seller.id)
       setFollowing(next)
       setSeller((current) => current ? { ...current, follower_count: Math.max(0, current.follower_count + (next ? 1 : -1)) } : current)
       setActionMessage(next ? 'এই shop follow করা হয়েছে।' : 'এই shop follow তালিকা থেকে সরানো হয়েছে।')

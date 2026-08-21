@@ -12,7 +12,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
-import { answerProductQuestion, askProductQuestion, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
+import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
@@ -116,13 +116,12 @@ export default function ProductDetail() {
     let active = true
     Promise.all([
       isFavorited(user.uid, id),
-      supabase.from('product_alerts').select('alert_type').eq('user_id', user.uid).eq('product_id', id).eq('alert_type', product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK').maybeSingle(),
-      supabase.from('seller_follows').select('seller_id').eq('user_id', user.uid).eq('seller_id', product.seller_id).maybeSingle(),
-    ]).then(([favorite, alertResult, followResult]) => {
+      getUserFeatureStatus(id, product.seller_id, product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK'),
+    ]).then(([favorite, featureStatus]) => {
       if (!active) return
       setFavorited(favorite)
-      setAlertEnabled(Boolean(alertResult.data))
-      setFollowingSeller(Boolean(followResult.data))
+      setAlertEnabled(featureStatus.alertEnabled)
+      setFollowingSeller(featureStatus.following)
     }).catch((error) => console.error('Product preference load failed:', error))
     return () => { active = false }
   }, [user, id, product])
@@ -214,7 +213,7 @@ export default function ProductDetail() {
   const handleAlert = async (type: 'PRICE_DROP' | 'BACK_IN_STOCK') => {
     if (!user) { navigate('/login'); return }
     try {
-      const enabled = await toggleProductAlert(user.uid, product.id, type)
+      const enabled = await toggleProductAlert(product.id, type)
       setAlertEnabled(enabled)
       setFeatureMessage(enabled ? (type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার পাওয়া গেলে আপনাকে জানানো হবে।') : 'এই পণ্যের সতর্কতা বন্ধ হয়েছে।')
     } catch (error) {
@@ -225,7 +224,7 @@ export default function ProductDetail() {
   const handleFollow = async () => {
     if (!user) { navigate('/login'); return }
     try {
-      const nextFollowing = await toggleSellerFollow(user.uid, product.seller_id)
+      const nextFollowing = await toggleSellerFollow(product.seller_id)
       setFollowingSeller(nextFollowing)
       setSellerStats((current) => ({ ...current, followerCount: Math.max(0, current.followerCount + (nextFollowing ? 1 : -1)) }))
       setFeatureMessage(nextFollowing ? 'বিক্রেতাকে অনুসরণ করা হয়েছে।' : 'বিক্রেতাকে অনুসরণ বন্ধ হয়েছে।')

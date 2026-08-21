@@ -7,7 +7,6 @@ import { AdminRoute } from '@/components/AdminRoute'
 import { useEnsureProfile } from '@/hooks/useEnsureProfile'
 const Login = lazy(() => import('@/pages/Login'))
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
-const SavedAddresses = lazy(() => import('@/pages/SavedAddresses'))
 const SavedSearches = lazy(() => import('@/pages/SavedSearches'))
 const Home = lazy(() => import('@/pages/Home'))
 const Products = lazy(() => import('@/pages/Products'))
@@ -202,14 +201,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <SavedSearches />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/addresses"
-        element={
-          <ProtectedRoute>
-            <SavedAddresses />
           </ProtectedRoute>
         }
       />

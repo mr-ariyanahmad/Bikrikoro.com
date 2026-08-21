@@ -25,7 +25,6 @@ const ACCOUNT_LINKS: NavItem[] = [
   { to: '/notifications', label: 'নোটিফিকেশন', icon: Bell },
   { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
   { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
-  { to: '/addresses', label: 'সেভড ঠিকানা', icon: MapPin },
   { to: '/saved-searches', label: 'সেভড সার্চ', icon: BookmarkPlus },
   { to: '/settings', label: 'সেটিংস ও সহায়তা', icon: Settings2 },
   { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
