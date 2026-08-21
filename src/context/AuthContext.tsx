@@ -181,18 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.warn('Firebase persistence setup failed before Facebook login:', error)
     })
-    // Mobile browsers—especially Brave—can close or isolate the OAuth popup
-    // because of popup, storage, or third-party-cookie protections. Redirect
-    // first on mobile so the Firebase session returns through the same browser
-    // tab and is restored by getRedirectResult above.
-    const isMobileBrowser = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    if (isMobileBrowser) {
-      window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
-      await signInWithRedirect(auth, facebookProvider)
-      return
-    }
-
     try {
+      // Popup-first avoids the cross-origin redirect helper on Vercel-hosted
+      // mobile browsers. If the browser blocks the popup, use redirect as a
+      // compatibility fallback and let getRedirectResult restore the session.
       await signInWithPopup(auth, facebookProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
