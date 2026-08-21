@@ -27,7 +27,7 @@ export function SellerShopCard({ seller, followerCount, productCount, onFollow, 
             {badges.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{badges.slice(0, 2).map((badge) => <span key={badge.badge_key} className="inline-flex items-center gap-0.5 bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700"><BadgeCheck size={10} />{badge.badge_label}</span>)}</div>}
           </Link>
         </div>
-        <button type="button" onClick={onFollow} className={`inline-flex shrink-0 items-center justify-center gap-1 border px-2 py-1.5 text-xs font-semibold whitespace-nowrap transition sm:gap-1.5 sm:px-2.5 sm:py-2 ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-500 text-brand-700 hover:bg-brand-50'}`}><Heart size={14} className={following ? 'fill-brand-500 text-brand-500' : ''} /><span>{following ? 'Follow করা আছে' : 'Follow'}</span></button>
+        <button type="button" onClick={onFollow} className={`inline-flex h-9 w-32 shrink-0 items-center justify-center gap-1 border px-2 text-[11px] font-semibold whitespace-nowrap transition sm:h-10 sm:w-36 sm:gap-1.5 sm:text-xs ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-500 text-brand-700 hover:bg-brand-50'}`}><Heart size={14} className={following ? 'fill-brand-500 text-brand-500' : ''} /><span>{following ? 'Follow করা আছে' : 'Follow'}</span></button>
       </div>
     </section>
   )

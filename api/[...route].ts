@@ -18,6 +18,7 @@ import sellerListingOptions from '../server/api/seller-listing-options.js'
 import sitemap from '../server/api/sitemap.xml.js'
 import verificationDocument from '../server/api/verification-document.js'
 import walletWithdrawal from '../server/api/wallet-withdrawal.js'
+import walletBalance from '../server/api/wallet-balance.js'
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>
 
@@ -41,6 +42,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'sitemap.xml': sitemap,
   'verification-document': verificationDocument,
   'wallet-withdrawal': walletWithdrawal,
+  'wallet-balance': walletBalance,
 }
 
 function asPath(value: unknown) {

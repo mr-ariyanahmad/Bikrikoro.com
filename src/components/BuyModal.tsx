@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShieldCheck } from 'lucide-react'
-import { createPendingOrder, createWalletOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { createPendingOrder, createWalletOrder, getWalletBalance, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
@@ -22,10 +22,24 @@ export function BuyModal({
   const [couponLoading, setCouponLoading] = useState(false)
   const [acceptedPolicy, setAcceptedPolicy] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'WALLET'>('ONLINE')
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [walletLoading, setWalletLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    setWalletLoading(true)
+    void getWalletBalance(buyerId).then((balance) => { if (active) setWalletBalance(balance) }).catch(() => { if (active) setWalletBalance(null) }).finally(() => { if (active) setWalletLoading(false) })
+    return () => { active = false }
+  }, [buyerId])
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
   const escrowFee = Math.max(discountedPrice * 0.01, 10)
   const total = discountedPrice + escrowFee
+  const walletAffordable = walletBalance !== null && walletBalance >= total
+
+  useEffect(() => {
+    if (paymentMethod === 'WALLET' && walletBalance !== null && walletBalance < total) setPaymentMethod('ONLINE')
+  }, [paymentMethod, total, walletBalance])
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -54,6 +68,11 @@ export function BuyModal({
     }
     if (!acceptedPolicy) {
       setError('অর্ডার করতে প্রাইভেসি পলিসি ও রিফান্ড নীতি মেনে নেওয়া আবশ্যক।')
+      return
+    }
+    if (paymentMethod === 'WALLET' && !walletAffordable) {
+      setPaymentMethod('ONLINE')
+      setError(walletBalance === null ? 'Wallet balance পাওয়া যায়নি। অনলাইন পেমেন্ট বেছে নিন।' : `Wallet balance ${formatTaka(walletBalance)}; মোট প্রয়োজন ${formatTaka(total)}।`)
       return
     }
     setSubmitting(true)
@@ -91,7 +110,7 @@ export function BuyModal({
           <div className="mt-4 space-y-4">
             <div className="border border-brand-200 bg-brand-50 p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">ডিজিটাল পণ্য পেমেন্ট</p><p className="mt-1 text-xs leading-5 text-ink-700">পেমেন্ট সম্পন্ন হলে পণ্যটি আপনার ডিজিটাল লাইব্রেরিতে পাওয়া যাবে।</p></div></div></div>
 
-            <div className="border border-outline bg-bg p-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট অপশন বেছে নিন</p><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'ONLINE' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">অনলাইন পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">বিকাশ, নগদ, রকেট বা কার্ড</span></button><button type="button" onClick={() => setPaymentMethod('WALLET')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'WALLET' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">Wallet পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">Wallet balance ব্যবহার করুন</span></button></div></div>
+            <div className="border border-outline bg-bg p-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট অপশন বেছে নিন</p><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'ONLINE' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">অনলাইন পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">বিকাশ, নগদ, রকেট বা কার্ড</span></button><button type="button" disabled={!walletAffordable} onClick={() => setPaymentMethod('WALLET')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'WALLET' ? 'border-brand-500 bg-brand-50 text-brand-700' : walletAffordable ? 'border-outline bg-surface text-ink-700 hover:border-brand-300' : 'cursor-not-allowed border-outline bg-bg text-ink-400'}`}><span className="block text-sm font-bold">Wallet পেমেন্ট</span><span className="mt-1 block text-xs">{walletLoading ? 'ব্যালেন্স দেখা হচ্ছে...' : walletAffordable ? `ব্যালেন্স ${formatTaka(walletBalance ?? 0)}` : `ব্যালেন্স কম — ${formatTaka(walletBalance ?? 0)}`}</span></button></div>{!walletLoading && !walletAffordable && <p className="mt-2 text-xs text-ink-500">Wallet দিয়ে পেমেন্ট করতে Wallet balance বাড়ান অথবা অনলাইন পেমেন্ট বেছে নিন।</p>}</div>
 
             <div className="border border-outline p-3">
               <label className="mb-1.5 block text-sm font-medium text-ink-900" htmlFor="coupon-code">কুপন কোড</label>

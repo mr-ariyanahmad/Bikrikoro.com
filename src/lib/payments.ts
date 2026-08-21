@@ -62,3 +62,12 @@ export async function cancelPendingOrder(orderId: string, buyerId: string) {
   const result = await response.json().catch(() => ({})) as { error?: string }
   if (!response.ok) throw new Error(result.error || `Order cancellation failed (HTTP ${response.status})`)
 }
+
+export async function getWalletBalance(buyerId: string): Promise<number> {
+  if (auth.currentUser?.uid !== buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/wallet-balance', { headers: { Authorization: `Bearer ${idToken}` } })
+  const result = await response.json().catch(() => ({})) as { available_balance?: number; error?: string }
+  if (!response.ok) throw new Error(result.error || `Wallet balance failed (HTTP ${response.status})`)
+  return Number(result.available_balance ?? 0)
+}
