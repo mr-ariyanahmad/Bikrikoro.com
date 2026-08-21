@@ -147,8 +147,13 @@ export default function SellerProfile() {
         <meta property="og:title" content={`${shopName} — BikriKoro`} />
         <meta property="og:description" content={seller.shop_description?.trim() || `${shopName}-এর digital shop দেখুন BikriKoro-তে।`} />
         <meta property="og:url" content={`${SITE_URL}${shopUrl(seller.shop_username, seller.id)}`} />
-        {seller.photo_url && <meta property="og:image" content={seller.photo_url} />}
+        <meta property="og:image" content={seller.shop_cover_url || seller.photo_url || `${SITE_URL}/icon-512.png`} />
+        <meta property="og:image:alt" content={`${shopName} shop image`} />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${shopName} — BikriKoro`} />
+        <meta name="twitter:description" content={seller.shop_description?.trim() || `${shopName}-এর digital shop দেখুন BikriKoro-তে।`} />
+        <meta name="twitter:image" content={seller.shop_cover_url || seller.photo_url || `${SITE_URL}/icon-512.png`} />
+        <meta name="twitter:image:alt" content={`${shopName} shop image`} />
       </Helmet>
       <div className="mx-auto w-full max-w-7xl pb-24">
         <Link to="/products" className="mb-4 inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-semibold text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><ArrowLeft size={17} />ফিরে যান</Link>

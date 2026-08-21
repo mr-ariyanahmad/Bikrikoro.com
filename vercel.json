@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
+    { "source": "/seller/:username", "destination": "/api/seller-preview?username=:username" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
