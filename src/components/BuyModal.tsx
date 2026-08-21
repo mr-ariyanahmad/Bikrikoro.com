@@ -1,12 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShieldCheck } from 'lucide-react'
-import { createPendingOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { createPendingOrder, createWalletOrder, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
-import { PaymentMethodBadges } from '@/components/PaymentMethodBadges'
-import { DEFAULT_PAYMENT_METHODS, getPaymentMethods, loadPublicSettings, type PaymentMethodConfig } from '@/lib/publicSettings'
 
 export function BuyModal({
   product,
@@ -23,11 +21,7 @@ export function BuyModal({
   const [coupon, setCoupon] = useState<CouponPreview | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
   const [acceptedPolicy, setAcceptedPolicy] = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(DEFAULT_PAYMENT_METHODS)
-
-  useEffect(() => {
-    void loadPublicSettings().then((settings) => setPaymentMethods(getPaymentMethods(settings)))
-  }, [])
+  const [paymentMethod, setPaymentMethod] = useState<'ONLINE' | 'WALLET'>('ONLINE')
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
   const escrowFee = Math.max(discountedPrice * 0.01, 10)
@@ -67,14 +61,14 @@ export function BuyModal({
 
     let orderId: string | null = null
     try {
-      orderId = await createPendingOrder({
-        productId: product.id,
-        buyerId,
-        deliveryAddress: '',
-        couponCode: coupon?.valid ? coupon.normalized_code : undefined,
-      })
-      const paymentUrl = await startUddoktaPayCheckout(orderId)
-      window.location.href = paymentUrl
+      const orderParams = { productId: product.id, buyerId, deliveryAddress: '', couponCode: coupon?.valid ? coupon.normalized_code : undefined }
+      orderId = paymentMethod === 'WALLET' ? await createWalletOrder(orderParams) : await createPendingOrder(orderParams)
+      if (paymentMethod === 'ONLINE') {
+        const paymentUrl = await startUddoktaPayCheckout(orderId)
+        window.location.href = paymentUrl
+      } else {
+        window.location.href = '/orders'
+      }
     } catch (checkoutError) {
       console.error('Digital checkout failed:', checkoutError)
       if (orderId) await cancelPendingOrder(orderId, buyerId).catch(() => {})
@@ -95,15 +89,9 @@ export function BuyModal({
           <p className="mt-3 line-clamp-2 text-sm text-ink-700">{product.title}</p>
 
           <div className="mt-4 space-y-4">
-            <div className="border border-brand-200 bg-brand-50 p-4">
-              <div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">Digital payment hold ও automatic delivery</p><p className="mt-1 text-xs leading-5 text-ink-700">Payment প্রথমে escrow-তে থাকবে। Payment verified হলে seller-এর key/file/instructions আপনার authenticated order library-তে আসবে। আপনি confirm না করা পর্যন্ত seller payout release হবে না।</p></div></div>
-            </div>
+            <div className="border border-brand-200 bg-brand-50 p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-ink-900">ডিজিটাল পণ্য পেমেন্ট</p><p className="mt-1 text-xs leading-5 text-ink-700">পেমেন্ট সম্পন্ন হলে পণ্যটি আপনার ডিজিটাল লাইব্রেরিতে পাওয়া যাবে।</p></div></div></div>
 
-            <div className="border border-outline bg-bg p-3">
-              <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট পদ্ধতি</p><span className="text-xs text-brand-700">UddoktaPay নিরাপদ checkout</span></div>
-              <div className="mt-3"><PaymentMethodBadges methods={paymentMethods.slice(0, 9)} compact /></div>
-              <p className="mt-2 text-xs leading-5 text-ink-500">এগুলো payment option-এর display badge; চূড়ান্ত পেমেন্ট UddoktaPay-এর hosted page-এ হবে।</p>
-            </div>
+            <div className="border border-outline bg-bg p-3"><p className="text-sm font-semibold text-ink-900">পেমেন্ট অপশন বেছে নিন</p><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'ONLINE' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">অনলাইন পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">বিকাশ, নগদ, রকেট বা কার্ড</span></button><button type="button" onClick={() => setPaymentMethod('WALLET')} className={`border px-3 py-3 text-left transition ${paymentMethod === 'WALLET' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline bg-surface text-ink-700 hover:border-brand-300'}`}><span className="block text-sm font-bold">Wallet পেমেন্ট</span><span className="mt-1 block text-xs text-ink-500">Wallet balance ব্যবহার করুন</span></button></div></div>
 
             <div className="border border-outline p-3">
               <label className="mb-1.5 block text-sm font-medium text-ink-900" htmlFor="coupon-code">কুপন কোড</label>
@@ -121,7 +109,7 @@ export function BuyModal({
             <div className="flex items-start gap-2 border border-outline bg-bg p-3 text-xs leading-relaxed text-ink-600"><input id="order-policy-consent" type="checkbox" checked={acceptedPolicy} onChange={(event) => setAcceptedPolicy(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 border-outline text-brand-500 focus:ring-brand-500" /><label htmlFor="order-policy-consent">আমি BikriKoro-এর <Link to="/privacy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>প্রাইভেসি পলিসি</Link> এবং <Link to="/return-policy" className="font-semibold text-brand-700 underline underline-offset-2" onClick={(event) => event.stopPropagation()}>রিটার্ন ও রিফান্ড নীতি</Link> পড়েছি এবং মেনে নিচ্ছি।</label></div>
             {error && <p className="border border-error/30 bg-error/5 p-3 text-sm text-error">{error}</p>}
 
-            <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !acceptedPolicy || !product.is_digital} className="w-full bg-brand-500 py-3 text-base font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'পেমেন্ট পেজে নিয়ে যাচ্ছে...' : 'বিকাশ/নগদ/রকেট দিয়ে পেমেন্ট করুন'}</button>
+            <button type="button" onClick={() => void handleSubmit()} disabled={submitting || !acceptedPolicy || !product.is_digital} className="w-full bg-brand-500 py-3 text-base font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'পেমেন্ট সম্পন্ন হচ্ছে...' : paymentMethod === 'ONLINE' ? 'অনলাইন পেমেন্টে এগিয়ে যান' : 'Wallet দিয়ে পেমেন্ট করুন'}</button>
             <p className="text-center text-xs text-ink-500">পেমেন্ট সম্পন্ন হলে পণ্যটি আপনার ডিজিটাল লাইব্রেরিতে পাওয়া যাবে।</p>
           </div>
         </div>

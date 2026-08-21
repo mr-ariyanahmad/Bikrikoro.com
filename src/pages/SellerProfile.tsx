@@ -23,7 +23,8 @@ const PUBLIC_PRODUCT_FIELDS = 'id, title, description, price, original_price, im
 const PUBLIC_REVIEW_FIELDS = 'id, product_id, product_title, buyer_name, rating, comment, created_at'
 
 export default function SellerProfile() {
-  const { id } = useParams<{ id: string }>()
+  const { id, username } = useParams<{ id?: string; username?: string }>()
+  const lookup = username ?? id ?? null
   const navigate = useNavigate()
   const { user } = useAuth()
   const userId = user?.uid ?? null
@@ -39,13 +40,13 @@ export default function SellerProfile() {
   const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
-    if (!id) return
+    if (!lookup) return
     let active = true
     setLoading(true)
     setLoadError(null)
     async function load() {
       try {
-        const { data: sellerRpcData, error: sellerError } = await supabase.rpc('get_public_seller_profile', { p_lookup: id })
+        const { data: sellerRpcData, error: sellerError } = await supabase.rpc('get_public_seller_profile', { p_lookup: lookup })
         if (sellerError) throw sellerError
         const sellerData = (Array.isArray(sellerRpcData) ? sellerRpcData[0] : sellerRpcData) as PublicSeller | null
         if (!sellerData) {
@@ -75,7 +76,7 @@ export default function SellerProfile() {
     }
     void load()
     return () => { active = false }
-  }, [id, userId])
+  }, [lookup, userId])
 
   const shopName = seller?.shop_name?.trim() || seller?.name || 'বিক্রেতা'
   const visibleProducts = useMemo(() => {

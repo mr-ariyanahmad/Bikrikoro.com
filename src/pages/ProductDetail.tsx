@@ -278,8 +278,7 @@ export default function ProductDetail() {
   }
 
   return (
-    <Layout wide>
-      <div className="mb-4 flex justify-end"><Link to="/products" className="text-sm font-semibold text-brand-600 hover:text-brand-700">সব প্রোডাক্ট দেখুন</Link></div>
+    <Layout wide hideFooter={showBuy}>
       <Helmet>
         <title>{`${product.title} — ৳${product.price} | BikriKoro.Com`}</title>
         <meta

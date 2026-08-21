@@ -1,15 +1,13 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
-import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShieldCheck, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { SearchBar } from '@/components/SearchBar'
 import { BackButton } from '@/components/BackButton'
-import { PaymentMethodBadges } from '@/components/PaymentMethodBadges'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
 import { supabase } from '@/lib/supabase'
-import { DEFAULT_PAYMENT_METHODS, getPaymentMethods, loadPublicSettings, type PaymentMethodConfig } from '@/lib/publicSettings'
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 type NavItem = { to: string; label: string; icon: Icon }
@@ -34,23 +32,18 @@ const ACCOUNT_LINKS: NavItem[] = [
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
-export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান' }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string }) {
+export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean }) {
   const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
   const { isSeller, loading: sellerLoading } = useIsSeller()
   const [menuOpen, setMenuOpen] = useState(false)
   const [cityOpen, setCityOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>(DEFAULT_PAYMENT_METHODS)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
   const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS)
     .filter((item) => !(item.to === '/become-seller' && sellerStatusLoading))
     .map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
-
-  useEffect(() => {
-    void loadPublicSettings().then((settings) => setPaymentMethods(getPaymentMethods(settings)))
-  }, [])
 
   useEffect(() => {
     if (!user) {
@@ -111,21 +104,12 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
         </div>
       </header>
       <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}><BackButton fallbackTo={backFallback} label={backLabel} />{children}</main>
-      <footer className="border-t border-outline bg-surface">
+      {!hideFooter && <footer className="border-t border-outline bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
-          <section className="border border-outline bg-bg p-4 sm:p-5" aria-label="পেমেন্ট পদ্ধতি">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="flex items-center gap-2 text-base font-semibold text-ink-900"><ShieldCheck size={18} className="text-brand-600" />নিরাপদ পেমেন্ট পদ্ধতি</p>
-                <p className="mt-1 text-sm text-ink-500">UddoktaPay-এর নিরাপদ checkout-এর মাধ্যমে পেমেন্ট সম্পন্ন করুন।</p>
-              </div>
-              <span className="text-sm font-medium text-brand-700">আমরা গ্রহণ করি</span>
-            </div>
-            <div className="mt-4"><PaymentMethodBadges methods={paymentMethods} /></div>
-          </section>
+          <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>
           <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">Settings ও Help</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
         </div>
-      </footer>
+      </footer>}
     </div>
   )
 }
