@@ -52,7 +52,9 @@ function shouldFallbackFromPopup(code?: string) {
 function shouldUseRedirectFirst() {
   if (typeof window === 'undefined') return false
   const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false
-  return coarsePointer || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const noHover = window.matchMedia?.('(hover: none)').matches ?? false
+  const touchDevice = navigator.maxTouchPoints > 0
+  return coarsePointer || noHover || touchDevice || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 }
 
 // Invisible reCAPTCHA container, created once and reused across OTP
