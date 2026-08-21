@@ -57,7 +57,8 @@ const CONFIG: Record<EducationType, HubConfig> = {
 }
 
 function parseSections(body: string): { intro: string[]; sections: Section[] } {
-  const blocks = body.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
+  const normalizedBody = body.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const blocks = normalizedBody.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean)
   const intro: string[] = []
   const sections: Section[] = []
   let current: Section | null = null
