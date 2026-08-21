@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, X, XCircle } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { auth } from '@/lib/firebase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
@@ -176,7 +175,6 @@ export default function AdminSellerVerifications() {
         })}</div>}
       </AdminTableCard>
 
-      <Link to="/admin" className="mt-5 inline-flex text-sm font-semibold text-brand-700">← Admin dashboard</Link>
       {previewDocument && <DocumentPreviewDialog reviewDocument={previewDocument} documentUrl={docUrls[previewDocument.id]} onClose={() => setPreviewDocument(null)} />}
       {previewImage && <ImagePreviewDialog image={previewImage} onClose={() => setPreviewImage(null)} />}
       <BrandedDialog open={Boolean(notice)} title="Verification update" onClose={() => setNotice(null)} actions={<DialogButton onClick={() => setNotice(null)}>ঠিক আছে</DialogButton>}><p>{notice}</p></BrandedDialog>
