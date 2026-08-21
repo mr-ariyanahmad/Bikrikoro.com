@@ -6,6 +6,7 @@ import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { confirmDigitalDelivery, buyerCancelOrder, sellerDeliverDigital, sellerCancelOrder } from '@/lib/orders'
 import { formatDate, formatTaka } from '@/lib/format'
+import { formatOrderNumber } from '@/lib/orderNumber'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { ReviewModal } from '@/components/ReviewModal'
 import type { Order, OrderStatus } from '@/types/order'
@@ -91,6 +92,7 @@ export default function OrderDetail() {
 
   if (error || !order || !user) return <Layout><div className="border border-outline bg-surface p-8 text-center"><p className="text-ink-700">{error ?? 'অর্ডারটি পাওয়া যায়নি।'}</p><Link to="/orders" className="mt-4 inline-flex bg-brand-500 px-4 py-2.5 text-base font-semibold text-white">অর্ডারে ফিরে যান</Link></div></Layout>
 
+  const readableOrderNumber = formatOrderNumber(order.order_number, order.id)
   const isBuyer = order.buyer_id === user.uid
   const isSeller = order.seller_id === user.uid
   const currentIndex = TIMELINE.indexOf(order.status)
@@ -101,7 +103,7 @@ export default function OrderDetail() {
     <Layout>
       <div className="flex items-center justify-between gap-3 print:hidden"><div><Link to="/orders" className="text-base font-medium text-brand-700 hover:underline">← অর্ডারে ফিরে যান</Link><h1 className="mt-2 text-xl font-semibold text-ink-900">অর্ডারের বিস্তারিত</h1></div><button type="button" onClick={() => window.print()} className="border border-outline px-3 py-2 text-base font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700">রসিদ প্রিন্ট করুন</button></div>
 
-      <div className="mt-6 border border-outline bg-surface p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-ink-500">অর্ডার নম্বর</p><p className="mt-1 break-all font-mono text-sm text-ink-900">{order.id}</p></div><span className={`px-3 py-1.5 text-base font-semibold ${order.status === 'CANCELLED' || order.status === 'REFUNDED' ? 'bg-error/10 text-error' : 'bg-brand-50 text-brand-700'}`}>{STATUS_LABEL[order.status]}</span></div>
+      <div className="mt-6 border border-outline bg-surface p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm text-ink-500">অর্ডার নম্বর</p><p className="mt-1 text-base font-semibold tracking-wide text-brand-700">{readableOrderNumber}</p></div><span className={`px-3 py-1.5 text-base font-semibold ${order.status === 'CANCELLED' || order.status === 'REFUNDED' ? 'bg-error/10 text-error' : 'bg-brand-50 text-brand-700'}`}>{STATUS_LABEL[order.status]}</span></div>
         {legacyPhysical ? <div className="mt-5 border border-outline bg-bg p-3 text-sm text-ink-700">এটি পুরনো physical order history। Digital-only migration-এর পরে নতুন physical order নেওয়া হয় না; historical record অপরিবর্তিত রাখা হয়েছে।</div> : <div className="mt-6 flex items-start">{TIMELINE.map((status, index) => { const done = !['CANCELLED', 'REFUNDED', 'DISPUTED'].includes(order.status) && currentIndex >= index; return <div key={status} className="flex min-w-0 flex-1 items-start"><div className="flex min-w-0 flex-col items-center text-center"><span className={`flex h-8 w-8 items-center justify-center text-sm font-bold ${done ? 'bg-brand-500 text-white' : 'bg-outline text-ink-700'}`}>{done ? '✓' : index + 1}</span><span className="mt-2 text-xs leading-tight text-ink-700 sm:text-sm">{STATUS_LABEL[status]}</span></div>{index < TIMELINE.length - 1 && <div className={`mt-4 h-0.5 flex-1 ${done && currentIndex > index ? 'bg-brand-500' : 'bg-outline'}`} />}</div> })}</div>}
       </div>
 

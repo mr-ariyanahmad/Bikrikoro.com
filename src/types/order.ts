@@ -14,6 +14,7 @@ export type OrderStatus = 'PENDING_PAYMENT' | 'ESCROW_HELD' | 'PREPARING' | 'SHI
 
 export interface Order {
   id: string
+  order_number: number
   product_id: string | null
   product_title: string
   product_image: string
