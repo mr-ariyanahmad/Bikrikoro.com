@@ -155,10 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = async () => {
     ensureFirebaseConfigured()
     setAuthError(null)
-    await setPersistence(auth, browserLocalPersistence)
+    void setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn('Firebase persistence setup failed before Google login:', error)
+    })
     try {
-      // A user-initiated popup avoids the mobile redirect callback/storage path
-      // that can return to /login without restoring the Firebase session.
+      // Keep this call directly inside the user gesture so mobile browsers do
+      // not silently block the provider popup after an awaited operation.
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       const code = (error as { code?: string }).code
@@ -176,8 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithFacebook = async () => {
     ensureFirebaseConfigured()
     setAuthError(null)
-    await setPersistence(auth, browserLocalPersistence)
-
+    void setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn('Firebase persistence setup failed before Facebook login:', error)
+    })
     // Mobile browsers—especially Brave—can close or isolate the OAuth popup
     // because of popup, storage, or third-party-cookie protections. Redirect
     // first on mobile so the Firebase session returns through the same browser
