@@ -5,36 +5,36 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AdminRoute } from '@/components/AdminRoute'
 import { useEnsureProfile } from '@/hooks/useEnsureProfile'
-import Login from '@/pages/Login'
-import ForgotPassword from '@/pages/ForgotPassword'
-import SavedAddresses from '@/pages/SavedAddresses'
-import SavedSearches from '@/pages/SavedSearches'
-import Home from '@/pages/Home'
-import Products from '@/pages/Products'
-import ProductDetail from '@/pages/ProductDetail'
-import Compare from '@/pages/Compare'
-import Library from '@/pages/Library'
-import Notifications from '@/pages/Notifications'
-import Sell from '@/pages/Sell'
-import BecomeSeller from '@/pages/BecomeSeller'
-import SellerVerification from '@/pages/SellerVerification'
-import MyListings from '@/pages/MyListings'
-import Orders from '@/pages/Orders'
-import PaymentCallback from '@/pages/PaymentCallback'
-import OrderDetail from '@/pages/OrderDetail'
-import DisputeThread from '@/pages/DisputeThread'
-import ChatList from '@/pages/ChatList'
-import ChatThread from '@/pages/ChatThread'
-import Wallet from '@/pages/Wallet'
-import RewardsHub from '@/pages/RewardsHub'
-import Account from '@/pages/Account'
-import SellerProfile from '@/pages/SellerProfile'
-import SellerDashboard from '@/pages/SellerDashboard'
-import Favorites from '@/pages/Favorites'
-import SettingsHub from '@/pages/SettingsHub'
-import PublicContentPage from '@/pages/PublicContentPage'
-import Blog from '@/pages/Blog'
-import BlogPost from '@/pages/BlogPost'
+const Login = lazy(() => import('@/pages/Login'))
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
+const SavedAddresses = lazy(() => import('@/pages/SavedAddresses'))
+const SavedSearches = lazy(() => import('@/pages/SavedSearches'))
+const Home = lazy(() => import('@/pages/Home'))
+const Products = lazy(() => import('@/pages/Products'))
+const ProductDetail = lazy(() => import('@/pages/ProductDetail'))
+const Compare = lazy(() => import('@/pages/Compare'))
+const Library = lazy(() => import('@/pages/Library'))
+const Notifications = lazy(() => import('@/pages/Notifications'))
+const Sell = lazy(() => import('@/pages/Sell'))
+const BecomeSeller = lazy(() => import('@/pages/BecomeSeller'))
+const SellerVerification = lazy(() => import('@/pages/SellerVerification'))
+const MyListings = lazy(() => import('@/pages/MyListings'))
+const Orders = lazy(() => import('@/pages/Orders'))
+const PaymentCallback = lazy(() => import('@/pages/PaymentCallback'))
+const OrderDetail = lazy(() => import('@/pages/OrderDetail'))
+const DisputeThread = lazy(() => import('@/pages/DisputeThread'))
+const ChatList = lazy(() => import('@/pages/ChatList'))
+const ChatThread = lazy(() => import('@/pages/ChatThread'))
+const Wallet = lazy(() => import('@/pages/Wallet'))
+const RewardsHub = lazy(() => import('@/pages/RewardsHub'))
+const Account = lazy(() => import('@/pages/Account'))
+const SellerProfile = lazy(() => import('@/pages/SellerProfile'))
+const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'))
+const Favorites = lazy(() => import('@/pages/Favorites'))
+const SettingsHub = lazy(() => import('@/pages/SettingsHub'))
+const PublicContentPage = lazy(() => import('@/pages/PublicContentPage'))
+const Blog = lazy(() => import('@/pages/Blog'))
+const BlogPost = lazy(() => import('@/pages/BlogPost'))
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 import { SiteMeta } from '@/components/SiteMeta'
 import { ConfigurationNotice } from '@/components/ConfigurationNotice'
