@@ -37,7 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const shopName = String(seller.shop_name || seller.name || 'BikriKoro Seller Shop').trim()
   const description = String(seller.shop_description || `${shopName}-এর digital shop দেখুন BikriKoro-তে।`).trim().slice(0, 240)
-  const image = String(seller.shop_cover_url || seller.photo_url || fallbackImage)
+  const sourceImage = seller.shop_cover_url || seller.photo_url
+  const image = sourceImage ? `${site}/api/seller-og-image?username=${encodeURIComponent(username)}` : fallbackImage
   const title = `${shopName} — BikriKoro.Com`
   const html = `<!doctype html>
 <html lang="bn">
@@ -51,6 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <meta property="og:title" content="${escapeHtml(title)}">
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta property="og:image" content="${escapeHtml(image)}">
+  <meta property="og:image:url" content="${escapeHtml(image)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(image)}">
   <meta property="og:image:alt" content="${escapeHtml(shopName)} shop image">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
