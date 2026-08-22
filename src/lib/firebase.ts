@@ -8,15 +8,21 @@ import { getAuth, type Auth } from 'firebase/auth'
  * Supabase auth. A different Firebase project here would mean every
  * login gets a uid with no matching data anywhere.
  */
-const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
-const firebaseProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
-const firebaseAuthDomain = configuredAuthDomain || (firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : '')
+const configuredAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim()
+const firebaseProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim()
+const defaultFirebaseAuthDomain = firebaseProjectId ? `${firebaseProjectId}.firebaseapp.com` : ''
+const useBrandedAuthDomain = import.meta.env.VITE_USE_BRANDED_AUTH_DOMAIN === 'true'
+const firebaseAuthDomain = useBrandedAuthDomain && configuredAuthDomain
+  ? configuredAuthDomain
+  : defaultFirebaseAuthDomain
 
 /**
- * Keep the configured branded auth domain (currently auth.bikrikoro.com) in
- * every environment so Google and Facebook show BikriKoro.com. The default
- * Firebase domain is only a missing-configuration fallback; changing authDomain
- * must never change Firebase project identity or existing user UIDs.
+ * Phone reCAPTCHA and redirect-based social auth depend on Firebase's auth
+ * handler being reachable from the configured authDomain. Keep production on
+ * the Firebase default domain unless the custom Firebase Hosting domain has
+ * been fully configured, verified, and enabled deliberately. This prevents a
+ * partially configured auth.bikrikoro.com migration from breaking all login
+ * methods while preserving the option to enable the branded domain later.
  */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
