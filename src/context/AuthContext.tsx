@@ -10,6 +10,7 @@ import {
   browserLocalPersistence,
   setPersistence,
   signInWithRedirect,
+  signInWithPopup,
   updateProfile,
   signOut as firebaseSignOut,
   RecaptchaVerifier,
@@ -40,6 +41,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
 const FACEBOOK_REDIRECT_PENDING_KEY = 'bikrikoro:facebook-redirect-pending'
+
+function shouldFallbackFromPopup(code?: string) {
+  return code === 'auth/popup-blocked'
+    || code === 'auth/operation-not-supported-in-this-environment'
+    || code === 'auth/popup-closed-by-user'
+    || code === 'auth/internal-error'
+}
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -155,9 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Requires the Google provider to be turned on in Firebase Console →
   // Authentication → Sign-in method → Google (same project as the
-  // phone/email sign-in already used here). Also add this site's domain
-  // (e.g. bikrikoro.com and localhost) under Authorized domains, or the
-  // redirect will fail with auth/unauthorized-domain.
+  // web app). Also add this site's domains under Authorized domains, or
+  // popup/redirect sign-in will fail with auth/unauthorized-domain.
   const googleProvider = new GoogleAuthProvider()
   googleProvider.setCustomParameters({ prompt: 'select_account' })
   const loginWithGoogle = async () => {
@@ -166,10 +173,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await setPersistence(auth, browserLocalPersistence)
     } catch (error) {
-      console.warn('Firebase persistence setup failed before Google redirect:', error)
+      console.warn('Firebase persistence setup failed before Google sign-in:', error)
     }
-    window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
-    await signInWithRedirect(auth, googleProvider)
+
+    try {
+      // Keep the call directly inside the button gesture. This works on
+      // mobile Chrome when redirect storage is partitioned or unavailable.
+      await signInWithPopup(auth, googleProvider)
+    } catch (error) {
+      const code = (error as { code?: string }).code
+      if (!shouldFallbackFromPopup(code)) throw error
+
+      // Popup blockers and embedded/mobile environments can reject popups;
+      // preserve a redirect fallback for those cases.
+      window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
+      await signInWithRedirect(auth, googleProvider)
+    }
   }
 
   const facebookProvider = new FacebookAuthProvider()

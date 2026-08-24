@@ -30,14 +30,17 @@ function toE164(bdLocalNumber: string): string {
 
 function socialAuthMessage(error: unknown) {
   const code = (error as { code?: string }).code
-  if (code === 'auth/unauthorized-domain') return 'এই ওয়েবসাইটটি Firebase-এ অনুমোদিত নয়।'
+  if (code === 'auth/unauthorized-domain') return 'এই ওয়েবসাইটটি Firebase-এ অনুমোদিত নয়। Firebase Authorized Domains-এ bikrikoro.com ও www.bikrikoro.com যোগ করুন।'
+  if (code === 'auth/operation-not-allowed') return 'Firebase Console-এ Google sign-in চালু করা নেই। Authentication → Sign-in method → Google চালু করুন।'
   if (code === 'auth/account-exists-with-different-credential') return 'এই ইমেইল দিয়ে আগে অন্য পদ্ধতিতে অ্যাকাউন্ট খোলা আছে। সেই পদ্ধতিতে লগইন করুন।'
   if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু login session তৈরি হয়নি। আবার চেষ্টা করুন।'
-  if (code === 'auth/popup-closed-by-user') return 'লগইন উইন্ডো বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
-  if (code === 'auth/popup-blocked' || code === 'auth/internal-error' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/timeout') {
-    return 'লগইন শুরু করা যায়নি। আবার চেষ্টা করুন।'
-  }
-  return 'লগইন করা যায়নি। আবার চেষ্টা করুন।'
+  if (code === 'auth/popup-closed-by-user') return 'Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
+  if (code === 'auth/popup-blocked') return 'Browser popup বন্ধ করেছে। Popup permission চালু করে আবার চেষ্টা করুন।'
+  if (code === 'auth/operation-not-supported-in-this-environment') return 'এই browser environment-এ Google Login চালু করা যাচ্ছে না। Chrome-এ আবার চেষ্টা করুন।'
+  if (code === 'auth/network-request-failed') return 'ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।'
+  if (code === 'auth/invalid-api-key' || code === 'firebase/not-configured') return 'Vercel-এর Firebase configuration সঠিক নয়। VITE_FIREBASE_* variables পরীক্ষা করুন।'
+  if (code === 'auth/internal-error' || code === 'auth/timeout') return 'Google Login-এর Firebase configuration বা redirect-এ সমস্যা হয়েছে। Firebase settings পরীক্ষা করে আবার চেষ্টা করুন।'
+  return 'Google Login করা যায়নি। আবার চেষ্টা করুন।'
 }
 
 function phoneAuthMessage(error: unknown) {
