@@ -72,6 +72,20 @@ VITE_USE_BRANDED_AUTH_DOMAIN=false
 
 শুধু Firebase Authorized domains-এ `auth.bikrikoro.com` যোগ করলে consent screen-এর domain বদলাবে না। Firebase Hosting custom domain, Google OAuth callback এবং Vercel-এর `VITE_FIREBASE_AUTH_DOMAIN` ও `VITE_USE_BRANDED_AUTH_DOMAIN`—সবগুলো একসাথে সঠিক না হলে custom domain কাজ করবে না। Setup সম্পূর্ণ ও যাচাই না হওয়া পর্যন্ত `VITE_USE_BRANDED_AUTH_DOMAIN=false` রাখুন।
 
-## Current safe state
+## Current activation state
 
-বর্তমান safe configuration-এ Firebase-এর default auth domain ব্যবহার করা হয়। Repository code-এ branded domain এখন opt-in; Firebase Hosting ও Google OAuth setup সম্পূর্ণ হওয়ার পরে Vercel-এ `VITE_FIREBASE_AUTH_DOMAIN=auth.bikrikoro.com` এবং `VITE_USE_BRANDED_AUTH_DOMAIN=true` দিয়ে redeploy করলেই হবে।
+`auth.bikrikoro.com` Firebase Hosting auth handler হিসেবে যাচাই করা হয়েছে এবং repository CSP-তে `https://auth.bikrikoro.com` ও `https://apis.google.com` অনুমোদিত আছে। Firebase Hosting ও Google OAuth setup সম্পূর্ণ থাকার পরে Vercel-এ নিচের values দিয়ে branded auth চালু করুন:
+
+```text
+VITE_FIREBASE_AUTH_DOMAIN=auth.bikrikoro.com
+VITE_USE_BRANDED_AUTH_DOMAIN=true
+```
+
+তারপর নতুন deployment-এ Google chooser-এ `auth.bikrikoro.com` দেখা উচিত। কোনো সমস্যা হলে নিরাপদ rollback হলো:
+
+```text
+VITE_FIREBASE_AUTH_DOMAIN=com-bikrikoro.firebaseapp.com
+VITE_USE_BRANDED_AUTH_DOMAIN=false
+```
+
+উভয় ক্ষেত্রেই `VITE_SITE_URL=https://bikrikoro.com` অপরিবর্তিত থাকবে।
