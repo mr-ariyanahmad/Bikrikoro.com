@@ -70,7 +70,7 @@ export default function Library() {
                 ) : item.delivery_status === 'REVOKED' ? (
                   <p>এই ডেলিভারি সাময়িকভাবে বন্ধ আছে। সহায়তার জন্য অর্ডার বিস্তারিত দেখুন।</p>
                 ) : (
-                  <p>পেমেন্ট নিশ্চিত হয়েছে। বিক্রেতা ডেলিভারি প্রস্তুত করলে এখানে দেখা যাবে।</p>
+                  <p>{item.auto_delivery_enabled !== false ? 'পেমেন্ট নিশ্চিত হয়েছে। অটো ডেলিভারি প্রস্তুত হলে তথ্য এখানে নিরাপদে দেখা যাবে।' : 'পেমেন্ট নিশ্চিত হয়েছে। এই লিস্টিংয়ে সেলার ম্যানুয়ালি ডেলিভারি সম্পন্ন করলে তথ্য এখানে দেখা যাবে।'}</p>
                 )}
               </div>
               <Link to={`/orders/${item.order_id}`} className="mt-3 inline-flex text-sm font-semibold text-brand-600 hover:underline">

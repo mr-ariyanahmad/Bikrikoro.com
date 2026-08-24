@@ -24,6 +24,7 @@ export interface Order {
   buyer_id: string
   delivery_address: string | null
   delivery_email?: string | null
+  auto_delivery_enabled?: boolean
   payment_method: PaymentMethod | null
   status: OrderStatus
   escrow_fee: number

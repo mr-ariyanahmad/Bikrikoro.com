@@ -16,6 +16,7 @@ export interface DigitalLibraryItem {
   product_image: string
   price: number
   order_status: string
+  auto_delivery_enabled?: boolean
   delivery_type: 'INSTRUCTIONS' | 'LICENSE_KEY' | 'DOWNLOAD_LINK'
   delivery_text: string
   delivery_status: 'PENDING' | 'READY' | 'REVOKED'

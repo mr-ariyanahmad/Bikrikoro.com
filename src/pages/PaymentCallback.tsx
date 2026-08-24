@@ -30,7 +30,7 @@ export default function PaymentCallback() {
         const status = payload.status
         if (cancelled) return
 
-      if (status === 'ESCROW_HELD') {
+      if (status === 'ESCROW_HELD' || status === 'DIGITAL_DELIVERED' || status === 'COMPLETED') {
         setView('confirmed')
         return
       }
@@ -78,7 +78,7 @@ export default function PaymentCallback() {
               ✓
             </div>
             <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট সফল হয়েছে!</h1>
-            <p className="mt-1 text-sm text-ink-600">টাকা এসক্রোতে জমা হয়েছে। বিক্রেতা এখন অর্ডারটি পাঠাবেন।</p>
+              <p className="mt-1 text-sm text-ink-600">পেমেন্ট যাচাই হয়েছে। অটো ডেলিভারি চালু থাকলে তথ্য অর্ডার ও ডিজিটাল লাইব্রেরিতে নিরাপদে দেখা যাবে।</p>
             <Link
               to="/orders"
               className="mt-6 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"

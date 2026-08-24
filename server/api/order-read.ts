@@ -23,17 +23,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: orders, error: ordersError } = await supabase.rpc('buyer_list_orders', { p_user_id: token.uid })
       if (ordersError) throw ordersError
       const orderIds = (orders ?? []).map((row) => row.id)
-      const [{ data: reviews, error: reviewsError }, { data: disputes, error: disputesError }, { data: deliveries, error: deliveriesError }] = await Promise.all([
+      const productIds = [...new Set((orders ?? []).map((row) => row.product_id).filter((productId): productId is string => Boolean(productId)))]
+      const [{ data: reviews, error: reviewsError }, { data: disputes, error: disputesError }, { data: deliveries, error: deliveriesError }, { data: digitalOptions, error: digitalOptionsError }] = await Promise.all([
         supabase.from('reviews').select('order_id').eq('buyer_id', token.uid),
         supabase.from('order_disputes').select('id, order_id').eq('buyer_id', token.uid),
         orderIds.length > 0
           ? supabase.from('digital_deliveries').select('order_id, delivery_type, delivery_text, status, delivered_at, updated_at').in('order_id', orderIds)
           : Promise.resolve({ data: [], error: null }),
+        productIds.length > 0
+          ? supabase.from('product_digital_specs').select('product_id, auto_delivery_enabled').in('product_id', productIds)
+          : Promise.resolve({ data: [], error: null }),
       ])
       if (reviewsError) throw reviewsError
       if (disputesError) throw disputesError
       if (deliveriesError) throw deliveriesError
-      res.status(200).json({ orders: orders ?? [], deliveries: deliveries ?? [], reviewedOrderIds: (reviews ?? []).map((row) => row.order_id), disputes: disputes ?? [] })
+      if (digitalOptionsError) throw digitalOptionsError
+      const autoDeliveryByProduct = new Map((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false]))
+      const ordersWithDeliveryMode = (orders ?? []).map((order) => ({
+        ...order,
+        auto_delivery_enabled: order.product_id ? (autoDeliveryByProduct.get(order.product_id) ?? true) : true,
+      }))
+      res.status(200).json({ orders: ordersWithDeliveryMode, deliveries: deliveries ?? [], reviewedOrderIds: (reviews ?? []).map((row) => row.order_id), disputes: disputes ?? [] })
       return
     }
     if (input.action === 'detail') {
@@ -46,13 +56,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (orderError) throw orderError
       if (reviewError) throw reviewError
       if (deliveryError) throw deliveryError
-      res.status(200).json({ order, delivery: delivery ?? null, reviewed: reviewed === true })
+      const { data: digitalOption, error: digitalOptionError } = order?.product_id
+        ? await supabase.from('product_digital_specs').select('auto_delivery_enabled').eq('product_id', order.product_id).maybeSingle()
+        : { data: null, error: null }
+      if (digitalOptionError) throw digitalOptionError
+      const orderWithDeliveryMode = order
+        ? { ...order, auto_delivery_enabled: digitalOption?.auto_delivery_enabled !== false }
+        : order
+      res.status(200).json({ order: orderWithDeliveryMode, delivery: delivery ?? null, reviewed: reviewed === true })
       return
     }
     if (input.action === 'digital_library') {
       const { data, error } = await supabase.rpc('get_digital_library', { p_buyer_id: token.uid })
       if (error) throw error
-      res.status(200).json({ library: data ?? [] })
+      const library = data ?? []
+      const productIds = [...new Set(library.map((row) => row.product_id).filter((productId): productId is string => Boolean(productId)))]
+      const { data: digitalOptions, error: digitalOptionsError } = productIds.length > 0
+        ? await supabase.from('product_digital_specs').select('product_id, auto_delivery_enabled').in('product_id', productIds)
+        : { data: [], error: null }
+      if (digitalOptionsError) throw digitalOptionsError
+      const autoDeliveryByProduct = new Map((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false]))
+      const libraryWithDeliveryMode = library.map((item) => ({
+        ...item,
+        auto_delivery_enabled: item.product_id ? (autoDeliveryByProduct.get(item.product_id) ?? true) : true,
+      }))
+      res.status(200).json({ library: libraryWithDeliveryMode })
       return
     }
     if (input.action === 'payment_state') {
