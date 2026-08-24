@@ -6,8 +6,23 @@ import { useAuth } from '@/context/AuthContext'
 
 const SOCIAL_AUTH_TIMEOUT_MS = 20_000
 
+const BANGLA_DIGITS = '০১২৩৪৫৬৭৮৯'
+
+function normalizeBanglaDigits(value: string): string {
+  return value.replace(/[০-৯]/g, (digit) => String(BANGLA_DIGITS.indexOf(digit)))
+}
+
+function phoneDigits(value: string): string {
+  return normalizeBanglaDigits(value).replace(/\D/g, '')
+}
+
+function isValidBangladeshPhone(value: string): boolean {
+  const digits = phoneDigits(value)
+  return /^(01\d{9}|8801\d{9})$/.test(digits)
+}
+
 function toE164(bdLocalNumber: string): string {
-  const digits = bdLocalNumber.replace(/\D/g, '')
+  const digits = phoneDigits(bdLocalNumber)
   if (digits.startsWith('880')) return `+${digits}`
   if (digits.startsWith('0')) return `+88${digits}`
   return `+880${digits}`
@@ -23,6 +38,17 @@ function socialAuthMessage(error: unknown) {
     return 'লগইন শুরু করা যায়নি। আবার চেষ্টা করুন।'
   }
   return 'লগইন করা যায়নি। আবার চেষ্টা করুন।'
+}
+
+function phoneAuthMessage(error: unknown) {
+  const code = (error as { code?: string }).code
+  if (code === 'firebase/not-configured') return 'OTP চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।'
+  if (code === 'auth/invalid-phone-number') return 'সঠিক বাংলাদেশি মোবাইল নম্বর দিন, যেমন ০১XXXXXXXXX।'
+  if (code === 'auth/operation-not-allowed') return 'Firebase Console-এ Phone sign-in চালু করা নেই।'
+  if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') return 'নিরাপত্তা যাচাই ব্যর্থ হয়েছে। পেজটি refresh করে আবার চেষ্টা করুন।'
+  if (code === 'auth/too-many-requests' || code === 'auth/quota-exceeded') return 'অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পরে আবার OTP চাইুন।'
+  if (code === 'auth/network-request-failed') return 'ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।'
+  return 'OTP পাঠানো যায়নি — নম্বরটি আবার যাচাই করুন।'
 }
 
 function waitForSocialAuth<T>(promise: Promise<T>): Promise<T> {
@@ -75,14 +101,17 @@ export default function Login() {
 
   const handleSendOtp = async () => {
     setError(null)
+    if (!isValidBangladeshPhone(phone)) {
+      setError('সঠিক বাংলাদেশি মোবাইল নম্বর দিন, যেমন ০১XXXXXXXXX।')
+      return
+    }
     setLoading(true)
     try {
       const result = await sendOtp(toE164(phone))
       setConfirmation(result)
     } catch (err) {
       console.error('sendOtp failed:', err)
-      const code = (err as { code?: string }).code
-      setError(code === 'firebase/not-configured' ? 'OTP চালু করতে Firebase-এর VITE_FIREBASE_* configuration যোগ করতে হবে।' : 'OTP পাঠানো যায়নি — নম্বরটি আবার যাচাই করুন।')
+      setError(phoneAuthMessage(err))
     } finally {
       setLoading(false)
     }
@@ -224,7 +253,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  disabled={loading || phone.trim().length < 11}
+                  disabled={loading || !isValidBangladeshPhone(phone)}
                   className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? 'পাঠানো হচ্ছে...' : 'OTP পাঠান'}
