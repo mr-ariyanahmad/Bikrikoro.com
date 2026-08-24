@@ -55,11 +55,12 @@ export default function ChatList() {
   const visibleThreads = useMemo(() => threads.filter((thread) => { const unread = thread.buyer_id === uid ? thread.buyer_unread_count : thread.seller_unread_count; return (view === 'all' || unread > 0) && (!query.trim() || thread.otherName.toLowerCase().includes(query.trim().toLowerCase()) || (thread.last_message ?? '').toLowerCase().includes(query.trim().toLowerCase())) }), [query, threads, uid, view])
 
   return (
-    <Layout wide>
-      <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">চ্যাট</h1><p className="mt-1 text-sm text-ink-500">Buyer ও seller conversation দ্রুত manage করুন।</p></div><span className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">{threads.length}টি conversation</span></div>
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা মেসেজ খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><div className="flex rounded-xl border border-outline p-1"><button onClick={() => setView('all')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'all' ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>সব</button><button onClick={() => setView('unread')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'unread' ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>Unread</button></div></div>
+    <Layout wide hideFooter fullScreen>
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-3"><div><h1 className="text-xl font-semibold text-ink-900">চ্যাট</h1><p className="mt-1 text-sm text-ink-500">Buyer ও seller conversation দ্রুত manage করুন।</p></div><span className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700">{threads.length}টি conversation</span></div>
+      <div className="mt-5 flex shrink-0 flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা মেসেজ খুঁজুন..." className="w-full rounded-xl border border-outline py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500" /></label><div className="flex rounded-xl border border-outline p-1"><button onClick={() => setView('all')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'all' ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>সব</button><button onClick={() => setView('unread')} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${view === 'unread' ? 'bg-brand-500 text-white' : 'text-ink-600'}`}>Unread</button></div></div>
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pb-1">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-xl bg-outline/40" />
@@ -96,6 +97,7 @@ export default function ChatList() {
             )
           })
         )}
+      </div>
       </div>
     </Layout>
   )

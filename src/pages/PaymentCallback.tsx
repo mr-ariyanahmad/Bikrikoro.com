@@ -63,8 +63,8 @@ export default function PaymentCallback() {
   }, [orderId, wasCancelled])
 
   return (
-    <Layout>
-      <div className="flex flex-col items-center py-16 text-center">
+    <Layout hideFooter fullScreen>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto py-6 text-center">
         {view === 'checking' && (
           <>
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />

@@ -22,7 +22,7 @@ export default function ChatThreadPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [productTitle, setProductTitle] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
 
   const loadMessages = useCallback(async () => {
     if (!threadId || !uid) return
@@ -82,7 +82,9 @@ export default function ChatThreadPage() {
   }, [threadId, uid, loadMessages])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const messagePanel = messagesRef.current
+    if (!messagePanel) return
+    messagePanel.scrollTo({ top: messagePanel.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
   const handleSend = async () => {
@@ -104,11 +106,12 @@ export default function ChatThreadPage() {
   }
 
   return (
-    <Layout wide backFallback="/chat" backLabel="চ্যাট তালিকায় ফিরুন">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h1 className="text-lg font-semibold text-ink-900">{otherName || 'চ্যাট'}</h1>{productTitle && <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Package size={12} />{productTitle}</p>}</div><Link to="/settings" className="text-xs font-semibold text-brand-600">সাহায্য</Link></div>
-      {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loading ? <div className="mt-4 h-[60vh] animate-pulse rounded-2xl bg-outline/40" /> : <div className="mt-4 flex h-[60vh] flex-col rounded-2xl border border-outline bg-surface">
-        <div className="flex-1 space-y-2 overflow-y-auto p-4">
+    <Layout wide hideFooter fullScreen backFallback="/chat" backLabel="চ্যাট তালিকায় ফিরুন">
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h1 className="text-lg font-semibold text-ink-900">{otherName || 'চ্যাট'}</h1>{productTitle && <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Package size={12} />{productTitle}</p>}</div><Link to="/settings" className="text-xs font-semibold text-brand-600">সাহায্য</Link></div>
+      {error && <p className="mt-4 shrink-0 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {loading ? <div className="mt-4 min-h-0 flex-1 animate-pulse rounded-2xl bg-outline/40" /> : <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-2xl border border-outline bg-surface">
+        <div ref={messagesRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           {messages.map((msg) => {
             const isMine = msg.sender_id === uid
             return (
@@ -126,7 +129,7 @@ export default function ChatThreadPage() {
               </div>
             )
           })}
-          <div ref={bottomRef} />
+          <div />
         </div>
 
         <div className="flex items-center gap-2 border-t border-outline p-3">
@@ -141,6 +144,7 @@ export default function ChatThreadPage() {
           <button onClick={handleSend} disabled={!input.trim() || sending} className="inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Send size={15} />পাঠান</button>
         </div>
       </div>}
+      </div>
     </Layout>
   )
 }

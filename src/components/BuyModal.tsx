@@ -30,6 +30,17 @@ export function BuyModal({
   const requiresDeliveryEmail = ['digital_game_accounts', 'digital_subscriptions', 'digital_topups'].includes(product.category_id) || Object.keys(digitalSpecs?.specifications ?? {}).some((key) => /email|gmail|recipient|account_email/i.test(key))
 
   useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow
+    const previousDocumentOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousDocumentOverflow
+    }
+  }, [])
+
+  useEffect(() => {
     let active = true
     setWalletLoading(true)
     void getWalletBalance(buyerId).then((balance) => { if (active) setWalletBalance(balance) }).catch(() => { if (active) setWalletBalance(null) }).finally(() => { if (active) setWalletLoading(false) })
@@ -105,9 +116,9 @@ export function BuyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-ink-900/55" role="dialog" aria-modal="true" aria-labelledby="confirm-order-title">
-      <div className="flex min-h-full items-start justify-center sm:items-center sm:p-5">
-        <div className="min-h-screen w-full bg-surface p-4 sm:min-h-0 sm:max-w-lg sm:border sm:border-outline sm:p-6 sm:shadow-2xl">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-ink-900/55" role="dialog" aria-modal="true" aria-labelledby="confirm-order-title">
+      <div className="flex h-full items-start justify-center sm:items-center sm:p-5">
+        <div className="h-full w-full overflow-y-auto bg-surface p-4 sm:h-auto sm:max-h-[calc(100dvh-2.5rem)] sm:max-w-lg sm:border sm:border-outline sm:p-6 sm:shadow-2xl">
           <div className="flex items-center justify-between border-b border-outline pb-3">
             <div><p className="text-sm font-semibold text-brand-700">ডিজিটাল অর্ডার</p><h2 id="confirm-order-title" className="mt-1 text-lg font-semibold text-ink-900">অর্ডার নিশ্চিত করুন</h2></div>
             <button type="button" onClick={onClose} className="p-1.5 text-ink-500 transition hover:bg-bg hover:text-ink-900" aria-label="বন্ধ করুন"><X size={19} /></button>

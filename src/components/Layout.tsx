@@ -31,7 +31,7 @@ const ACCOUNT_LINKS: NavItem[] = [
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
-export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean }) {
+export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean }) {
   const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
   const { isSeller, loading: sellerLoading } = useIsSeller()
@@ -67,9 +67,21 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     }
   }, [user])
 
+  useEffect(() => {
+    if (!fullScreen) return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousDocumentOverflow = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousDocumentOverflow
+    }
+  }, [fullScreen])
+
   return (
-    <div className="site-minimal min-h-screen bg-bg text-ink-900">
-      <header className="sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur">
+    <div className={`site-minimal bg-bg text-ink-900 ${fullScreen ? 'flex h-[100dvh] min-h-0 flex-col overflow-hidden' : 'min-h-screen'}`}>
+      <header className={`sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur ${fullScreen ? 'shrink-0' : ''}`}>
         <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
           <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
             <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
@@ -103,7 +115,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />)}</div><div className="my-3 h-px bg-outline" /><div className="grid grid-cols-2 gap-1.5">{user ? ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} onClose={() => setMenuOpen(false)} />) : <Link to="/login" onClick={() => setMenuOpen(false)} className="col-span-2 rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}{user && <button type="button" onClick={() => { setMenuOpen(false); logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button>}</div></nav>}
         </div>
       </header>
-      <main className={`mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
+      <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
       {!hideFooter && <footer className="border-t border-outline bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
           <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>
