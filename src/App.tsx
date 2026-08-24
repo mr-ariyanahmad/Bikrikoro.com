@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from '@/context/AuthContext'
@@ -494,16 +494,25 @@ function AppRoutes() {
   )
 }
 
+function AppContent() {
+  const location = useLocation()
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/forgot-password'
+
+  return (
+    <>
+      <SiteMeta />
+      <ConfigurationNotice />
+      {isAuthRoute ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}
+    </>
+  )
+}
+
 export default function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
-          <SiteMeta />
-          <ConfigurationNotice />
-          <FirstVisitSplash>
-            <AppRoutes />
-          </FirstVisitSplash>
+          <AppContent />
         </AuthProvider>
       </BrowserRouter>
     </HelmetProvider>
