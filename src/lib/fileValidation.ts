@@ -1,4 +1,4 @@
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 
 export function validateImageFiles(files: File[], maxCount: number) {
@@ -6,7 +6,7 @@ export function validateImageFiles(files: File[], maxCount: number) {
   const invalidType = files.find((file) => !file.type.startsWith('image/'))
   if (invalidType) return 'শুধু image file আপলোড করা যাবে।'
   const oversized = files.find((file) => file.size > MAX_IMAGE_BYTES)
-  if (oversized) return 'প্রতিটি ছবির size সর্বোচ্চ ৫ MB হতে হবে।'
+  if (oversized) return 'প্রতিটি ছবির size সর্বোচ্চ ১০ MB হতে হবে।'
   return null
 }
 
@@ -15,7 +15,7 @@ export function validateEvidenceFiles(files: File[], maxCount: number) {
   const invalidType = files.find((file) => !file.type.startsWith('image/'))
   if (invalidType) return 'Evidence হিসেবে শুধু image file আপলোড করা যাবে।'
   const oversized = files.find((file) => file.size > MAX_IMAGE_BYTES)
-  if (oversized) return 'প্রতিটি evidence ছবির size সর্বোচ্চ ৫ MB হতে হবে।'
+  if (oversized) return 'প্রতিটি evidence ছবির size সর্বোচ্চ ১০ MB হতে হবে।'
   return null
 }
 
