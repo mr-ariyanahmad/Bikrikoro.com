@@ -25,6 +25,10 @@ import verificationDocument from '../server/api/verification-document.js'
 import walletWithdrawal from '../server/api/wallet-withdrawal.js'
 import walletBalance from '../server/api/wallet-balance.js'
 import userFeatures from '../server/api/user-features.js'
+import mobileCatalog from '../server/api/mobile-catalog.js'
+import mobileFavorites from '../server/api/mobile-favorites.js'
+import mobilePayment from '../server/api/mobile-payment.js'
+import mobileSeller from '../server/api/mobile-seller.js'
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>
 
@@ -55,6 +59,10 @@ const HANDLERS: Record<string, ApiHandler> = {
   'wallet-withdrawal': walletWithdrawal,
   'wallet-balance': walletBalance,
   'user-features': userFeatures,
+  'mobile-catalog': mobileCatalog,
+  'mobile-favorites': mobileFavorites,
+  'mobile-payment': mobilePayment,
+  'mobile-seller': mobileSeller,
 }
 
 function asPath(value: unknown) {
