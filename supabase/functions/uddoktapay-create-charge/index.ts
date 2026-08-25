@@ -41,7 +41,7 @@ serve(async (req) => {
   }
 
   try {
-    const { orderId } = await req.json();
+    const { orderId, returnUrl } = await req.json();
     if (!orderId) return json({ error: "orderId is required" }, 400);
 
     // service_role — reads the order's real amount server-side. Never
@@ -68,6 +68,12 @@ serve(async (req) => {
 
     const totalAmount = Number(order.price) + Number(order.escrow_fee);
 
+    const fallbackReturnUrl = `${SITE_URL}/orders/payment-callback?order_id=${order.id}`;
+    const fallbackCancelUrl = `${SITE_URL}/orders/payment-callback?order_id=${order.id}&cancelled=1`;
+    const mobileReturn = typeof returnUrl === "string" ? safeMobileReturnUrl(returnUrl, order.id) : null;
+    const redirectUrl = mobileReturn ?? fallbackReturnUrl;
+    const cancelUrl = mobileReturn ? `${mobileReturn}&cancelled=1` : fallbackCancelUrl;
+
     const chargeResponse = await fetch(`${UDDOKTAPAY_BASE_URL}/api/checkout-v2`, {
       method: "POST",
       headers: {
@@ -79,8 +85,8 @@ serve(async (req) => {
         email: buyer?.email || "no-reply@bikrikoro.com",
         amount: totalAmount.toString(),
         metadata: { order_id: order.id },
-        redirect_url: `${SITE_URL}/orders/payment-callback?order_id=${order.id}`,
-        cancel_url: `${SITE_URL}/orders/payment-callback?order_id=${order.id}&cancelled=1`,
+        redirect_url: redirectUrl,
+        cancel_url: cancelUrl,
         webhook_url: `${SUPABASE_URL}/functions/v1/uddoktapay-webhook`,
       }),
     });
@@ -101,4 +107,15 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
+}
+
+function safeMobileReturnUrl(candidate: string, orderId: string): string | null {
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "bikrikoro:" || url.hostname !== "payment" || url.pathname !== "/callback") return null;
+    url.searchParams.set("order_id", orderId);
+    return url.toString();
+  } catch {
+    return null;
+  }
 }
