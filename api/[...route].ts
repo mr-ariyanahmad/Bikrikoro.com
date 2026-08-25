@@ -32,6 +32,18 @@ import mobileSeller from '../server/api/mobile-seller.js'
 
 type ApiHandler = (req: VercelRequest, res: VercelResponse) => unknown | Promise<unknown>
 
+function applyAllowedCors(req: VercelRequest, res: VercelResponse) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : ''
+  const allowed = /^https:\/\/(?:www\.)?bikrikoro\.com$/i.test(origin)
+    || /^https:\/\/[a-z0-9-]+\.us3\.manus\.computer$/i.test(origin)
+  if (!allowed) return false
+  res.setHeader('Access-Control-Allow-Origin', origin)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type, Authorization')
+  res.setHeader('Vary', 'Origin')
+  return true
+}
+
 const HANDLERS: Record<string, ApiHandler> = {
   'admin-rpc': adminRpc,
   'admin-health': adminHealth,
@@ -93,6 +105,11 @@ function routeName(req: VercelRequest) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applyAllowedCors(req, res)
+  if (req.method === 'OPTIONS') {
+    res.status(204).end()
+    return
+  }
   const name = routeName(req)
   const target = HANDLERS[name]
   if (!target) {
