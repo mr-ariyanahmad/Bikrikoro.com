@@ -42,3 +42,6 @@
 - [x] Publish the ten approved seller-owned digital listings without public credentials or secrets
 - [x] Verify every published listing is owned by the intended seller and renders correctly
 - [x] Repair the generated-cover hosting path so all ten public listing images render on bikrikoro.com
+- [ ] Fill unused desktop product-media space with a compact related-product panel
+- [ ] Remove the duplicate seller verification wording from the seller category line
+- [ ] Validate desktop and mobile product-detail rendering, then deploy the refinement

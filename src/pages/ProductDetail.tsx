@@ -374,6 +374,12 @@ export default function ProductDetail() {
               })}
             </div>
           )}
+          <RecommendedProducts
+            title="আরও পণ্য দেখুন"
+            mode={{ type: 'popular', excludeProductId: product.id }}
+            limit={4}
+            layout="media"
+          />
         </div>
 
         <div>
@@ -500,7 +506,7 @@ export default function ProductDetail() {
       />
       <RecommendedProducts
         title="আপনার জন্য আরও পণ্য"
-        mode={{ type: 'popular' }}
+        mode={{ type: 'popular', excludeProductId: product.id }}
         limit={8}
       />
 
