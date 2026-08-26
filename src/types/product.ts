@@ -58,6 +58,8 @@ export interface Product {
   is_digital: boolean
   seller_id: string
   view_count: number
+  completed_order_count?: number
+  popularity_score?: number
   is_escrow_protected: boolean
   supports_cod?: boolean
   free_delivery?: boolean

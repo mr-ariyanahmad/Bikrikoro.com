@@ -75,3 +75,7 @@
 - [x] Define privacy-safe category scoring, decay, and new-user popular-product fallback behavior
 - [x] Implement local category-interest tracking and personalized recommendation ranking
 - [x] Validate personalized, cold-start, and responsive recommendation presentation before deployment
+- [x] Inspect current marketplace and search ordering plus safe engagement and completed-purchase signals
+- [x] Define scalable public relevance ranking that prioritizes engagement and legitimate completed purchases over listing recency
+- [x] Implement relevance ordering for marketplace browsing, infinite-scroll pages, and search results
+- [ ] Validate ranked browsing/search pagination and deploy the ranking improvement

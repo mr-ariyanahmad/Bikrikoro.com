@@ -13,6 +13,7 @@ import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
 import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { recordPublicProductView } from '@/lib/productPopularity'
 import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
@@ -97,7 +98,10 @@ export default function ProductDetail() {
             if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
           })
           void trackProductView(productData.id)
-          if (!isTestDemoProduct(productData as Product)) trackCategoryInterest(productData.category_id, 'view')
+          if (!isTestDemoProduct(productData as Product)) {
+            trackCategoryInterest(productData.category_id, 'view')
+            void recordPublicProductView(productData.id)
+          }
         }
       } catch (error) {
         console.error('Product detail load failed:', error)

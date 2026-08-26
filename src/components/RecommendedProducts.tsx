@@ -61,12 +61,13 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
             .from(PUBLIC_PRODUCT_TABLE)
             .select(PUBLIC_PRODUCT_FIELDS)
             .not('title', 'ilike', 'TEST / Demo only —%')
+            .order('popularity_score', { ascending: false })
             .order('view_count', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(limit * 3)
           if (mode.excludeProductId) fallbackRequest = fallbackRequest.neq('id', mode.excludeProductId)
           const [preferredResponse, fallbackResponse] = await Promise.all([
-            preferredCategoryIds.length > 0 ? preferredRequest.order('view_count', { ascending: false }).limit(limit * 4) : Promise.resolve({ data: [] as Product[], error: null }),
+            preferredCategoryIds.length > 0 ? preferredRequest.order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).limit(limit * 4) : Promise.resolve({ data: [] as Product[], error: null }),
             fallbackRequest,
           ])
           if (preferredResponse.error || fallbackResponse.error) throw preferredResponse.error ?? fallbackResponse.error
@@ -82,7 +83,7 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
         if (mode.type === 'related') request = request.eq('category_id', mode.categoryId).neq('id', mode.excludeProductId)
         if (mode.type === 'seller') request = request.eq('seller_id', mode.sellerId).neq('id', mode.excludeProductId)
         if (mode.type === 'popular' && mode.excludeProductId) request = request.neq('id', mode.excludeProductId)
-        request = mode.type === 'popular' ? request.order('view_count', { ascending: false }) : request.order('created_at', { ascending: false })
+        request = mode.type === 'popular' ? request.order('popularity_score', { ascending: false }).order('view_count', { ascending: false }) : request.order('created_at', { ascending: false })
         const { data } = await request.limit(limit)
         await applyProducts((data ?? []) as Product[])
       } catch (error) {

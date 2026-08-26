@@ -76,6 +76,8 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
         .select('id, title, price, images, category_id')
         .eq('is_digital', true)
         .ilike('title', `%${term}%`)
+        .order('popularity_score', { ascending: false })
+        .order('view_count', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(8)
       if (!cancelled) {

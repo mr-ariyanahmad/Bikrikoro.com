@@ -84,7 +84,7 @@ export function rankProductsByCategoryInterest(products: Product[]) {
   return products.filter((product) => !isTestDemoProduct(product)).sort((left, right) => {
     const interestDifference = (categoryScores[right.category_id] ?? 0) - (categoryScores[left.category_id] ?? 0)
     if (interestDifference !== 0) return interestDifference
-    const popularityDifference = Number(right.view_count ?? 0) - Number(left.view_count ?? 0)
+    const popularityDifference = Number(right.popularity_score ?? right.view_count ?? 0) - Number(left.popularity_score ?? left.view_count ?? 0)
     if (popularityDifference !== 0) return popularityDifference
     return new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
   })

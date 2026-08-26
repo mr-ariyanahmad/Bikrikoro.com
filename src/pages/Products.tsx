@@ -20,7 +20,7 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
   const categoryId = searchParams.get('category')
   const query = searchParams.get('q') ?? ''
-  const sort = (searchParams.get('sort') as SortOption) || 'newest'
+  const sort = (searchParams.get('sort') as SortOption) || 'popular'
   const condition = (searchParams.get('condition') as ConditionFilter) || 'all'
   const minPrice = searchParams.get('min') ?? ''
   const maxPrice = searchParams.get('max') ?? ''
@@ -88,7 +88,7 @@ export default function Products() {
         if (sort === 'price_asc') request = request.order('price', { ascending: true })
         else if (sort === 'price_desc') request = request.order('price', { ascending: false })
         else if (sort === 'oldest') request = request.order('created_at', { ascending: true })
-        else if (sort === 'popular') request = request.order('view_count', { ascending: false })
+        else if (sort === 'popular') request = request.order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false })
         else request = request.order('created_at', { ascending: false })
 
         const { data, error } = await request.limit(60)
@@ -156,7 +156,7 @@ export default function Products() {
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input type="search" value={query} onChange={(event) => updateParam('q', event.target.value)} aria-label="ডিজিটাল পণ্য খুঁজুন" placeholder="ডিজিটাল পণ্য খুঁজুন..." className="flex-1 border border-outline px-4 py-2.5 text-base outline-none focus:border-brand-500" />
         <button type="button" onClick={() => setShowFilters((current) => !current)} aria-expanded={showFilters} className="border border-outline px-3 py-2.5 text-base font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700 sm:hidden">ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
-        <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'popular', label: 'জনপ্রিয় আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
+        <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'popular', label: 'জনপ্রিয় ও প্রাসঙ্গিক আগে' }, { value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
       </div>
 
       <div className={`${showFilters ? 'block' : 'hidden'} mb-5 border border-outline bg-surface p-4 sm:block`}>

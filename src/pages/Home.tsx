@@ -16,7 +16,7 @@ import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProduct
 import { trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
-const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v1'
+const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v2'
 const HOMEPAGE_CACHE_TTL_MS = 5 * 60 * 1000
 
 type HomepageCache = {
@@ -95,7 +95,7 @@ export default function Home() {
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
           supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
-          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('created_at', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
+          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {
@@ -143,6 +143,8 @@ export default function Home() {
       const { data, error } = await supabase
         .from(PUBLIC_PRODUCT_TABLE)
         .select(PUBLIC_PRODUCT_FIELDS)
+        .order('popularity_score', { ascending: false })
+        .order('view_count', { ascending: false })
         .order('created_at', { ascending: false })
         .range(productOffset, productOffset + HOMEPAGE_PRODUCT_PAGE_SIZE - 1)
       if (error) throw error
