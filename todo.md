@@ -82,4 +82,4 @@
 - [x] Inspect homepage feed and visible personalized recommendation render paths
 - [x] Define unified feed ordering that promotes locally preferred categories without a separate label or section
 - [x] Remove visible personalized recommendation sections and apply local preference ranking directly to the homepage feed
-- [ ] Validate mobile and desktop homepage feed behavior with personalized and cold-start ordering
+- [x] Validate mobile and desktop homepage feed behavior with personalized and cold-start ordering
