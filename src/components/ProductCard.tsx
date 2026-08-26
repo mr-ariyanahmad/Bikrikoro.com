@@ -7,6 +7,7 @@ import type { Product } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
+import { ProductDeliveryBadge } from '@/components/ProductDeliveryBadge'
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { user } = useAuth()
@@ -71,7 +72,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
             {discount && <span className="absolute left-2 top-2 rounded-md bg-error px-1.5 py-0.5 text-xs font-semibold text-white">-{discount}%</span>}
             {product.is_escrow_protected && <span className="absolute right-2 top-2 rounded-md bg-brand-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">এসক্রো সুরক্ষিত</span>}
             <div className="absolute bottom-2 left-2 flex max-w-[85%] flex-wrap gap-1">
-              {product.is_digital && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white">ডিজিটাল ডেলিভারি</span>}
+              <ProductDeliveryBadge product={product} compact />
               {!product.is_digital && product.supports_cod && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><ShieldCheck size={11} />COD</span>}
               {!product.is_digital && product.free_delivery && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><Truck size={11} />ফ্রি ডেলিভারি</span>}
               {!product.is_digital && product.fast_delivery && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><Zap size={11} />দ্রুত</span>}

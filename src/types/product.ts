@@ -63,6 +63,7 @@ export interface Product {
   free_delivery?: boolean
   fast_delivery?: boolean
   free_return?: boolean
+  auto_delivery_enabled?: boolean
   latitude?: number | null
   longitude?: number | null
   created_at: string

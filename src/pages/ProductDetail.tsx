@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Flag, MessageCircleQuestion, Play } from 'lucide-react'
+import { Bell, Flag, MessageCircleQuestion, Play, Share2, ShieldCheck } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -18,6 +18,8 @@ import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
 import { SITE_URL } from '@/lib/site'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { ProductDeliveryBadge, ProductDeliveryTypeBadge } from '@/components/ProductDeliveryBadge'
+import { getProductDeliverySummary } from '@/lib/productDelivery'
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -188,11 +190,6 @@ export default function ProductDetail() {
       setShareMessage('লিংক কপি করা যায়নি।')
     }
     window.setTimeout(() => setShareMessage(null), 2500)
-  }
-
-  const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`${product.title} — ${formatTaka(product.price)}\n${getShareUrl()}`)
-    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer')
   }
 
   const handleToggleFavorite = async () => {
@@ -380,14 +377,11 @@ export default function ProductDetail() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between">
-            {product.is_escrow_protected ? (
-              <span className="inline-block rounded-md bg-brand-100 px-2 py-1 text-xs font-semibold text-brand-700">
-                এসক্রো সুরক্ষিত
-              </span>
-            ) : (
-              <span />
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {product.is_escrow_protected && <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700"><ShieldCheck size={14} />এসক্রো সুরক্ষিত</span>}
+              <ProductDeliveryBadge product={product} />
+            </div>
             {user && (
               <button
                 type="button"
@@ -413,45 +407,17 @@ export default function ProductDetail() {
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')}
-              className={`inline-flex items-center gap-1.5 rounded-none border px-3 py-1.5 font-medium ${alertEnabled ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-outline text-ink-600 hover:border-brand-500 hover:text-brand-600'}`}
-            >
-              <Bell size={14} />{alertEnabled ? 'সতর্কতা চালু আছে' : product.is_digital ? 'দাম কমলে জানাবেন' : 'স্টক এলে জানাবেন'}
-            </button>
-            <button type="button" onClick={() => setShowReport(true)} className="inline-flex items-center gap-1.5 rounded-none border border-outline px-3 py-1.5 font-medium text-ink-600 hover:border-error hover:text-error"><Flag size={14} />অভিযোগ</button>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="rounded-none border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
-            >
-              শেয়ার / লিংক কপি
-            </button>
-            <button
-              type="button"
-              onClick={handleWhatsAppShare}
-              className="rounded-none border border-outline px-3 py-1.5 text-xs font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"
-            >
-              WhatsApp-এ পাঠান
-            </button>
-            {shareMessage && <span className="rounded-full bg-brand-50 px-3 py-1.5 text-brand-700">{shareMessage}</span>}
-          </div>
+          <section className="mt-5 overflow-hidden rounded-2xl border border-brand-200 bg-surface shadow-sm">
+            <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-3 text-white"><div><p className="text-xs font-medium text-white/80">বিক্রেতা নির্বাচিত ডেলিভারি সুবিধা</p><p className="mt-0.5 text-sm font-bold">নিরাপদ ডিজিটাল কেনাকাটা</p></div><ProductDeliveryBadge product={product} /></div>
+            <div className="p-4"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700"><ShieldCheck size={18} /></span><div><p className="text-sm font-semibold text-ink-900">{product.auto_delivery_enabled ? 'অটো ডেলিভারি সক্রিয়' : 'ম্যানুয়াল ডেলিভারি'}</p><p className="mt-1 text-xs leading-5 text-ink-600">{getProductDeliverySummary(product)}</p></div></div><div className="mt-3 flex flex-wrap gap-2 border-t border-outline pt-3"><ProductDeliveryTypeBadge product={product} /><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">{product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</span><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">পোস্ট করা হয়েছে {formatDate(product.created_at)}</span></div></div>
+          </section>
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
-              {product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}
-            </span>
-            {product.is_digital ? (
-              <span className="rounded-full bg-bg px-3 py-1 text-ink-600">ডিজিটাল পণ্য</span>
-            ) : (
-              product.location && (
-                <span className="rounded-full bg-bg px-3 py-1 text-ink-600">{product.location}</span>
-              )
-            )}
-            <span className="rounded-full bg-bg px-3 py-1 text-ink-600">
-              পোস্ট করা হয়েছে {formatDate(product.created_at)}
-            </span>
+          <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-outline bg-surface p-2 text-xs">
+            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold ${alertEnabled ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg'}`}><Bell size={16} />{alertEnabled ? 'সতর্কতা চালু' : 'দাম কমলে জানাবেন'}</button>
+            <button type="button" onClick={handleShare} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold text-ink-600 hover:bg-bg"><Share2 size={16} />শেয়ার করুন</button>
+            <button type="button" onClick={() => setShowReport(true)} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold text-ink-600 hover:bg-bg"><Flag size={16} />অভিযোগ জানান</button>
           </div>
+          {shareMessage && <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{shareMessage}</p>}
 
           <h2 className="mt-5 text-sm font-semibold text-ink-900">বিবরণ</h2>
           <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">

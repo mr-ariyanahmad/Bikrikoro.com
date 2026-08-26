@@ -5,4 +5,4 @@
 // existing Product row typing without exposing base-table access.
 export const PUBLIC_PRODUCT_TABLE = 'public_products' as 'products'
 
-export const PUBLIC_PRODUCT_FIELDS = 'id, title, description, price, original_price, images, video_url, category_id, condition, location, is_digital, seller_id, view_count, is_escrow_protected, supports_cod, free_delivery, fast_delivery, free_return, created_at' as const
+export const PUBLIC_PRODUCT_FIELDS = 'id, title, description, price, original_price, images, video_url, category_id, condition, location, is_digital, seller_id, view_count, is_escrow_protected, supports_cod, free_delivery, fast_delivery, free_return, auto_delivery_enabled, created_at' as const
