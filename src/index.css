@@ -201,6 +201,11 @@ body {
   border-color: var(--color-brand-100) !important;
 }
 
+/* Legacy customer-detail UID is retained only for protected actions, never visual presentation. */
+.admin-theme p.font-mono.text-\[11px\].text-slate-400 {
+  display: none;
+}
+
 .admin-theme .bg-blue-500,
 .admin-theme .bg-blue-600 {
   background-color: var(--color-brand-500) !important;
