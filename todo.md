@@ -18,3 +18,6 @@
 - [x] Validate and deploy the compact card correction
 - [x] Move compact card actions away from seller identity and review information on mobile
 - [x] Verify the corrected favorite and compare action placement on the live homepage
+- [x] Audit the product-detail action groups for ambiguous same-color controls
+- [x] Apply green trust, neutral share, and red sensitive-report action colors
+- [x] Validate and deploy the semantic product-detail action treatment

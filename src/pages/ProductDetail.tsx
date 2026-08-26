@@ -413,9 +413,9 @@ export default function ProductDetail() {
           </section>
 
           <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-outline bg-surface p-2 text-xs">
-            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold ${alertEnabled ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg'}`}><Bell size={16} />{alertEnabled ? 'সতর্কতা চালু' : 'দাম কমলে জানাবেন'}</button>
-            <button type="button" onClick={handleShare} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold text-ink-600 hover:bg-bg"><Share2 size={16} />শেয়ার করুন</button>
-            <button type="button" onClick={() => setShowReport(true)} className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 font-semibold text-ink-600 hover:bg-bg"><Flag size={16} />অভিযোগ জানান</button>
+            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 font-semibold transition ${alertEnabled ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Bell size={16} />{alertEnabled ? 'সতর্কতা চালু' : 'দাম কমলে জানাবেন'}</button>
+            <button type="button" onClick={handleShare} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-sky-200 bg-sky-50 px-2 font-semibold text-sky-700 transition hover:bg-sky-100"><Share2 size={16} />শেয়ার করুন</button>
+            <button type="button" onClick={() => setShowReport(true)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-error/25 bg-error/5 px-2 font-semibold text-error transition hover:bg-error/10"><Flag size={16} />অভিযোগ জানান</button>
           </div>
           {shareMessage && <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{shareMessage}</p>}
 
@@ -461,7 +461,7 @@ export default function ProductDetail() {
                 <button
                   type="button"
                   onClick={() => setShowBuy(true)}
-                  className="w-full rounded-none bg-brand-500 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+                  className="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 active:scale-[0.98]"
                 >
                   অর্ডার করুন
                 </button>
@@ -469,7 +469,7 @@ export default function ProductDetail() {
                   type="button"
                   onClick={handleChat}
                   disabled={startingChat}
-                  className="w-full rounded-none border border-outline py-3 text-sm font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-50"
+                  className="w-full rounded-xl border border-sky-200 bg-sky-50 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
                 >
                   {startingChat ? 'অপেক্ষা করুন...' : 'বিক্রেতার সাথে চ্যাট করুন'}
                 </button>
