@@ -9,3 +9,7 @@
 - [x] Redesign the marked product information and action sections for compact Shopee-inspired mobile presentation
 - [x] Render automatic delivery badges consistently on product detail and product cards
 - [x] Validate and deploy the product experience improvements
+- [x] Inspect homepage product-card loading and the available seller, verification, and review metadata
+- [x] Define a compact three-line title and seller-identity layout for reusable marketplace cards
+- [x] Render seller/shop avatar, verification tick, review summary, discount, and automatic delivery badges on homepage cards
+- [x] Validate the responsive homepage card redesign and deploy it
