@@ -28,3 +28,7 @@
 - [x] Reduce the mobile quick-navigation from six items to Home, Orders, Post, Chat, and Account
 - [x] Redesign the mobile quick-navigation as a professional five-item floating dock with a premium central Post action
 - [x] Validate and deploy the refined mobile dock while preserving desktop navigation
+- [x] Inspect existing homepage data and product-detail mobile layout boundaries for responsive-only redesign hooks
+- [x] Create mobile-only digital marketplace modules for wallet, check-in, security, shortcuts, offers, and product discovery
+- [x] Add a mobile-only fixed product action bar for seller chat and secure ordering
+- [x] Preserve desktop homepage and product-detail layouts while validating the mobile responsive update

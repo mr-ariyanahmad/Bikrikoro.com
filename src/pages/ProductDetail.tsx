@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Flag, MessageCircleQuestion, Play, Share2, ShieldCheck } from 'lucide-react'
+import { Bell, Flag, MessageCircle, MessageCircleQuestion, Play, Share2, ShieldCheck, ShoppingBag } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -274,7 +274,7 @@ export default function ProductDetail() {
   }
 
   return (
-    <Layout wide hideFooter={showBuy}>
+    <Layout wide hideFooter={showBuy} hideMobileQuickNav>
       <Helmet>
         <title>{`${product.title} — ৳${product.price} | BikriKoro.Com`}</title>
         <meta
@@ -448,7 +448,7 @@ export default function ProductDetail() {
           </section>
           {featureMessage && <p className="mt-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700">{featureMessage}</p>}
 
-          <div className="mt-6 space-y-2">
+          <div className="mt-6 hidden space-y-2 md:block">
             {isOwnListing ? (
               <Link
                 to={`/sell/${product.id}`}
@@ -504,6 +504,7 @@ export default function ProductDetail() {
         limit={8}
       />
 
+      {!showBuy && !isOwnListing && <div className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 px-3 pb-[max(env(safe-area-inset-bottom),0.7rem)] pt-2.5 shadow-[0_-10px_26px_rgba(15,23,42,0.14)] backdrop-blur-xl md:hidden"><div className="mx-auto flex max-w-xl gap-2"><button type="button" onClick={() => void handleChat()} disabled={startingChat} className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 disabled:opacity-60"><MessageCircle size={18} />{startingChat ? 'অপেক্ষা করুন...' : 'চ্যাট করুন'}</button><button type="button" onClick={() => user ? setShowBuy(true) : navigate('/login')} className="flex min-h-12 flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(1,124,80,0.24)]"><ShoppingBag size={18} />{user ? 'অর্ডার করুন' : 'লগইন করে অর্ডার'}</button></div></div>}
       {showBuy && user && <BuyModal product={product} digitalSpecs={digitalSpecs} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
       {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">তালিকা সম্পর্কে অভিযোগ করুন</h2><p className="mt-1 text-sm text-ink-500">কেন তালিকাটি সমস্যাযুক্ত মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="অভিযোগের কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক তালিকা', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button type="button" onClick={() => setShowReport(false)} className="flex-1 rounded-none border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button type="button" onClick={handleReport} className="flex-1 rounded-none bg-error py-2.5 text-sm font-semibold text-white">অভিযোগ পাঠান</button></div></div></div>}
     </Layout>
