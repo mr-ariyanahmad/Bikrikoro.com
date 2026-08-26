@@ -16,3 +16,5 @@
 - [x] Reduce the homepage card height to match the compact reference density
 - [x] Preserve seller identity, verification, review state, and delivery badge in the compact layout
 - [x] Validate and deploy the compact card correction
+- [x] Move compact card actions away from seller identity and review information on mobile
+- [x] Verify the corrected favorite and compare action placement on the live homepage
