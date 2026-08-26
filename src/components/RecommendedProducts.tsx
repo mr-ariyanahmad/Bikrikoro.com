@@ -54,12 +54,13 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
 
         if (mode.type === 'personalized') {
           const preferredCategoryIds = getPreferredCategoryIds()
-          let preferredRequest = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS)
+          let preferredRequest = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).not('title', 'ilike', 'TEST / Demo only —%')
           if (preferredCategoryIds.length > 0) preferredRequest = preferredRequest.in('category_id', preferredCategoryIds)
           if (mode.excludeProductId) preferredRequest = preferredRequest.neq('id', mode.excludeProductId)
           let fallbackRequest = supabase
             .from(PUBLIC_PRODUCT_TABLE)
             .select(PUBLIC_PRODUCT_FIELDS)
+            .not('title', 'ilike', 'TEST / Demo only —%')
             .order('view_count', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(limit * 3)
