@@ -25,3 +25,6 @@
 - [x] Add a fixed mobile-only bottom quick-navigation bar with a prominent Post action
 - [x] Reserve safe mobile bottom spacing so page content is never hidden by navigation
 - [x] Verify desktop and laptop navigation remain unchanged and deploy the responsive update
+- [x] Reduce the mobile quick-navigation from six items to Home, Orders, Post, Chat, and Account
+- [x] Redesign the mobile quick-navigation as a professional five-item floating dock with a premium central Post action
+- [x] Validate and deploy the refined mobile dock while preserving desktop navigation
