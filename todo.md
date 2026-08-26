@@ -56,3 +56,6 @@
 - [x] Move the mobile homepage search control into the top header beside the logo and menu control
 - [x] Remove the redundant standalone mobile search row while preserving desktop search behavior
 - [x] Validate and deploy the responsive mobile header refinement
+- [x] Unpublish the user-rejected thirty-two generic listings from the public marketplace
+- [x] Verify no rejected generic listing remains publicly visible
+- [x] Prepare a compliant intake checklist for any requested branded subscription or service listing
