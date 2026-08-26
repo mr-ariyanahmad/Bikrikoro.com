@@ -1,6 +1,6 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
 import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Plus, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useIsSeller } from '@/hooks/useIsSeller'
@@ -34,6 +34,7 @@ const ACCOUNT_LINKS: NavItem[] = [
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
 export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, hideMobileQuickNav = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; hideMobileQuickNav?: boolean }) {
+  const location = useLocation()
   const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
   const { isSeller, loading: sellerLoading } = useIsSeller()
@@ -53,6 +54,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
   ]
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
+  const hasInlineMobileSearch = location.pathname === '/'
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
@@ -104,6 +106,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
 
             <div className="hidden shrink-0 sm:block"><BackButton fallbackTo={backFallback} label={backLabel} /></div>
             <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
+            {hasInlineMobileSearch && <div className="min-w-0 flex-1 sm:hidden"><SearchBar compact /></div>}
 
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <div className="relative hidden md:block">
@@ -120,7 +123,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
             </div>
           </div>
 
-          <div className="flex items-center gap-2 border-t border-outline/70 py-2.5 sm:hidden"><BackButton fallbackTo={backFallback} label={backLabel} /><div className="min-w-0 flex-1"><SearchBar compact /></div></div>
+          {!hasInlineMobileSearch && <div className="flex items-center gap-2 border-t border-outline/70 py-2.5 sm:hidden"><BackButton fallbackTo={backFallback} label={backLabel} /><div className="min-w-0 flex-1"><SearchBar compact /></div></div>}
 
           <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
             <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
