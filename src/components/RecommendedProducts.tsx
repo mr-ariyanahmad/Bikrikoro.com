@@ -57,17 +57,18 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
           let preferredRequest = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS)
           if (preferredCategoryIds.length > 0) preferredRequest = preferredRequest.in('category_id', preferredCategoryIds)
           if (mode.excludeProductId) preferredRequest = preferredRequest.neq('id', mode.excludeProductId)
-          const fallbackRequest = supabase
+          let fallbackRequest = supabase
             .from(PUBLIC_PRODUCT_TABLE)
             .select(PUBLIC_PRODUCT_FIELDS)
-            .neq('id', mode.excludeProductId ?? '')
             .order('view_count', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(limit * 3)
+          if (mode.excludeProductId) fallbackRequest = fallbackRequest.neq('id', mode.excludeProductId)
           const [preferredResponse, fallbackResponse] = await Promise.all([
-            preferredCategoryIds.length > 0 ? preferredRequest.order('view_count', { ascending: false }).limit(limit * 4) : Promise.resolve({ data: [] as Product[] }),
+            preferredCategoryIds.length > 0 ? preferredRequest.order('view_count', { ascending: false }).limit(limit * 4) : Promise.resolve({ data: [] as Product[], error: null }),
             fallbackRequest,
           ])
+          if (preferredResponse.error || fallbackResponse.error) throw preferredResponse.error ?? fallbackResponse.error
           const uniqueProducts = new Map<string, Product>()
           for (const product of [...((preferredResponse.data ?? []) as Product[]), ...((fallbackResponse.data ?? []) as Product[])]) {
             if (!isTestDemoProduct(product)) uniqueProducts.set(product.id, product)
