@@ -13,6 +13,6 @@
 - [x] Define a compact three-line title and seller-identity layout for reusable marketplace cards
 - [x] Render seller/shop avatar, verification tick, review summary, discount, and automatic delivery badges on homepage cards
 - [x] Validate the responsive homepage card redesign and deploy it
-- [ ] Reduce the homepage card height to match the compact reference density
-- [ ] Preserve seller identity, verification, review state, and delivery badge in the compact layout
-- [ ] Validate and deploy the compact card correction
+- [x] Reduce the homepage card height to match the compact reference density
+- [x] Preserve seller identity, verification, review state, and delivery badge in the compact layout
+- [x] Validate and deploy the compact card correction
