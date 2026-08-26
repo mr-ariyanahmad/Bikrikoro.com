@@ -12,7 +12,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
-import { trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
@@ -97,7 +97,7 @@ export default function ProductDetail() {
             if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
           })
           void trackProductView(productData.id)
-          trackCategoryInterest(productData.category_id, 'view')
+          if (!isTestDemoProduct(productData as Product)) trackCategoryInterest(productData.category_id, 'view')
         }
       } catch (error) {
         console.error('Product detail load failed:', error)
@@ -203,7 +203,7 @@ export default function ProductDetail() {
     try {
       if (next) {
         await addFavorite(user.uid, product.id)
-        trackCategoryInterest(product.category_id, 'favorite')
+        if (!isTestDemoProduct(product)) trackCategoryInterest(product.category_id, 'favorite')
       }
       else await removeFavorite(user.uid, product.id)
     } catch {

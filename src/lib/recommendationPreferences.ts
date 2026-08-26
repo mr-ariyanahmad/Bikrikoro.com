@@ -75,9 +75,13 @@ export function getPreferredCategoryIds() {
   return Object.keys(getCategoryInterestScores())
 }
 
+export function isTestDemoProduct(product: Pick<Product, 'title'>) {
+  return product.title.startsWith('TEST / Demo only —')
+}
+
 export function rankProductsByCategoryInterest(products: Product[]) {
   const categoryScores = getCategoryInterestScores()
-  return [...products].sort((left, right) => {
+  return products.filter((product) => !isTestDemoProduct(product)).sort((left, right) => {
     const interestDifference = (categoryScores[right.category_id] ?? 0) - (categoryScores[left.category_id] ?? 0)
     if (interestDifference !== 0) return interestDifference
     const popularityDifference = Number(right.view_count ?? 0) - Number(left.view_count ?? 0)

@@ -8,7 +8,7 @@ import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { ProductDeliveryBadge } from '@/components/ProductDeliveryBadge'
-import { trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 type CardSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>
 
@@ -60,7 +60,7 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
     try {
       if (next) {
         await addFavorite(user.uid, product.id)
-        trackCategoryInterest(product.category_id, 'favorite')
+        if (!isTestDemoProduct(product)) trackCategoryInterest(product.category_id, 'favorite')
       }
       else await removeFavorite(user.uid, product.id)
     } catch {
@@ -70,7 +70,9 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
     }
   }
 
-  const handleProductOpen = () => trackCategoryInterest(product.category_id, 'click')
+  const handleProductOpen = () => {
+    if (!isTestDemoProduct(product)) trackCategoryInterest(product.category_id, 'click')
+  }
 
   return (
     <>

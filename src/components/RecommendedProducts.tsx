@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product, Profile } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
-import { getPreferredCategoryIds, rankProductsByCategoryInterest } from '@/lib/recommendationPreferences'
+import { getPreferredCategoryIds, isTestDemoProduct, rankProductsByCategoryInterest } from '@/lib/recommendationPreferences'
 
 type Mode =
   | { type: 'related'; categoryId: string; excludeProductId: string }
@@ -69,7 +69,9 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
             fallbackRequest,
           ])
           const uniqueProducts = new Map<string, Product>()
-          for (const product of [...((preferredResponse.data ?? []) as Product[]), ...((fallbackResponse.data ?? []) as Product[])]) uniqueProducts.set(product.id, product)
+          for (const product of [...((preferredResponse.data ?? []) as Product[]), ...((fallbackResponse.data ?? []) as Product[])]) {
+            if (!isTestDemoProduct(product)) uniqueProducts.set(product.id, product)
+          }
           await applyProducts(rankProductsByCategoryInterest([...uniqueProducts.values()]).slice(0, limit))
           return
         }
