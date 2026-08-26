@@ -45,3 +45,7 @@
 - [x] Fill unused desktop product-media space with a compact related-product panel
 - [x] Remove the duplicate seller verification wording from the seller category line
 - [x] Validate desktop and mobile product-detail rendering, then deploy the refinement
+- [x] Show seller avatar, name, verification state, rating/review state, and price in product-detail recommendation cards
+- [x] Expand the seller posting category catalog with broad, policy-safe digital-product and service categories
+- [x] Prepare additional safe generic listing drafts without unverified third-party brand or account claims
+- [ ] Validate and deploy the recommendation-card and seller-category improvements

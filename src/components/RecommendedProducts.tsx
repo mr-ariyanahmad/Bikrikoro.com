@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { ProductCard } from '@/components/ProductCard'
-import type { Product } from '@/types/product'
+import type { Product, Profile } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 type Mode =
@@ -12,6 +12,7 @@ type Mode =
 
 export function RecommendedProducts({ title, mode, limit = 8, layout = 'default' }: { title: string; mode: Mode; limit?: number; layout?: 'default' | 'media' }) {
   const [products, setProducts] = useState<Product[]>([])
+  const [sellersById, setSellersById] = useState<Record<string, Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,12 +20,23 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
 
     async function load() {
       setLoading(true)
+      setSellersById({})
       if (!supabaseConfigured) {
         if (!cancelled) setLoading(false)
         return
       }
 
       try {
+        const applyProducts = async (rows: Product[]) => {
+          const sellerIds = [...new Set(rows.map((product) => product.seller_id).filter(Boolean))]
+          const { data: sellerRows } = sellerIds.length > 0
+            ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds)
+            : { data: [] }
+          if (cancelled) return
+          setSellersById(Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])))
+          setProducts(rows)
+        }
+
         if (mode.type === 'ids') {
           if (mode.productIds.length === 0) {
             if (!cancelled) setProducts([])
@@ -34,7 +46,7 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
           const rows = (data ?? []) as Product[]
           const byId = new Map(rows.map((product) => [product.id, product]))
           const ordered = mode.productIds.map((id) => byId.get(id)).filter((product): product is Product => Boolean(product))
-          if (!cancelled) setProducts(ordered)
+          await applyProducts(ordered)
           return
         }
 
@@ -44,7 +56,7 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
         if (mode.type === 'popular' && mode.excludeProductId) request = request.neq('id', mode.excludeProductId)
         request = mode.type === 'popular' ? request.order('view_count', { ascending: false }) : request.order('created_at', { ascending: false })
         const { data } = await request.limit(limit)
-        if (!cancelled) setProducts(data ?? [])
+        await applyProducts((data ?? []) as Product[])
       } catch (error) {
         console.error('Recommended products load failed:', error)
         if (!cancelled) setProducts([])
@@ -66,7 +78,7 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
       <div className={layout === 'media' ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4'}>
         {loading
           ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-outline/40" />)
-          : products.map((product) => <ProductCard key={product.id} product={product} />)}
+          : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id] ?? null} />)}
       </div>
     </section>
   )
