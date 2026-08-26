@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, Heart, RotateCcw, ShieldCheck, Star, Truck, Zap } from 'lucide-react'
+import { BadgeCheck, GitCompareArrows, Heart, RotateCcw, ShieldCheck, Star, Truck, Zap } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product, Profile } from '@/types/product'
@@ -68,14 +68,14 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
 
   return (
     <>
-      <article className={`group relative overflow-hidden rounded-2xl border border-outline/80 bg-surface shadow-[0_6px_20px_rgba(17,24,39,0.05)] transition duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-[0_12px_26px_rgba(14,96,68,0.13)] ${compact ? 'flex items-stretch' : ''}`}>
+      <article className={`group relative overflow-hidden rounded-xl border border-outline/80 bg-surface shadow-[0_4px_14px_rgba(17,24,39,0.045)] transition duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-[0_8px_18px_rgba(14,96,68,0.11)] ${compact ? 'flex items-stretch' : ''}`}>
         <Link to={`/products/${product.id}`} className={`block ${compact ? 'flex min-w-0 flex-1 items-stretch' : ''}`}>
-          <div className={`relative overflow-hidden bg-outline/30 ${compact ? 'h-32 w-32 shrink-0 sm:h-36 sm:w-36' : 'aspect-[1.08/1] w-full'}`}>
+          <div className={`relative overflow-hidden bg-outline/30 ${compact ? 'h-28 w-28 shrink-0 sm:h-32 sm:w-32' : 'aspect-[1.2/1] w-full'}`}>
             {product.images[0] ? <img src={product.images[0]} alt={product.title} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>}
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
-            {discount && <span className="absolute left-2 top-2 rounded-lg bg-error px-2 py-1 text-[11px] font-bold text-white shadow-sm">-{discount}%</span>}
-            {product.is_escrow_protected && <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-brand-700 shadow-sm"><ShieldCheck size={11} />নিরাপদ</span>}
-            <div className="absolute bottom-2 left-2 flex max-w-[85%] flex-wrap gap-1">
+            <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/50 to-transparent" />
+            {discount && <span className="absolute left-1.5 top-1.5 rounded-md bg-error px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">-{discount}%</span>}
+            {product.is_escrow_protected && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-0.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-bold text-brand-700 shadow-sm"><ShieldCheck size={10} />নিরাপদ</span>}
+            <div className="absolute bottom-1.5 left-1.5 flex max-w-[88%] flex-wrap gap-1">
               <ProductDeliveryBadge product={product} compact />
               {!product.is_digital && product.supports_cod && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><ShieldCheck size={11} />COD</span>}
               {!product.is_digital && product.free_delivery && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><Truck size={11} />ফ্রি ডেলিভারি</span>}
@@ -83,16 +83,16 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
               {!product.is_digital && product.free_return && <span className="inline-flex items-center gap-1 rounded-md bg-brand-600/90 px-1.5 py-1 text-[10px] font-semibold text-white"><RotateCcw size={11} />ফ্রি রিটার্ন</span>}
             </div>
           </div>
-          <div className={`min-w-0 flex-1 p-3 ${compact ? 'flex flex-col justify-center' : ''}`}>
-            <p className="line-clamp-3 min-h-[3.75rem] text-sm font-semibold leading-5 text-ink-900">{product.title}</p>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="tabular-amount text-lg font-bold tracking-tight text-brand-600">{formatTaka(product.price)}</span>{product.original_price && product.original_price > product.price && <span className="tabular-amount text-xs text-ink-400 line-through">{formatTaka(product.original_price)}</span>}</div>
-            {seller && <div className="mt-3 border-t border-outline/70 pt-2.5"><div className="flex min-w-0 items-center gap-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">{seller.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="truncate text-xs font-semibold text-ink-700">{sellerName}</span>{seller.is_verified && <BadgeCheck size={15} className="shrink-0 text-brand-600" aria-label="যাচাইকৃত বিক্রেতা" />}</div><div className="mt-1 flex items-center gap-1 text-[11px] text-ink-500"><Star size={13} className="fill-amber-400 text-amber-400" />{seller.review_count > 0 ? <><span className="font-semibold text-ink-700">{seller.rating.toFixed(1)}</span><span>({seller.review_count} রিভিউ)</span></> : <span>নতুন বিক্রেতা</span>}</div></div>}
-            {!seller && <p className="mt-2 truncate text-xs text-ink-400">{product.location || (product.is_digital ? 'ডিজিটাল পণ্য' : '')}</p>}
+          <div className={`min-w-0 flex-1 p-2.5 ${compact ? 'flex flex-col justify-center' : ''}`}>
+            <p className="line-clamp-2 min-h-10 text-[13px] font-semibold leading-5 text-ink-900 sm:text-sm">{product.title}</p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5"><span className="tabular-amount text-base font-bold tracking-tight text-brand-600">{formatTaka(product.price)}</span>{product.original_price && product.original_price > product.price && <span className="tabular-amount text-[10px] text-ink-400 line-through">{formatTaka(product.original_price)}</span>}</div>
+            {seller && <div className="mt-1.5 flex min-w-0 items-center gap-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[9px] font-bold text-brand-700">{seller.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="truncate text-[11px] font-semibold text-ink-700">{sellerName}</span>{seller.is_verified && <BadgeCheck size={13} className="shrink-0 text-brand-600" aria-label="যাচাইকৃত বিক্রেতা" />}{seller.review_count > 0 ? <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[10px] text-ink-500"><Star size={11} className="fill-amber-400 text-amber-400" />{seller.rating.toFixed(1)}</span> : <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[10px] text-amber-600"><Star size={11} className="fill-amber-400 text-amber-400" />নতুন</span>}</div>}
+            {!seller && <p className="mt-1 truncate text-[11px] text-ink-400">{product.location || (product.is_digital ? 'ডিজিটাল পণ্য' : '')}</p>}
           </div>
         </Link>
-        <div className={`flex items-center border-t border-outline/70 ${compact ? 'flex-col' : 'justify-between px-3 py-2'} gap-1.5 ${compact ? 'p-2' : ''}`}>
-          {user && <button type="button" onClick={handleToggleFavorite} disabled={toggling} aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'} className="flex h-8 w-8 items-center justify-center rounded-full text-lg transition hover:bg-error/5 disabled:opacity-50"><Heart size={17} className={favorited ? 'fill-error text-error' : 'text-ink-400'} /></button>}
-          <button type="button" onClick={handleToggleCompare} aria-pressed={compared} className={`ml-auto shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${compared ? 'bg-brand-100 text-brand-700' : 'bg-bg text-ink-600 hover:bg-brand-50 hover:text-brand-700'}`}>{compared ? 'তুলনায় আছে' : 'তুলনা'}</button>
+        <div className={`flex items-center ${compact ? 'flex-col' : 'absolute bottom-1.5 right-1.5'} gap-1 ${compact ? 'p-1.5' : ''}`}>
+          {user && <button type="button" onClick={handleToggleFavorite} disabled={toggling} aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-lg shadow-sm transition hover:bg-error/5 disabled:opacity-50"><Heart size={15} className={favorited ? 'fill-error text-error' : 'text-ink-400'} /></button>}
+          <button type="button" onClick={handleToggleCompare} aria-pressed={compared} aria-label={compared ? 'তুলনায় আছে' : 'তুলনায় যোগ করুন'} className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 shadow-sm transition ${compared ? 'text-brand-700' : 'text-ink-500 hover:text-brand-700'}`}><GitCompareArrows size={14} /></button>
         </div>
       </article>
       <BrandedDialog open={compareLimitOpen} title="তুলনা তালিকা পূর্ণ" onClose={() => setCompareLimitOpen(false)} tone="warning" actions={<DialogButton onClick={() => setCompareLimitOpen(false)}>ঠিক আছে</DialogButton>}>একসাথে সর্বোচ্চ ৩টি পণ্য তুলনা করা যাবে। আগে Compare page থেকে একটি পণ্য সরিয়ে আবার চেষ্টা করুন।</BrandedDialog>
