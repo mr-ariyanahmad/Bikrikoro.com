@@ -40,5 +40,5 @@
 - [x] Resolve mr.ariyanahmad@gmail.com to the correct verified BikriKoro seller profile and category IDs
 - [x] Finalize the ten approved listing titles, Bengali descriptions, prices, images, and manual-delivery options
 - [x] Publish the ten approved seller-owned digital listings without public credentials or secrets
-- [ ] Verify every published listing is owned by the intended seller and renders correctly
-- [ ] Repair the generated-cover hosting path so all ten public listing images render on bikrikoro.com
+- [x] Verify every published listing is owned by the intended seller and renders correctly
+- [x] Repair the generated-cover hosting path so all ten public listing images render on bikrikoro.com
