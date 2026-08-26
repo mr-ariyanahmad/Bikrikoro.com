@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, Coins, Loader2, Plus, ShieldCheck, Sparkles, WalletCards, Zap } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -15,6 +15,37 @@ import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
+const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v1'
+const HOMEPAGE_CACHE_TTL_MS = 5 * 60 * 1000
+
+type HomepageCache = {
+  cachedAt: number
+  banners: PromoBanner[]
+  categories: Category[]
+  products: Product[]
+  sellersById: Record<string, Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>>
+  hasMoreProducts: boolean
+}
+
+function readHomepageCache(): HomepageCache | null {
+  try {
+    const rawCache = window.localStorage.getItem(HOMEPAGE_CACHE_KEY)
+    if (!rawCache) return null
+    const cache = JSON.parse(rawCache) as HomepageCache
+    if (!cache.cachedAt || Date.now() - cache.cachedAt > HOMEPAGE_CACHE_TTL_MS || !Array.isArray(cache.products)) return null
+    return cache
+  } catch {
+    return null
+  }
+}
+
+function writeHomepageCache(cache: HomepageCache) {
+  try {
+    window.localStorage.setItem(HOMEPAGE_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // Private mode or storage quota must not block marketplace rendering.
+  }
+}
 
 export default function Home() {
   const { user } = useAuth()
@@ -32,6 +63,7 @@ export default function Home() {
   const [checkedIn, setCheckedIn] = useState(false)
   const [checkInMessage, setCheckInMessage] = useState<string | null>(null)
   const [checkInLoading, setCheckInLoading] = useState(false)
+  const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -42,6 +74,17 @@ export default function Home() {
         setLoading(false)
         return
       }
+      const cachedHomepage = readHomepageCache()
+      if (cachedHomepage && active) {
+        setBanners(cachedHomepage.banners)
+        setCategories(cachedHomepage.categories)
+        setProducts(cachedHomepage.products)
+        setSellersById(cachedHomepage.sellersById)
+        setProductOffset(cachedHomepage.products.length)
+        setHasMoreProducts(cachedHomepage.hasMoreProducts)
+        setLoading(false)
+      }
+      initialFeedRefreshInProgress.current = true
       try {
         const [bannersRes, categoriesRes, templatesRes, productsRes] = await Promise.all([
           supabase.from('promo_banners').select('*').order('sort_order'),
@@ -68,10 +111,19 @@ export default function Home() {
         setSellersById(nextSellers)
         setProductOffset(loadedProducts.length)
         setHasMoreProducts(loadedProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
+        writeHomepageCache({
+          cachedAt: Date.now(),
+          banners: bannersRes.data ?? [],
+          categories: digitalCategories.length > 0 ? digitalCategories : categoriesRes.data ?? [],
+          products: loadedProducts,
+          sellersById: nextSellers,
+          hasMoreProducts: loadedProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE,
+        })
       } catch (loadError) {
         console.error('Homepage data load failed:', loadError)
-        if (active) setCheckInMessage('লাইভ পণ্যের তথ্য এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।')
+        if (active && !cachedHomepage) setCheckInMessage('লাইভ পণ্যের তথ্য এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।')
       } finally {
+        initialFeedRefreshInProgress.current = false
         if (active) setLoading(false)
       }
     }
@@ -80,7 +132,7 @@ export default function Home() {
   }, [])
 
   const loadMoreProducts = useCallback(async () => {
-    if (!supabaseConfigured || loading || loadingMoreProducts || !hasMoreProducts) return
+    if (!supabaseConfigured || loading || initialFeedRefreshInProgress.current || loadingMoreProducts || !hasMoreProducts) return
     setLoadingMoreProducts(true)
     try {
       const { data, error } = await supabase

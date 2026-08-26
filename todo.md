@@ -68,3 +68,6 @@
 - [x] Inspect homepage product query limits, pagination, and category-filter interactions
 - [x] Load all approved products progressively on homepage scroll rather than stopping at a fixed small limit
 - [x] Validate that old and new approved products appear through the completed homepage feed
+- [ ] Define safe cache data, cache-version, and expiry boundaries for public homepage marketplace content
+- [ ] Render cached public homepage content immediately and refresh it in the background
+- [ ] Validate cache hits, expiry fallback, and fresh-data revalidation before deployment
