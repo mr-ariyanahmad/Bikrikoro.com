@@ -154,6 +154,7 @@ export default function ProductDetail() {
   }
 
   const isOwnListing = user?.uid === product.seller_id
+  const isDemoListing = product.title.startsWith('TEST / Demo only —') || digitalSpecs?.specifications?.test_data === true
   const videoEmbedUrl = getYouTubeEmbedUrl(product.video_url)
   const videoId = getYouTubeVideoId(product.video_url)
   const mediaCount = product.images.length + (videoEmbedUrl ? 1 : 0)
@@ -299,7 +300,7 @@ export default function ProductDetail() {
               '@type': 'Offer',
               price: product.price,
               priceCurrency: 'BDT',
-              availability: 'https://schema.org/InStock',
+              availability: isDemoListing ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
               url: `${SITE_URL}/products/${product.id}`,
             },
             itemCondition:
@@ -413,6 +414,8 @@ export default function ProductDetail() {
             )}
           </div>
 
+          {isDemoListing && <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"><p className="font-bold">TEST / Demo only — বিক্রির জন্য নয়</p><p className="mt-1 text-xs leading-5">এই listing শুধু marketplace layout ও category পরীক্ষা করার জন্য। এখানে অর্ডার, পেমেন্ট বা ডেলিভারি করা যাবে না।</p></div>}
+
           <section className="mt-5 overflow-hidden rounded-2xl border border-brand-200 bg-surface shadow-sm">
             <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-3 text-white"><div><p className="text-xs font-medium text-white/80">বিক্রেতা নির্বাচিত ডেলিভারি সুবিধা</p><p className="mt-0.5 text-sm font-bold">নিরাপদ ডিজিটাল কেনাকাটা</p></div><ProductDeliveryBadge product={product} /></div>
             <div className="p-4"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700"><ShieldCheck size={18} /></span><div><p className="text-sm font-semibold text-ink-900">{product.auto_delivery_enabled ? 'অটো ডেলিভারি সক্রিয়' : 'ম্যানুয়াল ডেলিভারি'}</p><p className="mt-1 text-xs leading-5 text-ink-600">{getProductDeliverySummary(product)}</p></div></div><div className="mt-3 flex flex-wrap gap-2 border-t border-outline pt-3"><ProductDeliveryTypeBadge product={product} /><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">{product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</span><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">পোস্ট করা হয়েছে {formatDate(product.created_at)}</span></div></div>
@@ -462,6 +465,10 @@ export default function ProductDetail() {
               >
                 লিস্টিং এডিট করুন
               </Link>
+            ) : isDemoListing ? (
+              <div className="w-full rounded-xl border border-amber-300 bg-amber-50 py-3 text-center text-sm font-semibold text-amber-900">
+                TEST / Demo only — অর্ডার বন্ধ
+              </div>
             ) : user ? (
               <>
                 <button
@@ -510,8 +517,8 @@ export default function ProductDetail() {
         limit={8}
       />
 
-      {!showBuy && !isOwnListing && <div className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 px-3 pb-[max(env(safe-area-inset-bottom),0.7rem)] pt-2.5 shadow-[0_-10px_26px_rgba(15,23,42,0.14)] backdrop-blur-xl md:hidden"><div className="mx-auto flex max-w-xl gap-2"><button type="button" onClick={() => void handleChat()} disabled={startingChat} className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 disabled:opacity-60"><MessageCircle size={18} />{startingChat ? 'অপেক্ষা করুন...' : 'চ্যাট করুন'}</button><button type="button" onClick={() => user ? setShowBuy(true) : navigate('/login')} className="flex min-h-12 flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(1,124,80,0.24)]"><ShoppingBag size={18} />{user ? 'অর্ডার করুন' : 'লগইন করে অর্ডার'}</button></div></div>}
-      {showBuy && user && <BuyModal product={product} digitalSpecs={digitalSpecs} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
+      {!showBuy && !isOwnListing && <div className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 px-3 pb-[max(env(safe-area-inset-bottom),0.7rem)] pt-2.5 shadow-[0_-10px_26px_rgba(15,23,42,0.14)] backdrop-blur-xl md:hidden"><div className="mx-auto flex max-w-xl gap-2"><button type="button" onClick={() => void handleChat()} disabled={startingChat} className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 disabled:opacity-60"><MessageCircle size={18} />{startingChat ? 'অপেক্ষা করুন...' : 'চ্যাট করুন'}</button>{isDemoListing ? <div className="flex min-h-12 flex-[1.35] items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 text-center text-xs font-bold text-amber-900">TEST / Demo only — অর্ডার বন্ধ</div> : <button type="button" onClick={() => user ? setShowBuy(true) : navigate('/login')} className="flex min-h-12 flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(1,124,80,0.24)]"><ShoppingBag size={18} />{user ? 'অর্ডার করুন' : 'লগইন করে অর্ডার'}</button>}</div></div>}
+      {showBuy && user && !isDemoListing && <BuyModal product={product} digitalSpecs={digitalSpecs} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
       {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">তালিকা সম্পর্কে অভিযোগ করুন</h2><p className="mt-1 text-sm text-ink-500">কেন তালিকাটি সমস্যাযুক্ত মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="অভিযোগের কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক তালিকা', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button type="button" onClick={() => setShowReport(false)} className="flex-1 rounded-none border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button type="button" onClick={handleReport} className="flex-1 rounded-none bg-error py-2.5 text-sm font-semibold text-white">অভিযোগ পাঠান</button></div></div></div>}
     </Layout>
   )
