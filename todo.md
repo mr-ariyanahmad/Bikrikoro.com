@@ -59,9 +59,9 @@
 - [x] Unpublish the user-rejected thirty-two generic listings from the public marketplace
 - [x] Verify no rejected generic listing remains publicly visible
 - [x] Prepare a compliant intake checklist for any requested branded subscription or service listing
-- [ ] Inventory active category coverage and determine one or two demo-only listings required per category
-- [ ] Create category-specific TEST / Demo-only listing content, original covers, and manual-delivery metadata
-- [ ] Publish the confirmed demo-only listings across every active category
-- [ ] Verify all active categories have visible test coverage and no demo listing exposes credentials or brand affiliation claims
-- [ ] Block TEST / Demo-only listings from opening checkout or appearing as purchasable offers
-- [ ] Verify demo-only listings render as read-only test records on product detail pages
+- [x] Inventory active category coverage and determine one or two demo-only listings required per category
+- [x] Create category-specific TEST / Demo-only listing content, original covers, and manual-delivery metadata
+- [x] Publish the confirmed demo-only listings across every active category
+- [x] Verify all active categories have visible test coverage and no demo listing exposes credentials or brand affiliation claims
+- [x] Block TEST / Demo-only listings from opening checkout or appearing as purchasable offers
+- [x] Verify demo-only listings render as read-only test records on product detail pages
