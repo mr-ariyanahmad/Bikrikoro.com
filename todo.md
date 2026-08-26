@@ -49,3 +49,7 @@
 - [x] Expand the seller posting category catalog with broad, policy-safe digital-product and service categories
 - [x] Prepare additional safe generic listing drafts without unverified third-party brand or account claims
 - [x] Validate and deploy the recommendation-card and seller-category improvements
+- [ ] Validate the confirmed thirty-two safe drafts against the verified ariyan seller profile and category templates
+- [ ] Create durable original covers and publication payloads for the thirty-two confirmed listings
+- [ ] Publish and approve the thirty-two confirmed seller listings with manual delivery
+- [ ] Verify every new listing is public, covered by an original image, and does not expose credentials or claim third-party affiliation
