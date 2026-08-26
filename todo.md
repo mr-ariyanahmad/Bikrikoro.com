@@ -78,4 +78,4 @@
 - [x] Inspect current marketplace and search ordering plus safe engagement and completed-purchase signals
 - [x] Define scalable public relevance ranking that prioritizes engagement and legitimate completed purchases over listing recency
 - [x] Implement relevance ordering for marketplace browsing, infinite-scroll pages, and search results
-- [ ] Validate ranked browsing/search pagination and deploy the ranking improvement
+- [x] Validate ranked browsing/search pagination and deploy the ranking improvement
