@@ -36,4 +36,9 @@
 - [x] Remove redundant mobile homepage shortcuts that duplicate the persistent bottom navigation
 - [x] Replace the mobile deal-card blank gap with a polished contiguous offer presentation
 - [x] Prepare ten original product images and complete seller-listing drafts for mr.ariyanahmad@gmail.com
-- [ ] Obtain confirmation immediately before publishing the prepared seller listings
+- [x] Obtain confirmation immediately before publishing the prepared seller listings
+- [x] Resolve mr.ariyanahmad@gmail.com to the correct verified BikriKoro seller profile and category IDs
+- [x] Finalize the ten approved listing titles, Bengali descriptions, prices, images, and manual-delivery options
+- [x] Publish the ten approved seller-owned digital listings without public credentials or secrets
+- [ ] Verify every published listing is owned by the intended seller and renders correctly
+- [ ] Repair the generated-cover hosting path so all ten public listing images render on bikrikoro.com
