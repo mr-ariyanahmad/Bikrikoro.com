@@ -53,6 +53,6 @@
 - [x] Create durable original covers and publication payloads for the thirty-two confirmed listings
 - [x] Publish and approve the thirty-two confirmed seller listings with manual delivery
 - [x] Verify every new listing is public, covered by an original image, and does not expose credentials or claim third-party affiliation
-- [ ] Move the mobile homepage search control into the top header beside the logo and menu control
-- [ ] Remove the redundant standalone mobile search row while preserving desktop search behavior
-- [ ] Validate and deploy the responsive mobile header refinement
+- [x] Move the mobile homepage search control into the top header beside the logo and menu control
+- [x] Remove the redundant standalone mobile search row while preserving desktop search behavior
+- [x] Validate and deploy the responsive mobile header refinement
