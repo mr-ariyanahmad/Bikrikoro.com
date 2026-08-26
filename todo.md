@@ -65,3 +65,6 @@
 - [x] Verify all active categories have visible test coverage and no demo listing exposes credentials or brand affiliation claims
 - [x] Block TEST / Demo-only listings from opening checkout or appearing as purchasable offers
 - [x] Verify demo-only listings render as read-only test records on product detail pages
+- [ ] Inspect homepage product query limits, pagination, and category-filter interactions
+- [ ] Load all approved products progressively on homepage scroll rather than stopping at a fixed small limit
+- [ ] Validate that old and new approved products appear through the completed homepage feed

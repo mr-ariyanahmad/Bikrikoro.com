@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowRight, Check, Coins, Loader2, Plus, ShieldCheck, Sparkles, WalletCards, Zap } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -14,6 +14,8 @@ import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 
+const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
+
 export default function Home() {
   const { user } = useAuth()
   const [banners, setBanners] = useState<PromoBanner[]>([])
@@ -21,6 +23,9 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
   const [sellersById, setSellersById] = useState<Record<string, Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>>>({})
   const [loading, setLoading] = useState(true)
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false)
+  const [hasMoreProducts, setHasMoreProducts] = useState(false)
+  const [productOffset, setProductOffset] = useState(0)
   const [balance, setBalance] = useState(0)
   const [rewardCoins, setRewardCoins] = useState(0)
   const [checkinStreak, setCheckinStreak] = useState(0)
@@ -42,7 +47,7 @@ export default function Home() {
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
           supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
-          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('created_at', { ascending: false }).limit(12),
+          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('created_at', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {
@@ -61,6 +66,8 @@ export default function Home() {
         setCategories(digitalCategories.length > 0 ? digitalCategories : categoriesRes.data ?? [])
         setProducts(loadedProducts)
         setSellersById(nextSellers)
+        setProductOffset(loadedProducts.length)
+        setHasMoreProducts(loadedProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
       } catch (loadError) {
         console.error('Homepage data load failed:', loadError)
         if (active) setCheckInMessage('লাইভ পণ্যের তথ্য এখন পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।')
@@ -71,6 +78,48 @@ export default function Home() {
     void load()
     return () => { active = false }
   }, [])
+
+  const loadMoreProducts = useCallback(async () => {
+    if (!supabaseConfigured || loading || loadingMoreProducts || !hasMoreProducts) return
+    setLoadingMoreProducts(true)
+    try {
+      const { data, error } = await supabase
+        .from(PUBLIC_PRODUCT_TABLE)
+        .select(PUBLIC_PRODUCT_FIELDS)
+        .order('created_at', { ascending: false })
+        .range(productOffset, productOffset + HOMEPAGE_PRODUCT_PAGE_SIZE - 1)
+      if (error) throw error
+      const nextProducts = (data ?? []) as Product[]
+      const nextSellerIds = [...new Set(nextProducts.map((product) => product.seller_id).filter(Boolean))]
+      const { data: sellerRows, error: sellerError } = nextSellerIds.length > 0
+        ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', nextSellerIds)
+        : { data: [], error: null }
+      if (sellerError) console.error('Homepage additional seller summaries load failed:', sellerError)
+      setProducts((current) => {
+        const knownIds = new Set(current.map((product) => product.id))
+        return [...current, ...nextProducts.filter((product) => !knownIds.has(product.id))]
+      })
+      setSellersById((current) => ({ ...current, ...Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])) }))
+      setProductOffset((current) => current + nextProducts.length)
+      setHasMoreProducts(nextProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
+    } catch (error) {
+      console.error('Homepage additional products load failed:', error)
+      setCheckInMessage('আরও পণ্য লোড করা যায়নি। কিছুক্ষণ পরে আবার নিচে স্ক্রল করুন।')
+    } finally {
+      setLoadingMoreProducts(false)
+    }
+  }, [hasMoreProducts, loading, loadingMoreProducts, productOffset])
+
+  useEffect(() => {
+    if (!hasMoreProducts) return
+    const handleScroll = () => {
+      const remainingPageHeight = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight)
+      if (remainingPageHeight < 900) void loadMoreProducts()
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [hasMoreProducts, loadMoreProducts])
 
   useEffect(() => {
     if (!user) { setBalance(0); setRewardCoins(0); setCheckinStreak(0); setCheckedIn(false); return }
@@ -122,7 +171,7 @@ export default function Home() {
     }
   }
 
-  const productGrid = <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>
+  const productGrid = <><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : products.length > 0 ? <span>সব {products.length}টি অনুমোদিত পণ্য দেখানো হয়েছে</span> : null}</div>}</>
 
   return <Layout wide>
     <Helmet><title>BikriKoro.Com — বাংলাদেশের নিরাপদ ডিজিটাল মার্কেটপ্লেস</title><meta name="description" content="এসক্রো-সুরক্ষিত ডিজিটাল মার্কেটপ্লেস — নিরাপদে ডিজিটাল কী, ফাইল, প্রবেশাধিকার, কোর্স ও সেবা কিনুন এবং বিক্রি করুন।" /></Helmet>
