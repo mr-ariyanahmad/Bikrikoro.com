@@ -71,3 +71,7 @@
 - [x] Define safe cache data, cache-version, and expiry boundaries for public homepage marketplace content
 - [x] Render cached public homepage content immediately and refresh it in the background
 - [x] Validate cache hits, expiry fallback, and fresh-data revalidation before deployment
+- [ ] Inspect recommendation components and existing public interaction signals for category-interest tracking hooks
+- [ ] Define privacy-safe category scoring, decay, and new-user popular-product fallback behavior
+- [ ] Implement local category-interest tracking and personalized recommendation ranking
+- [ ] Validate personalized, cold-start, and responsive recommendation presentation before deployment

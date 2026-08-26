@@ -12,6 +12,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { findOrCreateThread } from '@/lib/chat'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
+import { trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
@@ -96,6 +97,7 @@ export default function ProductDetail() {
             if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
           })
           void trackProductView(productData.id)
+          trackCategoryInterest(productData.category_id, 'view')
         }
       } catch (error) {
         console.error('Product detail load failed:', error)
@@ -199,7 +201,10 @@ export default function ProductDetail() {
     const next = !favorited
     setFavorited(next)
     try {
-      if (next) await addFavorite(user.uid, product.id)
+      if (next) {
+        await addFavorite(user.uid, product.id)
+        trackCategoryInterest(product.category_id, 'favorite')
+      }
       else await removeFavorite(user.uid, product.id)
     } catch {
       setFavorited(!next)
@@ -513,7 +518,7 @@ export default function ProductDetail() {
       />
       <RecommendedProducts
         title="আপনার জন্য আরও পণ্য"
-        mode={{ type: 'popular', excludeProductId: product.id }}
+        mode={{ type: 'personalized', excludeProductId: product.id }}
         limit={8}
       />
 

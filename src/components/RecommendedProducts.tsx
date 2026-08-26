@@ -3,11 +3,13 @@ import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product, Profile } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { getPreferredCategoryIds, rankProductsByCategoryInterest } from '@/lib/recommendationPreferences'
 
 type Mode =
   | { type: 'related'; categoryId: string; excludeProductId: string }
   | { type: 'seller'; sellerId: string; excludeProductId: string }
   | { type: 'popular'; excludeProductId?: string }
+  | { type: 'personalized'; excludeProductId?: string }
   | { type: 'ids'; productIds: string[] }
 
 export function RecommendedProducts({ title, mode, limit = 8, layout = 'default' }: { title: string; mode: Mode; limit?: number; layout?: 'default' | 'media' }) {
@@ -47,6 +49,28 @@ export function RecommendedProducts({ title, mode, limit = 8, layout = 'default'
           const byId = new Map(rows.map((product) => [product.id, product]))
           const ordered = mode.productIds.map((id) => byId.get(id)).filter((product): product is Product => Boolean(product))
           await applyProducts(ordered)
+          return
+        }
+
+        if (mode.type === 'personalized') {
+          const preferredCategoryIds = getPreferredCategoryIds()
+          let preferredRequest = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS)
+          if (preferredCategoryIds.length > 0) preferredRequest = preferredRequest.in('category_id', preferredCategoryIds)
+          if (mode.excludeProductId) preferredRequest = preferredRequest.neq('id', mode.excludeProductId)
+          const fallbackRequest = supabase
+            .from(PUBLIC_PRODUCT_TABLE)
+            .select(PUBLIC_PRODUCT_FIELDS)
+            .neq('id', mode.excludeProductId ?? '')
+            .order('view_count', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(limit * 3)
+          const [preferredResponse, fallbackResponse] = await Promise.all([
+            preferredCategoryIds.length > 0 ? preferredRequest.order('view_count', { ascending: false }).limit(limit * 4) : Promise.resolve({ data: [] as Product[] }),
+            fallbackRequest,
+          ])
+          const uniqueProducts = new Map<string, Product>()
+          for (const product of [...((preferredResponse.data ?? []) as Product[]), ...((fallbackResponse.data ?? []) as Product[])]) uniqueProducts.set(product.id, product)
+          await applyProducts(rankProductsByCategoryInterest([...uniqueProducts.values()]).slice(0, limit))
           return
         }
 
