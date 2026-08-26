@@ -21,3 +21,7 @@
 - [x] Audit the product-detail action groups for ambiguous same-color controls
 - [x] Apply green trust, neutral share, and red sensitive-report action colors
 - [x] Validate and deploy the semantic product-detail action treatment
+- [x] Inspect shared layout and route availability for mobile Home, Products, Orders, Post, Chat, and Account navigation
+- [x] Add a fixed mobile-only bottom quick-navigation bar with a prominent Post action
+- [x] Reserve safe mobile bottom spacing so page content is never hidden by navigation
+- [x] Verify desktop and laptop navigation remain unchanged and deploy the responsive update

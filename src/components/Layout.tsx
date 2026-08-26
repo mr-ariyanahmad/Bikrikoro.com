@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
-import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Plus, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 type NavItem = { to: string; label: string; icon: Icon }
+type MobileQuickNavItem = NavItem & { prominent?: boolean }
 
 const NAV_LINKS: NavItem[] = [
   { to: '/', label: 'হোম', icon: Home },
@@ -44,6 +45,14 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS)
     .filter((item) => !(item.to === '/become-seller' && sellerStatusLoading))
     .map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
+  const mobileQuickLinks: MobileQuickNavItem[] = [
+    { to: '/', label: 'হোম', icon: Home },
+    { to: '/products', label: 'প্রোডাক্ট', icon: ShoppingBag },
+    { to: '/orders', label: 'অর্ডার', icon: Package },
+    { to: isSeller ? '/sell' : '/become-seller', label: 'পোস্ট', icon: Plus, prominent: true },
+    { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
+    { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
+  ]
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
@@ -122,13 +131,14 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
           {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={closeMobileMenu} />)}</div><div className="relative mt-3"><button type="button" onClick={() => setCityOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border border-outline bg-bg px-3 py-2.5 text-sm font-semibold text-ink-700"><span className="inline-flex items-center gap-2"><MapPin size={16} className="text-brand-600" />এলাকা: খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl border border-outline bg-bg p-1">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={closeMobileMenu} className="rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700">{city}</Link>)}</div>}</div><div className="my-3 h-px bg-outline" />{user ? <div className="grid grid-cols-2 gap-1.5">{ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} badge={link.to === '/notifications' ? unreadCount : undefined} onClose={closeMobileMenu} />)}<button type="button" onClick={() => { closeMobileMenu(); void logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button></div> : <Link to="/login" onClick={closeMobileMenu} className="rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}</nav>}
         </div>
       </header>
-      <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 py-7 sm:px-5 sm:py-8`}>{children}</main>
-      {!hideFooter && <footer className="border-t border-outline bg-surface">
+      <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 pb-28 pt-7 sm:px-5 sm:pt-8 md:py-8`}>{children}</main>
+      {!hideFooter && <footer className="border-t border-outline bg-surface pb-24 md:pb-0">
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
           <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>
           <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">সেটিংস ও সহায়তা</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
         </div>
       </footer>}
+      {!fullScreen && <nav aria-label="মোবাইল কুইক নেভিগেশন" className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"><div className="mx-auto grid max-w-xl grid-cols-6 items-end px-1.5 pb-[max(env(safe-area-inset-bottom),0.45rem)] pt-2">{mobileQuickLinks.map((link) => <NavLink key={link.label} to={link.to} end={link.to === '/'} onClick={closeMobileMenu} className={({ isActive }) => `relative flex min-h-14 min-w-0 flex-col items-center justify-end gap-1 rounded-xl px-1 pb-1.5 text-[10px] font-semibold transition active:scale-[0.97] ${link.prominent ? 'text-brand-700' : isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-500 hover:bg-bg hover:text-ink-800'}`}><span className={link.prominent ? '-mt-7 flex h-12 w-12 items-center justify-center rounded-2xl border-4 border-surface bg-brand-500 text-white shadow-lg shadow-brand-500/25' : 'flex h-6 items-center justify-center'}><link.icon size={link.prominent ? 23 : 20} strokeWidth={link.prominent ? 2.5 : 1.9} /></span><span className="max-w-full truncate">{link.label}</span></NavLink>)}</div></nav>}
     </div>
   )
 }
