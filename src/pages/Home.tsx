@@ -7,6 +7,7 @@ import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
+import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
@@ -64,7 +65,7 @@ export default function Home() {
   const [checkInLoading, setCheckInLoading] = useState(false)
   const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
-  const rankHomepageFeed = (rows: Product[]) => rankHomepageProductsByCategoryInterest(rows)
+  const rankHomepageFeed = (rows: Product[]) => rankHomepageProductsByCategoryInterest(rows, getRecentlyViewedIds())
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')

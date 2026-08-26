@@ -100,6 +100,17 @@ export function rankProductsByCategoryInterest(products: Product[]) {
   return sortProductsByCategoryInterest(products, true)
 }
 
-export function rankHomepageProductsByCategoryInterest(products: Product[]) {
-  return sortProductsByCategoryInterest(products, false)
+export function rankHomepageProductsByCategoryInterest(products: Product[], recentlyViewedProductIds: string[] = []) {
+  const viewedPosition = new Map(recentlyViewedProductIds.map((id, index) => [id, index]))
+  const ranked = sortProductsByCategoryInterest(products, false)
+  return ranked.sort((left, right) => {
+    const leftPosition = isTestDemoProduct(left) ? undefined : viewedPosition.get(left.id)
+    const rightPosition = isTestDemoProduct(right) ? undefined : viewedPosition.get(right.id)
+    if (leftPosition !== undefined || rightPosition !== undefined) {
+      if (leftPosition === undefined) return 1
+      if (rightPosition === undefined) return -1
+      return leftPosition - rightPosition
+    }
+    return 0
+  })
 }
