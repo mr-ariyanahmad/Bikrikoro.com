@@ -35,6 +35,6 @@
     { "source": "/__/firebase/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/firebase/:path*" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
     { "source": "/seller/:username", "destination": "/api/seller-preview?username=:username" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|listing-covers/).*)", "destination": "/index.html" }
   ]
 }
