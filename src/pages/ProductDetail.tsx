@@ -521,7 +521,7 @@ export default function ProductDetail() {
         limit={8}
       />
       <RecommendedProducts
-        title="আপনার জন্য আরও পণ্য"
+        title="আরও পণ্য"
         mode={{ type: 'personalized', excludeProductId: product.id }}
         limit={8}
       />

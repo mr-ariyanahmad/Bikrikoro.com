@@ -79,13 +79,27 @@ export function isTestDemoProduct(product: Pick<Product, 'title'>) {
   return product.title.startsWith('TEST / Demo only —')
 }
 
-export function rankProductsByCategoryInterest(products: Product[]) {
+function sortProductsByCategoryInterest(products: Product[], excludeTestDemoProducts: boolean) {
   const categoryScores = getCategoryInterestScores()
-  return products.filter((product) => !isTestDemoProduct(product)).sort((left, right) => {
-    const interestDifference = (categoryScores[right.category_id] ?? 0) - (categoryScores[left.category_id] ?? 0)
+  return products
+    .filter((product) => !excludeTestDemoProducts || !isTestDemoProduct(product))
+    .sort((left, right) => {
+    const leftInterest = isTestDemoProduct(left) ? 0 : (categoryScores[left.category_id] ?? 0)
+    const rightInterest = isTestDemoProduct(right) ? 0 : (categoryScores[right.category_id] ?? 0)
+    const interestDifference = rightInterest - leftInterest
     if (interestDifference !== 0) return interestDifference
+    const demoDifference = Number(isTestDemoProduct(left)) - Number(isTestDemoProduct(right))
+    if (demoDifference !== 0) return demoDifference
     const popularityDifference = Number(right.popularity_score ?? right.view_count ?? 0) - Number(left.popularity_score ?? left.view_count ?? 0)
     if (popularityDifference !== 0) return popularityDifference
     return new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
   })
+}
+
+export function rankProductsByCategoryInterest(products: Product[]) {
+  return sortProductsByCategoryInterest(products, true)
+}
+
+export function rankHomepageProductsByCategoryInterest(products: Product[]) {
+  return sortProductsByCategoryInterest(products, false)
 }

@@ -7,13 +7,11 @@ import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
-import { RecommendedProducts } from '@/components/RecommendedProducts'
-import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
-import { trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { getPreferredCategoryIds, rankHomepageProductsByCategoryInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
 const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v2'
@@ -66,6 +64,7 @@ export default function Home() {
   const [checkInLoading, setCheckInLoading] = useState(false)
   const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
+  const rankHomepageFeed = (rows: Product[]) => rankHomepageProductsByCategoryInterest(rows)
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')
@@ -83,7 +82,7 @@ export default function Home() {
       if (cachedHomepage && active) {
         setBanners(cachedHomepage.banners)
         setCategories(cachedHomepage.categories)
-        setProducts(cachedHomepage.products)
+        setProducts(rankHomepageFeed(cachedHomepage.products))
         setSellersById(cachedHomepage.sellersById)
         setProductOffset(cachedHomepage.products.length)
         setHasMoreProducts(cachedHomepage.hasMoreProducts)
@@ -91,17 +90,22 @@ export default function Home() {
       }
       initialFeedRefreshInProgress.current = true
       try {
-        const [bannersRes, categoriesRes, templatesRes, productsRes] = await Promise.all([
+        const preferredCategoryIds = getPreferredCategoryIds()
+        const [bannersRes, categoriesRes, templatesRes, productsRes, preferredProductsRes] = await Promise.all([
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
           supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
           supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
+          preferredCategoryIds.length > 0
+            ? supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('category_id', preferredCategoryIds).not('title', 'ilike', 'TEST / Demo only —%').order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).limit(HOMEPAGE_PRODUCT_PAGE_SIZE)
+            : Promise.resolve({ data: [] as Product[], error: null }),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {
           throw bannersRes.error ?? categoriesRes.error ?? productsRes.error
         }
-        const loadedProducts = (productsRes.data ?? []) as Product[]
+        const globalProducts = (productsRes.data ?? []) as Product[]
+        const loadedProducts = rankHomepageFeed([...new Map([...(preferredProductsRes.data ?? [] as Product[]), ...globalProducts].map((product) => [product.id, product])).values()])
         const sellerIds = [...new Set(loadedProducts.map((product) => product.seller_id).filter(Boolean))]
         const { data: sellerRows, error: sellerError } = sellerIds.length > 0
           ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds)
@@ -115,14 +119,14 @@ export default function Home() {
         setProducts(loadedProducts)
         setSellersById(nextSellers)
         setProductOffset(loadedProducts.length)
-        setHasMoreProducts(loadedProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
+        setHasMoreProducts(globalProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
         writeHomepageCache({
           cachedAt: Date.now(),
           banners: bannersRes.data ?? [],
           categories: digitalCategories.length > 0 ? digitalCategories : categoriesRes.data ?? [],
           products: loadedProducts,
           sellersById: nextSellers,
-          hasMoreProducts: loadedProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE,
+          hasMoreProducts: globalProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE,
         })
       } catch (loadError) {
         console.error('Homepage data load failed:', loadError)
@@ -148,7 +152,7 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .range(productOffset, productOffset + HOMEPAGE_PRODUCT_PAGE_SIZE - 1)
       if (error) throw error
-      const nextProducts = (data ?? []) as Product[]
+        const nextProducts = (data ?? []) as Product[]
       const nextSellerIds = [...new Set(nextProducts.map((product) => product.seller_id).filter(Boolean))]
       const { data: sellerRows, error: sellerError } = nextSellerIds.length > 0
         ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', nextSellerIds)
@@ -156,7 +160,7 @@ export default function Home() {
       if (sellerError) console.error('Homepage additional seller summaries load failed:', sellerError)
       setProducts((current) => {
         const knownIds = new Set(current.map((product) => product.id))
-        return [...current, ...nextProducts.filter((product) => !knownIds.has(product.id))]
+        return rankHomepageFeed([...current, ...nextProducts.filter((product) => !knownIds.has(product.id))])
       })
       setSellersById((current) => ({ ...current, ...Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])) }))
       setProductOffset((current) => current + nextProducts.length)
@@ -168,6 +172,12 @@ export default function Home() {
       setLoadingMoreProducts(false)
     }
   }, [hasMoreProducts, loading, loadingMoreProducts, productOffset])
+
+  useEffect(() => {
+    const refreshFeedOrder = () => setProducts((current) => rankHomepageFeed(current))
+    window.addEventListener('bikrikoro:recommendations-changed', refreshFeedOrder)
+    return () => window.removeEventListener('bikrikoro:recommendations-changed', refreshFeedOrder)
+  }, [])
 
   useEffect(() => {
     if (!hasMoreProducts) return
@@ -230,7 +240,7 @@ export default function Home() {
     }
   }
 
-  const productGrid = <><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : products.length > 0 ? <span>সব {products.length}টি অনুমোদিত পণ্য দেখানো হয়েছে</span> : null}</div>}</>
+  const productGrid = <><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : null}</div>}</>
 
   return <Layout wide>
     <Helmet><title>BikriKoro.Com — বাংলাদেশের নিরাপদ ডিজিটাল মার্কেটপ্লেস</title><meta name="description" content="এসক্রো-সুরক্ষিত ডিজিটাল মার্কেটপ্লেস — নিরাপদে ডিজিটাল কী, ফাইল, প্রবেশাধিকার, কোর্স ও সেবা কিনুন এবং বিক্রি করুন।" /></Helmet>
@@ -243,8 +253,7 @@ export default function Home() {
       <section className="mt-6"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-ink-900">আজকের ডিজিটাল ডিল</h2><Link to="/products" className="inline-flex items-center gap-0.5 text-xs font-bold text-brand-700">সব দেখুন <ArrowRight size={14} /></Link></div>{banners.length > 0 ? <div className="scrollbar-none mt-3 flex gap-3 overflow-x-auto pb-1">{banners.map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-32 w-56 shrink-0 overflow-hidden rounded-2xl bg-outline/30 shadow-sm"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div> : <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]"><Link to="/products" className="min-h-32 bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white"><Zap size={19} className="text-amber-300" /><p className="mt-4 text-sm font-bold">অটো ডেলিভারি</p><p className="mt-1 text-[11px] leading-4 text-brand-50">পেমেন্ট নিশ্চিত হলেই দ্রুত অর্ডার প্রস্তুত</p></Link><Link to="/sell" className="min-h-32 bg-gradient-to-br from-amber-300 to-orange-500 p-4 text-ink-900"><Sparkles size={19} /><p className="mt-4 text-sm font-bold">বিক্রি শুরু করুন</p><p className="mt-1 text-[11px] leading-4 font-medium text-ink-800/80">নিরাপদ ডিজিটাল পণ্য পোস্ট দিন</p></Link></div>}</section>
       <section className="mt-6 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white"><p className="text-xs font-semibold text-brand-50/80">নিরাপদ ডিজিটাল বাজার</p><h2 className="mt-1 text-xl font-bold">বিশ্বাস করে কিনুন, নিশ্চিন্তে বিক্রি করুন</h2><p className="mt-2 text-xs leading-5 text-brand-50/90">এসক্রো সুরক্ষায় পেমেন্ট থেকে ডেলিভারি পর্যন্ত প্রতিটি ধাপ স্বচ্ছ রাখুন।</p><Link to="/sell" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-brand-700">পণ্য পোস্ট করুন <ArrowRight size={14} /></Link></section>
       <div className="mt-6"><CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /></div>
-      <section className="mt-6"><div className="flex items-center justify-between"><h2 className="text-base font-bold text-ink-900">সাম্প্রতিক পণ্য</h2><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div>{productGrid}</section>
-      <RecommendedProducts title="আপনার জন্য" mode={{ type: 'personalized' }} />
+      <section className="mt-6"><div className="flex items-center justify-between"><h2 className="text-base font-bold text-ink-900">পণ্য</h2><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div>{productGrid}</section>
       {!loading && products.length === 0 && <p className="mt-8 text-center text-sm text-ink-600">এখনো কোনো পণ্য যোগ হয়নি।</p>}
     </div>
     <div className="hidden md:block">
@@ -252,7 +261,7 @@ export default function Home() {
       {checkInMessage && <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{checkInMessage}</p>}
       <section className="mb-5 grid gap-3 sm:grid-cols-3"><Link to="/wallet" className="rounded-2xl border border-outline bg-surface p-4 transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">আমার ব্যালেন্স</span><WalletCards size={19} className="text-brand-600" /></div><p className="mt-2 tabular-amount text-xl font-bold text-ink-900">{user ? formatTaka(balance) : 'লগইন করুন'}</p><p className="mt-1 text-xs text-ink-400">ওয়ালেট ও অর্থ উত্তোলন দেখুন</p></Link><button type="button" onClick={() => void checkIn()} disabled={checkInLoading || checkedIn} aria-busy={checkInLoading} className="rounded-2xl border border-outline bg-surface p-4 text-left transition hover:border-brand-500 disabled:cursor-wait disabled:opacity-70"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">দৈনিক চেক-ইন</span>{checkInLoading ? <Loader2 size={19} className="animate-spin text-brand-600" /> : <Coins size={19} className="text-amber-500" />}</div><p className="mt-2 text-lg font-bold text-ink-900">{checkInLoading ? 'চেক-ইন হচ্ছে...' : checkedIn ? `আজকের কয়েন পেয়েছেন · ${rewardCoins}`.replace('$', '') : '+১০ কয়েন নিন'}</p><p className="mt-1 flex items-center gap-1 text-xs text-ink-400">{checkedIn && <Check size={13} className="text-brand-600" />} মোট {rewardCoins} কয়েন · {checkinStreak} দিনের ধারাবাহিকতা</p></button><Link to="/products" className="rounded-2xl border border-brand-100 bg-brand-50 p-4 transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-brand-700">ডিজিটাল সুরক্ষা</span><ShieldCheck size={19} className="text-brand-600" /></div><p className="mt-2 text-lg font-bold text-brand-800">এসক্রো ও ডেলিভারি</p><p className="mt-1 text-xs text-brand-700/70">নিরাপদ ডিজিটাল পণ্য দেখুন →</p></Link></section>
       <section className="mb-6 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 p-6 text-white sm:p-8"><p className="text-sm font-medium text-brand-50/80">নিরাপদ ডিজিটাল মার্কেটপ্লেস</p><h1 className="mt-1 text-2xl font-semibold sm:text-3xl">বিশ্বাস করে কিনুন, নিশ্চিন্তে বিক্রি করুন</h1><p className="mt-2 max-w-md text-sm text-brand-50/90">এসক্রো সুরক্ষায় প্রতিটা লেনদেন — ডিজিটাল ডেলিভারি পেয়ে আপনি নিশ্চিত করার পরেই বিক্রেতার ওয়ালেটে অর্থ জমা হয়।</p><Link to="/sell" className="mt-4 inline-block rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50">পণ্য বিক্রি করুন</Link></section>
-      <CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /><div className="mt-6 flex items-center justify-between"><h2 className="text-base font-semibold text-ink-900">সাম্প্রতিক পণ্য</h2><Link to="/products" className="text-sm font-medium text-brand-600 hover:text-brand-700">সব দেখুন →</Link></div>{productGrid}{!loading && products.length === 0 && <p className="mt-8 text-center text-ink-600">এখনো কোনো পণ্য যোগ হয়নি।</p>}<RecommendedProducts title="আপনার জন্য" mode={{ type: 'personalized' }} />{getRecentlyViewedIds().length > 0 && <RecommendedProducts title="আপনি যা দেখেছেন" mode={{ type: 'ids', productIds: getRecentlyViewedIds() }} />}
+      <CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /><div className="mt-6 flex items-center justify-between"><h2 className="text-base font-semibold text-ink-900">পণ্য</h2><Link to="/products" className="text-sm font-medium text-brand-600 hover:text-brand-700">সব দেখুন →</Link></div>{productGrid}{!loading && products.length === 0 && <p className="mt-8 text-center text-ink-600">এখনো কোনো পণ্য যোগ হয়নি।</p>}
     </div>
   </Layout>
 }
