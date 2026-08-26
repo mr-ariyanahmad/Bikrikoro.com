@@ -17,3 +17,18 @@ Scores decay with a **21-day half-life**, are capped at 40 per category, and ret
 The deployed product-detail view for the selected Furniture test fixture completed its click-and-view navigation. Its **`TEST / Demo only — অর্ডার বন্ধ`** state remained visible, with the normal order action absent, preserving the existing UI protection for test records.
 
 Browser inspection confirmed that the interaction record used only the category ID and a local decayed score. The recorded click plus view produced an approximately 3-point local category score. The implementation subsequently excludes records whose titles begin **`TEST / Demo only —`** from both interest tracking and personalized result rows so temporary UI fixtures cannot distort a real visitor’s recommendation profile.
+
+After deployment, the homepage **“আপনার জন্য”** panel rendered successfully with a non-demo public product and no `TEST / Demo only —` card. The fallback query is now applied without an invalid empty product-ID exclusion, so both cold-start and existing-browser fallback behavior return public, non-demo catalog items.
+
+The final live product-detail test confirmed that **“আপনার জন্য আরও পণ্য”** rendered eight public, non-demo cards. The recommendation query excludes demo fixtures before applying its result limit; this is important while the newer temporary category-coverage fixtures outnumber real marketplace listings. Homepage and product-detail sections continue to use the existing responsive grid classes, preserving the established desktop and mobile layouts.
+
+## Validation Summary
+
+| Check | Result |
+|---|---|
+| Build and lint | Passed; the existing Fast Refresh advisory in `AuthContext.tsx` remains a warning only. |
+| Cold start | Public popularity and recency fallback renders without a stored preference. |
+| Local interaction | A clicked and viewed category created a browser-local score only. |
+| Homepage results | “আপনার জন্য” renders real public product cards without demo fixtures. |
+| Product-detail results | “আপনার জন্য আরও পণ্য” renders eight real public product cards without demo fixtures. |
+| Demo purchase guard | Demo listing product detail retained the order-disabled state. |
