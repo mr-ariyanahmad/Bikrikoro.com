@@ -11,3 +11,7 @@ The subsequent live check confirmed the deployed update. The auto-delivery listi
 For the homepage-card redesign, the first live check after pushing commit `5ed1d1d` loaded catalog items and the existing automatic delivery badges, but it still rendered the prior card layout without seller identity metadata. The deployment needs a refreshed Vercel bundle check before final confirmation.
 
 The subsequent live homepage check confirmed the new card bundle. Recent product cards now render the seller photo/name, a separate verification indicator when the seller is verified, a rating/review state, three-line title treatment, delivery status, and refreshed price styling. Existing recommendation cards remain functional and retain their compact catalog treatment.
+
+For the semantic action-color update, the first post-push product-page check continued to render the previous monochrome action tiles while all content remained functional. A refreshed Vercel-bundle check is required before final confirmation of the new trust, neutral, and sensitive action palette.
+
+The refreshed live product page confirmed the semantic hierarchy is deployed: the alert control uses amber, share uses blue, report uses red, and delivery/checkout trust surfaces remain green. The controls are visually distinct without changing their existing action behavior.
