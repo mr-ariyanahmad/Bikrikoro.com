@@ -163,3 +163,7 @@
 - [x] Define browser-only blur and brightness quality signals with non-blocking warning thresholds
 - [x] Implement NID image quality warnings for selected files and camera captures
 - [ ] Validate warning behavior, upload continuity, build, and production deployment
+- [x] Inspect inconsistent selfie and ownership-proof guidance plus redundant document-preview copy
+- [x] Define consistent safe illustration cards for every verification document type
+- [x] Upgrade selfie and ownership-proof guide visuals and remove unnecessary modal text
+- [ ] Validate all guidance variants, mobile modal layout, build, and production deployment
