@@ -29,6 +29,7 @@ const Wallet = lazy(() => import('@/pages/Wallet'))
 const RewardsHub = lazy(() => import('@/pages/RewardsHub'))
 const Account = lazy(() => import('@/pages/Account'))
 const AccountEdit = lazy(() => import('@/pages/AccountEdit'))
+const StartupAnimationPreview = lazy(() => import('@/pages/StartupAnimationPreview'))
 const SellerProfile = lazy(() => import('@/pages/SellerProfile'))
 const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'))
 const Favorites = lazy(() => import('@/pages/Favorites'))
@@ -67,6 +68,7 @@ function AppRoutes() {
       <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/preview/startup-recovery" element={<StartupAnimationPreview />} />
       <Route path="/" element={<Home />} />
       <Route path="/products" element={<Products />} />
       <Route path="/search" element={<SearchPage />} />

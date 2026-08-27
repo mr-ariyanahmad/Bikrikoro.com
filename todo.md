@@ -137,3 +137,4 @@
 - [x] Define the profile visual hierarchy, dedicated edit route, completion percentage, and privacy-safe field display
 - [x] Implement a product-detail-quality profile page with a pencil edit screen and completion progress panel
 - [ ] Validate profile updates, incomplete-field guidance, mobile layout, build, and production deployment
+- [ ] Add and validate a safe standalone preview route for the startup connected-gear animation

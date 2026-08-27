@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Home, RefreshCw, Settings } from 'lucide-react'
+import { Home, RefreshCw } from 'lucide-react'
+import { ConnectedGearAnimation } from '@/components/ConnectedGearAnimation'
 
 interface Props { children: ReactNode }
 interface State { hasError: boolean }
@@ -27,13 +28,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg px-5 py-12">
         <section className="w-full max-w-md rounded-3xl border border-outline bg-surface p-7 text-center shadow-sm">
-          <div className="connected-gears mx-auto" role="status" aria-label="পেজ প্রস্তুত করার চেষ্টা চলছে">
-            <span className="gear-link gear-link-left" aria-hidden="true" />
-            <span className="gear-link gear-link-right" aria-hidden="true" />
-            <Settings className="gear gear-main" aria-hidden="true" />
-            <Settings className="gear gear-left" aria-hidden="true" />
-            <Settings className="gear gear-right" aria-hidden="true" />
-          </div>
+          <div className="mx-auto w-fit"><ConnectedGearAnimation /></div>
           <h1 className="mt-5 text-xl font-bold text-ink-900">পেজটি প্রস্তুত করা হচ্ছে</h1>
           <p className="mt-2 text-sm leading-6 text-ink-600">সাময়িক সংযোগ বা আপডেটের সমস্যা হয়েছে। আমরা পেজটি আবার চালু করার চেষ্টা করছি; না হলে নিচের বোতাম ব্যবহার করুন।</p>
           <div className="mt-6 grid gap-2 sm:grid-cols-2">
