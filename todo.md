@@ -181,10 +181,10 @@
 - [x] Validate seller and non-seller visibility rules on mobile and desktop, then deploy
 - [x] Audit the mobile dock gap, safe-area padding, active state, and central role-aware action layout
 - [x] Redesign the mobile dock as a bottom-edge-integrated bar with rounded upper corners and stronger visual hierarchy
-- [ ] Validate the mobile dock on an actual phone viewport, build, and deploy
+- [x] Validate the mobile dock on an actual phone viewport, build, and deploy
 - [x] Audit and restore the mobile dock on chat list and chat thread screens without breaking their full-screen interaction layouts
 - [x] Prevent seller accounts from flashing the non-seller Seller হোন dock action while seller status resolves
 - [ ] Validate mobile chat navigation and role-aware dock transitions, then deploy
 - [x] Audit the shared mobile dock against the provided premium active-tab, floating-card, safe-area, and icon-hierarchy requirements
 - [x] Redesign the mobile dock visual treatment while preserving all existing routes, role-aware actions, and labels
-- [ ] Validate the premium dock at small and large mobile widths, then build and deploy
+- [x] Validate the premium dock at small and large mobile widths, then build and deploy
