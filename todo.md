@@ -170,7 +170,7 @@
 - [x] Audit legacy spinners, shared loading components, and current branded logo asset usage
 - [x] Define the reusable smile-logo animation, display sizes, messages, and reduced-motion fallback
 - [x] Replace shared circular loading states with the branded animated logo loader
-- [ ] Validate full-page and inline loading presentation, responsive motion, build, and deployment
-- [ ] Add clearly visible eye-blink and smile-expression motion to the branded loader mascot
-- [ ] Reduce seller-status wait time with safe cache-first resolution and faster loading-state handoff
-- [ ] Validate the refined animated mascot and shorter loading transition on mobile, then deploy
+- [x] Validate full-page and inline loading presentation, responsive motion, build, and deployment
+- [x] Add clearly visible eye-blink and smile-expression motion to the branded loader mascot
+- [x] Reduce seller-status wait time with safe cache-first resolution and faster loading-state handoff
+- [x] Validate the refined animated mascot and shorter loading transition on mobile, then deploy
