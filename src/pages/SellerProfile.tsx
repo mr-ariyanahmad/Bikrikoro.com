@@ -140,9 +140,11 @@ export default function SellerProfile() {
   }
 
   const handleShare = async () => {
-    const shareUrl = new URL(window.location.href)
-    shareUrl.searchParams.set('preview', 'shop-image-v2')
-    const url = shareUrl.toString()
+    if (!seller) return
+    const lookupParam = seller.shop_username?.trim()
+      ? `username=${encodeURIComponent(seller.shop_username.trim())}`
+      : `id=${encodeURIComponent(seller.id)}`
+    const url = `${SITE_URL}/api/seller-preview?${lookupParam}`
     try {
       if (navigator.share) await navigator.share({ title: `${shopName} | BikriKoro`, text: `${shopName}-এর ডিজিটাল শপ দেখুন।`, url })
       else if (navigator.clipboard) { await navigator.clipboard.writeText(url); setActionMessage('শপের লিংক কপি হয়েছে।') }

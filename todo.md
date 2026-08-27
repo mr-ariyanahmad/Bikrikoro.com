@@ -125,3 +125,7 @@
 - [x] Define reusable cache scope, version, expiry, and per-user isolation rules
 - [x] Implement cache-first stale-while-revalidate loading across chat, marketplace, product, shop, order, and account pages
 - [x] Validate cached initial render, background revalidation, logout isolation, and live-sensitive data refresh
+- [x] Inspect product/shop OG preview handlers, shared shop routing, and current unread state actions
+- [x] Define social preview fallbacks, bounded shop-load recovery, and safe labeled unread toggles
+- [x] Implement product/shop preview metadata, reliable shared shop loading, and unread controls
+- [ ] Validate external preview markup, shared shop routes, unread toggles, build, and deployment

@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
-function siteUrl() {
-  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com').replace(/\/+$/, '')
+function publicSiteUrl(req: VercelRequest) {
+  const forwardedHost = req.headers['x-forwarded-host']
+  const rawHost = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host
+  const host = rawHost?.split(',')[0]?.trim().toLowerCase()
+  if (host === 'bikrikoro.com' || host === 'www.bikrikoro.com') return 'https://www.bikrikoro.com'
+  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://www.bikrikoro.com').replace(/\/+$/, '')
 }
 
 function isAllowedSupabaseImage(value: unknown, supabaseUrl: string) {
@@ -17,38 +21,30 @@ function isAllowedSupabaseImage(value: unknown, supabaseUrl: string) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const username = typeof req.query.username === 'string' ? req.query.username.trim().toLowerCase() : ''
-  const id = typeof req.query.id === 'string' ? req.query.id.trim() : ''
+  const id = typeof req.query.id === 'string' ? req.query.id : ''
+  const site = publicSiteUrl(req)
+  const fallbackImage = `${site}/icon-512.png`
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
-  const fallbackImage = `${siteUrl()}/icon-512.png`
-
-  if ((!username && !id) || !supabaseUrl || !supabaseAnonKey) {
+  if (!id || !supabaseUrl || !supabaseAnonKey) {
     res.redirect(307, fallbackImage)
     return
   }
 
   try {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    let request = supabase
-      .from('profiles')
-      .select('shop_cover_url, photo_url')
-    request = username ? request.eq('shop_username', username) : request.eq('id', id)
-    const { data: seller } = await request.maybeSingle()
-
-    const sourceUrl = seller?.shop_cover_url || seller?.photo_url
+    const { data: product } = await supabase.from('public_products').select('images').eq('id', id).maybeSingle()
+    const sourceUrl = Array.isArray(product?.images) ? product.images[0] : null
     if (!isAllowedSupabaseImage(sourceUrl, supabaseUrl)) {
       res.redirect(307, fallbackImage)
       return
     }
-
     const upstream = await fetch(sourceUrl)
     const contentType = upstream.headers.get('content-type') || 'image/jpeg'
     if (!upstream.ok || !contentType.toLowerCase().startsWith('image/')) {
       res.redirect(307, fallbackImage)
       return
     }
-
     const body = Buffer.from(await upstream.arrayBuffer())
     res.setHeader('Content-Type', contentType.split(';', 1)[0])
     res.setHeader('Content-Length', String(body.length))
@@ -58,7 +54,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.redirect(307, fallbackImage)
   }
 }
-
-// Keep the helper referenced in the compiled server bundle for consistent route behavior.
-void siteUrl
-void isAllowedSupabaseImage

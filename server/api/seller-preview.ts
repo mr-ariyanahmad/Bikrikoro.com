@@ -20,33 +20,35 @@ function publicSiteUrl(req: VercelRequest) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const username = typeof req.query.username === 'string' ? req.query.username.trim().toLowerCase() : ''
+  const id = typeof req.query.id === 'string' ? req.query.id.trim() : ''
   const site = publicSiteUrl(req)
-  const canonical = `${site}/seller/${encodeURIComponent(username)}`
   const fallbackImage = `${site}/icon-512.png`
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
 
-  if (!username || !supabaseUrl || !supabaseAnonKey) {
+  if ((!username && !id) || !supabaseUrl || !supabaseAnonKey) {
     res.redirect(307, `${site}/products`)
     return
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data: seller } = await supabase
+  let request = supabase
     .from('profiles')
     .select('name, shop_name, shop_description, shop_username, photo_url, shop_cover_url, is_verified')
-    .eq('shop_username', username)
-    .maybeSingle()
+  request = username ? request.eq('shop_username', username) : request.eq('id', id)
+  const { data: seller } = await request.maybeSingle()
 
-  if (!seller?.shop_username) {
+  if (!seller) {
     res.redirect(307, `${site}/products`)
     return
   }
 
+  const canonicalPath = seller.shop_username ? `/seller/${encodeURIComponent(seller.shop_username)}` : `/sellers/${encodeURIComponent(id)}`
+  const canonical = `${site}${canonicalPath}`
   const shopName = String(seller.shop_name || seller.name || 'BikriKoro Seller Shop').trim()
   const description = String(seller.shop_description || `${shopName}-এর digital shop দেখুন BikriKoro-তে।`).trim().slice(0, 240)
   const sourceImage = seller.shop_cover_url || seller.photo_url
-  const image = sourceImage ? `${site}/api/seller-og-image?username=${encodeURIComponent(username)}` : fallbackImage
+  const image = sourceImage ? `${site}/api/seller-og-image?${seller.shop_username ? `username=${encodeURIComponent(seller.shop_username)}` : `id=${encodeURIComponent(id)}`}` : fallbackImage
   const title = `${shopName} — BikriKoro.Com`
   const html = `<!doctype html>
 <html lang="bn">

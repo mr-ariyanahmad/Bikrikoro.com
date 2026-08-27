@@ -456,7 +456,7 @@ export default function ProductDetail() {
           </section>
 
           <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-outline bg-surface p-2 text-xs">
-            <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 font-semibold transition ${alertEnabled ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Bell size={16} />{alertEnabled ? 'সতর্কতা চালু' : 'দাম কমলে জানাবেন'}</button>
+            <button type="button" aria-pressed={alertEnabled} onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 font-semibold transition ${alertEnabled ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Bell size={16} />{alertEnabled ? 'দাম সতর্কতা: চালু' : 'দাম কমলে জানাবেন'}</button>
             <button type="button" onClick={handleShare} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-sky-200 bg-sky-50 px-2 font-semibold text-sky-700 transition hover:bg-sky-100"><Share2 size={16} />শেয়ার করুন</button>
             <button type="button" onClick={() => setShowReport(true)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-error/25 bg-error/5 px-2 font-semibold text-error transition hover:bg-error/10"><Flag size={16} />অভিযোগ জানান</button>
           </div>

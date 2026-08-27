@@ -10,9 +10,17 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;')
 }
 
+function publicSiteUrl(req: VercelRequest) {
+  const forwardedHost = req.headers['x-forwarded-host']
+  const rawHost = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host
+  const host = rawHost?.split(',')[0]?.trim().toLowerCase()
+  if (host === 'bikrikoro.com' || host === 'www.bikrikoro.com') return 'https://www.bikrikoro.com'
+  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://www.bikrikoro.com').replace(/\/+$/, '')
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const id = typeof req.query.id === 'string' ? req.query.id : ''
-  const site = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com'
+  const site = publicSiteUrl(req)
   const canonical = `${site}/products/${encodeURIComponent(id)}`
   const fallbackImage = `${site}/icon-512.png`
   const supabaseUrl = process.env.VITE_SUPABASE_URL
@@ -37,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const title = `${product.title} — ৳${product.price} | BikriKoro.Com`
   const description = `${product.title} — ৳${product.price}${product.location ? `, ${product.location}` : ''}। ${(product.description ?? '').slice(0, 180)}`
-  const image = Array.isArray(product.images) && product.images[0] ? product.images[0] : fallbackImage
+  const image = Array.isArray(product.images) && product.images[0] ? `${site}/api/product-og-image?id=${encodeURIComponent(id)}` : fallbackImage
   const video = typeof product.video_url === 'string' && /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(product.video_url) ? product.video_url : ''
   const html = `<!doctype html>
 <html lang="bn">
@@ -51,6 +59,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <meta property="og:title" content="${escapeHtml(product.title)}">
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta property="og:image" content="${escapeHtml(image)}">
+  <meta property="og:image:url" content="${escapeHtml(image)}">
+  <meta property="og:image:secure_url" content="${escapeHtml(image)}">
   ${video ? `<meta property="og:video" content="${escapeHtml(video)}">` : ''}
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">

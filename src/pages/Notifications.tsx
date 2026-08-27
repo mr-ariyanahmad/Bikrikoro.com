@@ -24,7 +24,7 @@ const NOTIFICATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const filterOptions: Array<[NotificationFilter, string]> = [
   ['all', 'সব'],
-  ['unread', 'Unread'],
+  ['unread', 'অপঠিত'],
   ['ORDER', 'অর্ডার'],
   ['PAYMENT', 'পেমেন্ট'],
   ['VERIFICATION', 'ভেরিফিকেশন'],

@@ -11,6 +11,7 @@ import orderAction from '../server/api/order-action.js'
 import orderRead from '../server/api/order-read.js'
 import pendingOrder from '../server/api/pending-order.js'
 import productPreview from '../server/api/product-preview.js'
+import productOgImage from '../server/api/product-og-image.js'
 import productQuestion from '../server/api/product-question.js'
 import sellerPreview from '../server/api/seller-preview.js'
 import sellerOgImage from '../server/api/seller-og-image.js'
@@ -57,6 +58,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'order-read': orderRead,
   'pending-order': pendingOrder,
   'product-preview': productPreview,
+  'product-og-image': productOgImage,
   'product-question': productQuestion,
   'seller-preview': sellerPreview,
   'seller-og-image': sellerOgImage,

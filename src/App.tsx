@@ -499,12 +499,13 @@ function AppRoutes() {
 function AppContent() {
   const location = useLocation()
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/forgot-password'
+  const isSharedPublicRoute = /^\/(?:products\/[^/]+|seller\/[^/]+|sellers\/[^/]+)$/.test(location.pathname)
 
   return (
     <>
       <SiteMeta />
       <ConfigurationNotice />
-      {isAuthRoute ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}
+      {isAuthRoute || isSharedPublicRoute ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}
     </>
   )
 }
