@@ -83,3 +83,8 @@
 - [x] Define unified feed ordering that promotes locally preferred categories without a separate label or section
 - [x] Remove visible personalized recommendation sections and apply local preference ranking directly to the homepage feed
 - [x] Validate mobile and desktop homepage feed behavior with personalized and cold-start ordering
+- [x] Inspect search-result and search-suggestion ranking plus responsive render paths
+- [x] Define query-match, local-interest, recent-click, and public-popularity ordering for search
+- [x] Implement personalized ranking for search page and header suggestions
+- [x] Redesign the mobile search flow with Shopee-inspired search controls and product suggestion grid
+- [ ] Validate search ranking and responsive presentation before deployment

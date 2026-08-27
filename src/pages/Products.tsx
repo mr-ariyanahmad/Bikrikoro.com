@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookmarkPlus, Grid2X2, List, Share2 } from 'lucide-react'
+import { BookmarkPlus, Grid2X2, List, Search, Share2, SlidersHorizontal } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
@@ -9,6 +9,8 @@ import { CategoryPills } from '@/components/CategoryPills'
 import { BrandSelect } from '@/components/BrandSelect'
 import type { Product, Category } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
+import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
@@ -71,7 +73,7 @@ export default function Products() {
         const cacheKey = JSON.stringify({ categoryId, query: debouncedQuery.trim(), sort, condition, minPrice, maxPrice })
         const cached = productQueryCache.get(cacheKey)
         if (cached && cached.expiresAt > Date.now()) {
-          setProducts(cached.products)
+          setProducts(sort === 'popular' ? rankSearchProductsByInterest(cached.products, getRecentlyViewedIds()) : cached.products)
           setNotice(null)
           setLoading(false)
           return
@@ -94,11 +96,12 @@ export default function Products() {
         const { data, error } = await request.limit(60)
         if (error) throw error
         if (!cancelled) {
-          const nextProducts = [...(data ?? [])]
+          const nextProducts = [...(data ?? [])] as Product[]
           setNotice(null)
           if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
-          setProducts(nextProducts)
-          productQueryCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_CACHE_TTL_MS, products: nextProducts })
+          const rankedProducts = sort === 'popular' ? rankSearchProductsByInterest(nextProducts, getRecentlyViewedIds()) : nextProducts
+          setProducts(rankedProducts)
+          productQueryCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_CACHE_TTL_MS, products: rankedProducts })
         }
       } catch (loadError) {
         console.error('Digital products load failed:', loadError)
@@ -143,7 +146,7 @@ export default function Products() {
   }
 
   const changeView = (next: 'grid' | 'list') => { setViewMode(next); localStorage.setItem('bikrikoro:products-view', next) }
-  const handleCategorySelect = (id: string | null) => updateParam('category', id ?? '')
+  const handleCategorySelect = (id: string | null) => { if (id) trackCategoryInterest(id, 'click'); updateParam('category', id ?? '') }
 
   return (
     <Layout wide>
@@ -153,9 +156,9 @@ export default function Products() {
         <link rel="canonical" href="https://bikrikoro.com/products" />
       </Helmet>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input type="search" value={query} onChange={(event) => updateParam('q', event.target.value)} aria-label="ডিজিটাল পণ্য খুঁজুন" placeholder="ডিজিটাল পণ্য খুঁজুন..." className="flex-1 border border-outline px-4 py-2.5 text-base outline-none focus:border-brand-500" />
-        <button type="button" onClick={() => setShowFilters((current) => !current)} aria-expanded={showFilters} className="border border-outline px-3 py-2.5 text-base font-medium text-ink-700 hover:border-brand-500 hover:text-brand-700 sm:hidden">ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
+      <div className="mb-5 rounded-2xl border border-brand-100 bg-surface p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)] sm:flex sm:items-center sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="relative flex-1"><Search size={19} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" /><input type="search" value={query} onChange={(event) => updateParam('q', event.target.value)} aria-label="ডিজিটাল পণ্য খুঁজুন" placeholder="ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন খুঁজুন..." className="w-full rounded-xl border border-outline bg-bg py-3 pl-11 pr-4 text-base outline-none focus:border-brand-500 sm:rounded-none" /></div>
+        <button type="button" onClick={() => setShowFilters((current) => !current)} aria-expanded={showFilters} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-3 text-sm font-bold text-white sm:mt-0 sm:w-auto sm:border sm:border-outline sm:bg-transparent sm:text-ink-700 sm:hover:border-brand-500 sm:hover:text-brand-700"><SlidersHorizontal size={16} />ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
         <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'popular', label: 'জনপ্রিয় ও প্রাসঙ্গিক আগে' }, { value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
       </div>
 
@@ -171,7 +174,7 @@ export default function Products() {
       <CategoryPills categories={categories} selectedId={categoryId} onSelect={handleCategorySelect} />
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-base text-ink-700">
-        <span>{loading ? 'খোঁজা হচ্ছে...' : `${products.length.toLocaleString('bn-BD')}টি ডিজিটাল পণ্য পাওয়া গেছে`}</span>
+        <span>{loading ? 'খোঁজা হচ্ছে...' : query ? `“${query}” এর জন্য ${products.length.toLocaleString('bn-BD')}টি ফলাফল` : `${products.length.toLocaleString('bn-BD')}টি ডিজিটাল পণ্য`}</span>
         <div className="flex items-center gap-1.5"><button type="button" onClick={saveCurrentSearch} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><BookmarkPlus size={14} />সার্চ সেভ</button><button type="button" onClick={() => void shareCurrentSearch()} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><Share2 size={14} />শেয়ার</button><button type="button" onClick={() => changeView('grid')} className={`p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button type="button" onClick={() => changeView('list')} className={`p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
       </div>
       {notice && <p className="mt-2 border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">{notice}</p>}

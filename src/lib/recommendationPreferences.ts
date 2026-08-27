@@ -114,3 +114,7 @@ export function rankHomepageProductsByCategoryInterest(products: Product[], rece
     return 0
   })
 }
+
+export function rankSearchProductsByInterest(products: Product[], recentlyViewedProductIds: string[] = []) {
+  return rankHomepageProductsByCategoryInterest(products, recentlyViewedProductIds)
+}

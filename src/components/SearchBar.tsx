@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Clock3, Flame, Search, Sparkles, Tag, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { formatTaka } from '@/lib/format'
 import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
-import type { Category } from '@/types/product'
+import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
+import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import type { Category, Product } from '@/types/product'
 
 interface Suggestion {
   id: string
@@ -73,16 +75,16 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       setLoading(true)
       const { data, error } = await supabase
         .from(PUBLIC_PRODUCT_TABLE)
-        .select('id, title, price, images, category_id')
+        .select(PUBLIC_PRODUCT_FIELDS)
         .eq('is_digital', true)
         .ilike('title', `%${term}%`)
         .order('popularity_score', { ascending: false })
         .order('view_count', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(8)
+        .limit(24)
       if (!cancelled) {
         if (error) console.warn('Search suggestions failed:', error)
-        setSuggestions((data ?? []).map((product) => ({
+        setSuggestions(rankSearchProductsByInterest((data ?? []) as Product[], getRecentlyViewedIds()).slice(0, 8).map((product) => ({
           id: product.id,
           title: product.title,
           price: product.price,
@@ -117,6 +119,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     navigate(`/products?${params.toString()}`)
   }
   const goToProduct = (suggestion: Suggestion) => {
+    trackCategoryInterest(suggestion.categoryId, 'click')
     setOpen(false)
     setQuery('')
     navigate(`/products/${suggestion.id}`)
@@ -135,13 +138,13 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
         onFocus={() => setOpen(true)}
         onKeyDown={(event) => event.key === 'Enter' && goToResults()}
         placeholder="ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন খুঁজুন..."
-        className="w-full border border-outline bg-bg py-3 pl-11 pr-10 text-base text-ink-900 outline-none transition focus:border-brand-500 focus:bg-surface focus:ring-2 focus:ring-brand-500/10"
+        className={`w-full border bg-bg py-3 pl-11 pr-10 text-base text-ink-900 outline-none transition focus:border-brand-500 focus:bg-surface focus:ring-2 focus:ring-brand-500/10 ${compact ? 'rounded-2xl border-brand-200 shadow-[0_4px_14px_rgba(1,124,80,0.08)]' : 'border-outline'}`}
         aria-label="ডিজিটাল পণ্য খুঁজুন"
       />
       {query && <button type="button" onClick={() => { setQuery(''); setOpen(true) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-900" aria-label="সার্চ পরিষ্কার করুন"><X size={16} /></button>}
     </div>
 
-    {open && hasPanelContent && <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(34rem,calc(100vh-8rem))] overflow-y-auto border border-outline bg-surface shadow-2xl">
+    {open && hasPanelContent && <div className={`absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(34rem,calc(100vh-8rem))] overflow-y-auto border border-outline bg-surface shadow-2xl ${compact ? 'rounded-2xl border-brand-100' : ''}`}>
       {showDiscovery && <>
         {recentSearches.length > 0 && <section className="border-b border-outline p-3.5">
           <div className="mb-2 flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-semibold text-ink-900"><Clock3 size={15} className="text-ink-400" />সাম্প্রতিক সার্চ</p><button type="button" onClick={clearRecent} className="text-sm text-ink-400 hover:text-error">মুছে দিন</button></div>
@@ -159,16 +162,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
 
       {!showDiscovery && loading && <div className="flex items-center gap-2 px-4 py-5 text-sm text-ink-500"><Sparkles size={16} className="animate-pulse text-brand-600" />ডিজিটাল পণ্য খোঁজা হচ্ছে...</div>}
       {!showDiscovery && !loading && suggestions.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো ডিজিটাল পণ্য পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য শব্দ দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
-      {!showDiscovery && suggestions.length > 0 && <div>
-        {Object.entries(groupedSuggestions).map(([categoryLabel, items]) => <section key={categoryLabel} className="border-b border-outline last:border-0">
-          <div className="flex items-center justify-between bg-bg px-3.5 py-2"><p className="text-sm font-semibold text-ink-900">{categoryLabel}</p><span className="text-xs text-ink-400">{items.length}টি ফলাফল</span></div>
-          {items.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="flex w-full items-center gap-3 border-t border-outline/70 px-3.5 py-2.5 text-left hover:bg-brand-50/60">
-            <div className="h-11 w-11 shrink-0 overflow-hidden border border-outline bg-bg">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div>
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-ink-900">{suggestion.title}</p><p className="mt-0.5 text-xs text-ink-500">ডিজিটাল পণ্য <span className="mx-1 text-ink-300">•</span><span className="tabular-amount font-semibold text-brand-700">{formatTaka(suggestion.price)}</span></p></div>
-            <ArrowRight size={15} className="shrink-0 text-ink-300" />
-          </button>)}
-        </section>)}
-      </div>}
+      {!showDiscovery && suggestions.length > 0 && (compact ? <section className="p-3"><div className="mb-3 flex items-center justify-between"><p className="text-base font-bold text-ink-900">সার্চ সাজেশন</p><span className="text-xs text-ink-400">জনপ্রিয় ও পছন্দ অনুযায়ী</span></div><div className="grid grid-cols-2 gap-2.5">{suggestions.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="overflow-hidden rounded-xl border border-outline bg-bg text-left shadow-sm transition active:scale-[0.98]"><div className="aspect-square bg-surface">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div><div className="p-2"><p className="line-clamp-2 min-h-9 text-xs font-semibold leading-4 text-ink-900">{suggestion.title}</p><p className="mt-1 tabular-amount text-sm font-bold text-brand-700">{formatTaka(suggestion.price)}</p></div></button>)}</div></section> : <div>{Object.entries(groupedSuggestions).map(([categoryLabel, items]) => <section key={categoryLabel} className="border-b border-outline last:border-0"><div className="flex items-center justify-between bg-bg px-3.5 py-2"><p className="text-sm font-semibold text-ink-900">{categoryLabel}</p><span className="text-xs text-ink-400">{items.length}টি ফলাফল</span></div>{items.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="flex w-full items-center gap-3 border-t border-outline/70 px-3.5 py-2.5 text-left hover:bg-brand-50/60"><div className="h-11 w-11 shrink-0 overflow-hidden border border-outline bg-bg">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-ink-900">{suggestion.title}</p><p className="mt-0.5 text-xs text-ink-500">ডিজিটাল পণ্য <span className="mx-1 text-ink-300">•</span><span className="tabular-amount font-semibold text-brand-700">{formatTaka(suggestion.price)}</span></p></div><ArrowRight size={15} className="shrink-0 text-ink-300" /></button>)}</section>)}</div>)}
       {query.trim() && <button type="button" onClick={() => goToResults()} className="flex w-full items-center justify-between border-t border-outline bg-brand-50 px-3.5 py-3 text-left text-base font-semibold text-brand-700 hover:bg-brand-100"><span>“{query.trim()}”-এর সব ফলাফল দেখুন</span><ArrowRight size={17} /></button>}
     </div>}
   </div>
