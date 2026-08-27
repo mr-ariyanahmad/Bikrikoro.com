@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Package, Send } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Package, Send, Store } from 'lucide-react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { chatRequest } from '@/lib/chat'
@@ -7,7 +7,11 @@ import { PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
+import { displayShopName, displayUserName } from '@/lib/shopProfile'
 import type { ChatThread, ChatMessage } from '@/types/chat'
+
+type ProductContext = { id: string; title: string; images: string[] | null; price: number }
+type ParticipantProfile = { name: string | null; shop_name: string | null; photo_url: string | null; is_verified: boolean }
 
 export default function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>()
@@ -16,12 +20,13 @@ export default function ChatThreadPage() {
 
   const [thread, setThread] = useState<ChatThread | null>(null)
   const [otherName, setOtherName] = useState('')
+  const [otherProfile, setOtherProfile] = useState<ParticipantProfile | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [productTitle, setProductTitle] = useState('')
+  const [productContext, setProductContext] = useState<ProductContext | null>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
 
   const loadMessages = useCallback(async () => {
@@ -51,15 +56,18 @@ export default function ChatThreadPage() {
       setLoading(false)
 
       if (threadData.product_id) {
-        const { data: productData, error: productError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select('title').eq('id', threadData.product_id).maybeSingle()
+        const { data: productData, error: productError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select('id, title, images, price').eq('id', threadData.product_id).maybeSingle()
         if (productError) console.warn('Chat product context load failed:', productError)
-        setProductTitle(productData?.title ?? '')
+        setProductContext(productData as ProductContext | null)
       }
 
       const otherId = threadData.buyer_id === uid ? threadData.seller_id : threadData.buyer_id
-      const { data: profile, error: profileError } = await supabase.from('profiles').select('name').eq('id', otherId).maybeSingle()
+      const isSellerConversation = threadData.buyer_id === uid
+      const { data: profile, error: profileError } = await supabase.from('profiles').select('name, shop_name, photo_url, is_verified').eq('id', otherId).maybeSingle()
       if (profileError) console.warn('Chat participant profile load failed:', profileError)
-      setOtherName(profile?.name || 'ব্যবহারকারী')
+      const nextProfile = profile as ParticipantProfile | null
+      setOtherProfile(nextProfile)
+      setOtherName(isSellerConversation ? displayShopName(nextProfile?.shop_name, nextProfile?.name) : displayUserName(nextProfile?.name))
 
       // Clear only the current participant's unread count through the secure RPC.
       try {
@@ -108,17 +116,19 @@ export default function ChatThreadPage() {
   return (
     <Layout wide hideFooter fullScreen backFallback="/chat" backLabel="চ্যাট তালিকায় ফিরুন">
       <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3"><div className="min-w-0"><h1 className="text-lg font-semibold text-ink-900">{otherName || 'চ্যাট'}</h1>{productTitle && <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Package size={12} />{productTitle}</p>}</div><Link to="/settings" className="text-xs font-semibold text-brand-600">সাহায্য</Link></div>
+      <div className="flex shrink-0 items-center gap-3 border-b border-outline bg-surface pb-3"><Link to="/chat" aria-label="চ্যাট তালিকায় ফিরুন" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-700 transition hover:bg-brand-50 hover:text-brand-700"><ArrowLeft size={21} /></Link><div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">{otherProfile?.photo_url ? <img src={otherProfile.photo_url} alt="" className="h-full w-full object-cover" /> : (otherName.charAt(0) || '?')}</div><div className="min-w-0 flex-1"><div className="flex items-center gap-1"><h1 className="truncate text-base font-bold text-ink-900">{otherName || 'চ্যাট'}</h1>{otherProfile?.is_verified && <BadgeCheck size={15} className="shrink-0 text-brand-600" />}</div><p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500"><Store size={12} />নিরাপদ BikriKoro চ্যাট</p></div><Link to="/settings" className="text-xs font-semibold text-brand-600">সহায়তা</Link></div>
       {error && <p className="mt-4 shrink-0 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {loading ? <div className="mt-4 min-h-0 flex-1 animate-pulse rounded-2xl bg-outline/40" /> : <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-2xl border border-outline bg-surface">
-        <div ref={messagesRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+      {loading ? <div className="mt-4 min-h-0 flex-1 animate-pulse rounded-2xl bg-outline/40" /> : <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-outline bg-surface">
+        <div ref={messagesRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-bg p-3 sm:p-4">
+          {productContext && <Link to={`/products/${productContext.id}`} className="mx-auto flex max-w-md items-center gap-3 rounded-xl border border-outline bg-surface p-2.5 shadow-sm transition hover:border-brand-300"><div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-brand-50">{productContext.images?.[0] && <img src={productContext.images[0]} alt="" className="h-full w-full object-cover" />}</div><div className="min-w-0 flex-1"><p className="line-clamp-2 text-xs font-semibold text-ink-900">{productContext.title}</p><p className="mt-1 text-sm font-bold text-brand-700">৳{Number(productContext.price).toLocaleString('bn-BD')}</p></div><Package size={18} className="shrink-0 text-brand-600" /></Link>}
+          <p className="mx-auto w-fit rounded-full bg-surface px-3 py-1 text-[11px] text-ink-400">এই কথোপকথনটি BikriKoro-তে সুরক্ষিতভাবে পরিচালিত হচ্ছে</p>
           {messages.map((msg) => {
             const isMine = msg.sender_id === uid
             return (
               <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${
-                    isMine ? 'bg-brand-500 text-white' : 'bg-bg text-ink-900'
+                    isMine ? 'rounded-br-md bg-brand-500 text-white shadow-sm' : 'rounded-bl-md bg-surface text-ink-900 shadow-sm'
                   }`}
                 >
                   <p>{msg.text}</p>
@@ -132,16 +142,16 @@ export default function ChatThreadPage() {
           <div />
         </div>
 
-        <div className="flex items-center gap-2 border-t border-outline p-3">
+        <div className="flex items-center gap-2 border-t border-outline bg-surface p-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="মেসেজ লিখুন..."
-            className="flex-1 rounded-full border border-outline px-4 py-2 text-sm outline-none focus:border-brand-500"
+            className="flex-1 rounded-full border border-outline bg-bg px-4 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
           />
-          <button onClick={handleSend} disabled={!input.trim() || sending} className="inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Send size={15} />পাঠান</button>
+          <button onClick={handleSend} disabled={!input.trim() || sending} className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 disabled:opacity-50" aria-label="মেসেজ পাঠান"><Send size={17} /></button>
         </div>
       </div>}
       </div>

@@ -104,3 +104,7 @@
 - [x] Define human-readable name fallbacks and a Shopee-inspired understated shop result treatment
 - [x] Remove raw identifier-like seller text and replace visible matched-shop labels across search
 - [x] Validate seller name display and simplified shop-search presentation before deployment
+- [x] Inspect chat thread creation, seller-product inquiry entry points, and current responsive chat layout
+- [x] Define a safe one-thread-per-buyer-seller rule with product-context message cards
+- [x] Implement seller-level conversation reuse and Shopee-inspired chat list and chat-room presentation
+- [ ] Validate multi-product seller chat reuse, profile display, and responsive chat behavior before deployment
