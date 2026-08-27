@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Clock3, Flame, Search, Sparkles, Tag, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { formatTaka } from '@/lib/format'
@@ -22,6 +22,8 @@ const RECENT_KEY = 'bikrikoro:recent-searches'
 
 export function SearchBar({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -30,6 +32,11 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isFullSearchPage = location.pathname === '/search'
+
+  useEffect(() => {
+    if (isFullSearchPage) setQuery(searchParams.get('q') ?? '')
+  }, [isFullSearchPage, searchParams])
 
   useEffect(() => {
     try { setRecentSearches(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')) } catch { setRecentSearches([]) }
@@ -134,8 +141,8 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       <input
         type="search"
         value={query}
-        onChange={(event) => { setQuery(event.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        onChange={(event) => { const nextQuery = event.target.value; setQuery(nextQuery); if (isFullSearchPage) { const params = new URLSearchParams(searchParams); if (nextQuery.trim()) params.set('q', nextQuery); else params.delete('q'); setSearchParams(params, { replace: true }) } else setOpen(true) }}
+        onFocus={() => { if (compact && !isFullSearchPage) { navigate('/search'); return } setOpen(true) }}
         onKeyDown={(event) => event.key === 'Enter' && goToResults()}
         placeholder="ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন খুঁজুন..."
         className={`w-full border bg-bg py-3 pl-11 pr-10 text-base text-ink-900 outline-none transition focus:border-brand-500 focus:bg-surface focus:ring-2 focus:ring-brand-500/10 ${compact ? 'rounded-2xl border-brand-200 shadow-[0_4px_14px_rgba(1,124,80,0.08)]' : 'border-outline'}`}
@@ -144,7 +151,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       {query && <button type="button" onClick={() => { setQuery(''); setOpen(true) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-900" aria-label="সার্চ পরিষ্কার করুন"><X size={16} /></button>}
     </div>
 
-    {open && hasPanelContent && <div className={`absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(34rem,calc(100vh-8rem))] overflow-y-auto border border-outline bg-surface shadow-2xl ${compact ? 'rounded-2xl border-brand-100' : ''}`}>
+    {!isFullSearchPage && open && hasPanelContent && <div className={`absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(34rem,calc(100vh-8rem))] overflow-y-auto border border-outline bg-surface shadow-2xl ${compact ? 'rounded-2xl border-brand-100' : ''}`}>
       {showDiscovery && <>
         {recentSearches.length > 0 && <section className="border-b border-outline p-3.5">
           <div className="mb-2 flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-semibold text-ink-900"><Clock3 size={15} className="text-ink-400" />সাম্প্রতিক সার্চ</p><button type="button" onClick={clearRecent} className="text-sm text-ink-400 hover:text-error">মুছে দিন</button></div>

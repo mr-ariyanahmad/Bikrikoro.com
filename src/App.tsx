@@ -10,6 +10,7 @@ const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
 const SavedSearches = lazy(() => import('@/pages/SavedSearches'))
 const Home = lazy(() => import('@/pages/Home'))
 const Products = lazy(() => import('@/pages/Products'))
+const SearchPage = lazy(() => import('@/pages/SearchPage'))
 const ProductDetail = lazy(() => import('@/pages/ProductDetail'))
 const Compare = lazy(() => import('@/pages/Compare'))
 const Library = lazy(() => import('@/pages/Library'))
@@ -67,6 +68,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/" element={<Home />} />
       <Route path="/products" element={<Products />} />
+      <Route path="/search" element={<SearchPage />} />
       <Route path="/products/:id" element={<ProductDetail />} />
       <Route path="/compare" element={<Compare />} />
       <Route
