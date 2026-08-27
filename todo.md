@@ -91,4 +91,4 @@
 - [x] Inspect header search and route integration for a dedicated full-screen mobile search page
 - [x] Design full-screen mobile search discovery, suggestion, and result-navigation behavior
 - [x] Implement a dedicated full-screen mobile search route and connect mobile header search to it
-- [ ] Validate the full-screen search flow, ranking, and responsive fallback before deployment
+- [x] Validate the full-screen search flow, ranking, and responsive fallback before deployment
