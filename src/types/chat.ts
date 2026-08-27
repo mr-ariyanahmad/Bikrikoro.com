@@ -7,6 +7,8 @@ export interface ChatThread {
   last_message_at: string
   buyer_unread_count: number
   seller_unread_count: number
+  buyer_last_read_at?: string | null
+  seller_last_read_at?: string | null
   created_at: string
 }
 

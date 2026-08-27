@@ -112,3 +112,7 @@
 - [x] Define a unified home-style mobile header with route-safe back and menu behavior
 - [x] Implement the primary mobile search bar across all customer-facing pages without changing desktop
 - [x] Validate sitewide mobile header consistency and search navigation before deployment
+- [x] Inspect chat loading, seller identity navigation, and existing message-read data capabilities
+- [x] Define safe seller-link targets, local message-cache expiry, and sent-delivered-read state behavior
+- [x] Implement clickable shop identity, cached chat history, and message delivery/read indicators
+- [ ] Validate chat startup speed, cached history, seller navigation, and message-state presentation before deployment
