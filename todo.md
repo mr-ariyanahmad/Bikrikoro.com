@@ -96,3 +96,7 @@
 - [x] Define combined shop-name and product relevance ranking without exposing private seller data
 - [x] Implement shop cards in full-screen search, header suggestions, and search results
 - [x] Validate shop search navigation and relevance-ranked product results before deployment
+- [x] Inspect current search filter, sort, and responsive product-result controls
+- [x] Design Shopee-inspired mobile sort tabs, filter sheet, and desktop filter presentation
+- [x] Implement refined search filtering and sorting while retaining URL-state persistence
+- [ ] Validate filter, sort, query, and responsive result behavior before deployment

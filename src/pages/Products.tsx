@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BadgeCheck, BookmarkPlus, Grid2X2, List, Search, Share2, SlidersHorizontal, Store } from 'lucide-react'
+import { BadgeCheck, BookmarkPlus, Check, Grid2X2, List, Search, Share2, SlidersHorizontal, Store, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
@@ -34,6 +34,9 @@ export default function Products() {
   const [shops, setShops] = useState<SearchShop[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [draftMinPrice, setDraftMinPrice] = useState('')
+  const [draftMaxPrice, setDraftMaxPrice] = useState('')
+  const [draftCondition, setDraftCondition] = useState<ConditionFilter>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('bikrikoro:products-view') as 'grid' | 'list') || 'grid')
   const [notice, setNotice] = useState<string | null>(null)
   const [debouncedQuery, setDebouncedQuery] = useState(query)
@@ -143,6 +146,26 @@ export default function Products() {
     const next = new URLSearchParams(searchParams)
     ;['condition', 'min', 'max', 'sort'].forEach((key) => next.delete(key))
     setSearchParams(next)
+    setDraftMinPrice('')
+    setDraftMaxPrice('')
+    setDraftCondition('all')
+    setShowFilters(false)
+  }
+
+  const openFilterSheet = () => {
+    setDraftMinPrice(minPrice)
+    setDraftMaxPrice(maxPrice)
+    setDraftCondition(condition)
+    setShowFilters(true)
+  }
+
+  const applyFilters = () => {
+    const next = new URLSearchParams(searchParams)
+    if (draftMinPrice) next.set('min', draftMinPrice); else next.delete('min')
+    if (draftMaxPrice) next.set('max', draftMaxPrice); else next.delete('max')
+    if (draftCondition !== 'all') next.set('condition', draftCondition); else next.delete('condition')
+    setSearchParams(next)
+    setShowFilters(false)
   }
 
   const saveCurrentSearch = () => {
@@ -168,13 +191,13 @@ export default function Products() {
         <link rel="canonical" href="https://bikrikoro.com/products" />
       </Helmet>
 
-      <div className="mb-5 rounded-2xl border border-brand-100 bg-surface p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)] sm:flex sm:items-center sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      <div className="mb-4 rounded-2xl border border-brand-100 bg-surface p-2 shadow-[0_8px_22px_rgba(15,23,42,0.05)] sm:mb-5 sm:flex sm:items-center sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <div className="relative flex-1"><Search size={19} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" /><input type="search" value={query} onChange={(event) => updateParam('q', event.target.value)} aria-label="ডিজিটাল পণ্য খুঁজুন" placeholder="ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন খুঁজুন..." className="w-full rounded-xl border border-outline bg-bg py-3 pl-11 pr-4 text-base outline-none focus:border-brand-500 sm:rounded-none" /></div>
-        <button type="button" onClick={() => setShowFilters((current) => !current)} aria-expanded={showFilters} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-3 text-sm font-bold text-white sm:mt-0 sm:w-auto sm:border sm:border-outline sm:bg-transparent sm:text-ink-700 sm:hover:border-brand-500 sm:hover:text-brand-700"><SlidersHorizontal size={16} />ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
-        <div className="min-w-44"><BrandSelect label="সাজান" value={sort} options={[{ value: 'popular', label: 'জনপ্রিয় ও প্রাসঙ্গিক আগে' }, { value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
+        <button type="button" onClick={openFilterSheet} aria-expanded={showFilters} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-3 text-sm font-bold text-white active:scale-[0.98] sm:mt-0 sm:w-auto sm:border sm:border-outline sm:bg-transparent sm:text-ink-700 sm:hover:border-brand-500 sm:hover:text-brand-700"><SlidersHorizontal size={16} />ফিল্টার {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}</button>
+        <div className="hidden min-w-52 sm:block"><BrandSelect label="সাজান" value={sort} options={[{ value: 'popular', label: 'জনপ্রিয় ও প্রাসঙ্গিক আগে' }, { value: 'newest', label: 'নতুন আগে' }, { value: 'oldest', label: 'পুরোনো আগে' }, { value: 'discount', label: 'বেশি ছাড় আগে' }, { value: 'price_asc', label: 'দাম: কম থেকে বেশি' }, { value: 'price_desc', label: 'দাম: বেশি থেকে কম' }]} onChange={(value) => updateParam('sort', value)} /></div>
       </div>
 
-      <div className={`${showFilters ? 'block' : 'hidden'} mb-5 border border-outline bg-surface p-4 sm:block`}>
+      <div className="hidden mb-5 border border-outline bg-surface p-4 sm:block">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-base text-ink-700"><span className="mb-1 block font-medium text-ink-900">ন্যূনতম দাম</span><input type="number" min="0" value={minPrice} onChange={(event) => updateParam('min', event.target.value)} placeholder="৳ ০" className="w-full border border-outline px-3 py-2 text-base outline-none focus:border-brand-500" /></label>
           <label className="text-base text-ink-700"><span className="mb-1 block font-medium text-ink-900">সর্বোচ্চ দাম</span><input type="number" min="0" value={maxPrice} onChange={(event) => updateParam('max', event.target.value)} placeholder="৳ সীমা নেই" className="w-full border border-outline px-3 py-2 text-base outline-none focus:border-brand-500" /></label>
@@ -182,6 +205,15 @@ export default function Products() {
         </div>
         {activeFilterCount > 0 && <div className="mt-3"><button type="button" onClick={clearFilters} className="text-base font-semibold text-error hover:underline">সব ফিল্টার পরিষ্কার করুন</button></div>}
       </div>
+
+      <div className="sticky top-0 z-20 -mx-4 mb-4 border-y border-outline bg-bg/95 px-4 py-2 backdrop-blur sm:hidden">
+        <div className="grid grid-cols-4 gap-1 rounded-xl bg-surface p-1">
+          {[{ value: 'popular' as SortOption, label: 'সেরা মিল' }, { value: 'newest' as SortOption, label: 'নতুন' }, { value: 'price_asc' as SortOption, label: 'কম দাম' }].map((option) => <button type="button" key={option.value} onClick={() => updateParam('sort', option.value)} className={`min-h-10 rounded-lg px-1 text-xs font-bold transition active:scale-[0.97] ${sort === option.value ? 'bg-brand-600 text-white shadow-sm' : 'text-ink-600'}`}>{option.label}</button>)}
+          <button type="button" onClick={openFilterSheet} className={`relative flex min-h-10 items-center justify-center gap-1 rounded-lg px-1 text-xs font-bold transition active:scale-[0.97] ${activeFilterCount > 0 ? 'bg-brand-50 text-brand-700' : 'text-ink-600'}`}><SlidersHorizontal size={14} />ফিল্টার{activeFilterCount > 0 && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-600" />}</button>
+        </div>
+      </div>
+
+      {showFilters && <div className="fixed inset-0 z-50 sm:hidden" role="dialog" aria-modal="true" aria-label="সার্চ ফিল্টার"><button type="button" aria-label="ফিল্টার বন্ধ করুন" onClick={() => setShowFilters(false)} className="absolute inset-0 bg-ink-900/45" /><section className="absolute inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-3xl bg-surface shadow-2xl"><div className="sticky top-0 flex items-center justify-between border-b border-outline bg-surface px-5 py-4"><div><h2 className="text-lg font-bold text-ink-900">ফিল্টার</h2><p className="text-xs text-ink-500">আপনার পছন্দ অনুযায়ী ফলাফল সাজান</p></div><button type="button" onClick={() => setShowFilters(false)} className="rounded-full p-2 text-ink-500 active:bg-bg" aria-label="বন্ধ করুন"><X size={20} /></button></div><div className="space-y-6 p-5"><div><p className="mb-2.5 font-bold text-ink-900">সাজান</p><div className="grid grid-cols-2 gap-2">{[{ value: 'popular' as SortOption, label: 'সেরা মিল' }, { value: 'newest' as SortOption, label: 'নতুন আগে' }, { value: 'discount' as SortOption, label: 'বেশি ছাড়' }, { value: 'price_asc' as SortOption, label: 'কম দাম' }, { value: 'price_desc' as SortOption, label: 'বেশি দাম' }].map((option) => <button type="button" key={option.value} onClick={() => updateParam('sort', option.value)} className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm font-semibold ${sort === option.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-outline text-ink-700'}`}>{option.label}{sort === option.value && <Check size={16} />}</button>)}</div></div><div><p className="mb-2.5 font-bold text-ink-900">দামের সীমা</p><div className="grid grid-cols-2 items-center gap-2"><input type="number" min="0" inputMode="numeric" value={draftMinPrice} onChange={(event) => setDraftMinPrice(event.target.value)} placeholder="সর্বনিম্ন" className="min-h-12 rounded-xl border border-outline bg-bg px-3 text-sm outline-none focus:border-brand-500" /><input type="number" min="0" inputMode="numeric" value={draftMaxPrice} onChange={(event) => setDraftMaxPrice(event.target.value)} placeholder="সর্বোচ্চ" className="min-h-12 rounded-xl border border-outline bg-bg px-3 text-sm outline-none focus:border-brand-500" /></div></div><div><p className="mb-2.5 font-bold text-ink-900">পণ্যের অবস্থা</p><div className="grid grid-cols-3 gap-2">{([{ value: 'all', label: 'সব' }, { value: 'NEW', label: 'নতুন' }, { value: 'USED', label: 'ব্যবহৃত' }] as const).map((option) => <button type="button" key={option.value} onClick={() => setDraftCondition(option.value)} className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${draftCondition === option.value ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-outline text-ink-700'}`}>{option.label}</button>)}</div></div></div><div className="sticky bottom-0 grid grid-cols-2 gap-3 border-t border-outline bg-surface p-4"><button type="button" onClick={clearFilters} className="min-h-12 rounded-xl border border-brand-600 text-sm font-bold text-brand-700 active:scale-[0.98]">রিসেট</button><button type="button" onClick={applyFilters} className="min-h-12 rounded-xl bg-brand-600 text-sm font-bold text-white shadow-sm active:scale-[0.98]">ফলাফল দেখুন</button></div></section></div>}
 
       <CategoryPills categories={categories} selectedId={categoryId} onSelect={handleCategorySelect} />
 
