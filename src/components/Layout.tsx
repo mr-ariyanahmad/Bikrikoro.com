@@ -43,13 +43,18 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const [accountOpen, setAccountOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
+  const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading
+    ? { to: '/become-seller', label: '...', icon: Store, prominent: true }
+    : isSeller
+      ? { to: '/sell', label: 'পোস্ট', icon: Plus, prominent: true }
+      : { to: '/become-seller', label: 'সেলার হোন', icon: Store, prominent: true }
   const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS)
     .filter((item) => !(item.to === '/become-seller' && sellerStatusLoading))
     .map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const mobileQuickLinks: MobileQuickNavItem[] = [
     { to: '/', label: 'হোম', icon: Home },
     { to: '/orders', label: 'অর্ডার', icon: Package },
-    { to: isSeller ? '/sell' : '/become-seller', label: isSeller ? 'পোস্ট' : 'সেলার হোন', icon: isSeller ? Plus : Store, prominent: true },
+    mobileSellerAction,
     { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
     { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
   ]

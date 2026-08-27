@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { supabaseConfigured } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
@@ -13,7 +13,7 @@ export function useIsSeller() {
   const [checkedUserId, setCheckedUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let active = true
     if (!user?.uid) {
       setIsSeller(false)
