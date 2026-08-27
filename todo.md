@@ -107,4 +107,4 @@
 - [x] Inspect chat thread creation, seller-product inquiry entry points, and current responsive chat layout
 - [x] Define a safe one-thread-per-buyer-seller rule with product-context message cards
 - [x] Implement seller-level conversation reuse and Shopee-inspired chat list and chat-room presentation
-- [ ] Validate multi-product seller chat reuse, profile display, and responsive chat behavior before deployment
+- [x] Validate multi-product seller chat reuse, profile display, and responsive chat behavior before deployment
