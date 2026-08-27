@@ -41,7 +41,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
-const FACEBOOK_REDIRECT_PENDING_KEY = 'bikrikoro:facebook-redirect-pending'
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -88,16 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((result) => {
         if (result?.user) {
           window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
-          window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
-        } else if ((window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) || window.sessionStorage.getItem(FACEBOOK_REDIRECT_PENDING_KEY)) && !auth.currentUser) {
+        } else if (window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) && !auth.currentUser) {
           window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
-          window.sessionStorage.removeItem(FACEBOOK_REDIRECT_PENDING_KEY)
           setAuthError('auth/redirect-session-not-found')
         }
       })
       .catch((error) => {
         const code = (error as { code?: string }).code ?? 'auth/redirect-failed'
-        console.warn('Google redirect sign-in failed:', code, error)
+        console.warn('Social redirect sign-in failed:', code, error)
         setAuthError(code)
       })
     return unsubscribe
@@ -174,33 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const facebookProvider = new FacebookAuthProvider()
   facebookProvider.addScope('email')
+  facebookProvider.setCustomParameters({ display: 'popup' })
   const loginWithFacebook = async () => {
     ensureFirebaseConfigured()
     setAuthError(null)
     await setPersistence(auth, browserLocalPersistence)
-
-    // Mobile browsers—especially Brave—can close or isolate the OAuth popup
-    // because of popup, storage, or third-party-cookie protections. Redirect
-    // first on mobile so the Firebase session returns through the same browser
-    // tab and is restored by getRedirectResult above.
-    const isMobileBrowser = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    if (isMobileBrowser) {
-      window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
-      await signInWithRedirect(auth, facebookProvider)
-      return
-    }
-
-    try {
-      await signInWithPopup(auth, facebookProvider)
-    } catch (error) {
-      const code = (error as { code?: string }).code
-      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment' || code === 'auth/popup-closed-by-user') {
-        window.sessionStorage.setItem(FACEBOOK_REDIRECT_PENDING_KEY, '1')
-        await signInWithRedirect(auth, facebookProvider)
-        return
-      }
-      throw error
-    }
+    // Keep Facebook consistent with the working Google interaction. The old
+    // mobile redirect path could strand users on the Firebase handler domain
+    // when Meta or Firebase OAuth had not been fully configured.
+    await signInWithPopup(auth, facebookProvider)
   }
 
   const logout = async () => {

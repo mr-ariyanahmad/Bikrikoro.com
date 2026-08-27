@@ -142,3 +142,7 @@
 - [x] Define compact circular completion placement and card-based seller shop edit sections
 - [x] Replace the large completion card and implement polished seller shop edit cards
 - [ ] Validate mobile profile hierarchy, seller shop fields, build, and production deployment
+- [x] Inspect Facebook OAuth implementation, deployed Firebase redirect behavior, and project configuration exposure
+- [x] Define the required Firebase, Meta app, and Vercel configuration without exposing credentials
+- [x] Implement resilient Facebook login initiation and actionable failure recovery
+- [ ] Validate the browser redirect path, build, deployment, and configuration handoff

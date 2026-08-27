@@ -28,19 +28,20 @@ function toE164(bdLocalNumber: string): string {
   return `+880${digits}`
 }
 
-function socialAuthMessage(error: unknown) {
+function socialAuthMessage(error: unknown, provider = 'Google') {
   const code = (error as { code?: string }).code
   if (code === 'auth/unauthorized-domain') return 'এই ওয়েবসাইটটি Firebase-এ অনুমোদিত নয়। Firebase Authorized Domains-এ bikrikoro.com ও www.bikrikoro.com যোগ করুন।'
-  if (code === 'auth/operation-not-allowed') return 'Firebase Console-এ Google sign-in চালু করা নেই। Authentication → Sign-in method → Google চালু করুন।'
+  if (code === 'auth/operation-not-allowed') return `Firebase Console-এ ${provider} sign-in চালু করা নেই। Authentication → Sign-in method → ${provider} চালু করুন।`
+  if (code === 'auth/invalid-oauth-client-id' || code === 'auth/app-not-authorized' || code === 'auth/invalid-credential') return `Firebase বা Meta-তে ${provider} App ID, App Secret অথবা OAuth redirect URL সঠিক নয়। সেটিংস পরীক্ষা করুন।`
   if (code === 'auth/account-exists-with-different-credential') return 'এই ইমেইল দিয়ে আগে অন্য পদ্ধতিতে অ্যাকাউন্ট খোলা আছে। সেই পদ্ধতিতে লগইন করুন।'
-  if (code === 'auth/redirect-session-not-found') return 'Google account নির্বাচন হয়েছে, কিন্তু login session তৈরি হয়নি। আবার চেষ্টা করুন।'
-  if (code === 'auth/popup-closed-by-user') return 'Google login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।'
+  if (code === 'auth/redirect-session-not-found') return `${provider} account নির্বাচন হয়েছে, কিন্তু login session তৈরি হয়নি। আবার চেষ্টা করুন।`
+  if (code === 'auth/popup-closed-by-user') return `${provider} login window বন্ধ হয়ে গেছে। আবার চেষ্টা করুন।`
   if (code === 'auth/popup-blocked') return 'Browser popup বন্ধ করেছে। Popup permission চালু করে আবার চেষ্টা করুন।'
-  if (code === 'auth/operation-not-supported-in-this-environment') return 'এই browser environment-এ Google Login চালু করা যাচ্ছে না। Chrome-এ আবার চেষ্টা করুন।'
+  if (code === 'auth/operation-not-supported-in-this-environment') return `এই browser environment-এ ${provider} Login চালু করা যাচ্ছে না। Chrome-এ আবার চেষ্টা করুন।`
   if (code === 'auth/network-request-failed') return 'ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।'
   if (code === 'auth/invalid-api-key' || code === 'firebase/not-configured') return 'Vercel-এর Firebase configuration সঠিক নয়। VITE_FIREBASE_* variables পরীক্ষা করুন।'
-  if (code === 'auth/internal-error' || code === 'auth/timeout') return 'Google Login-এর Firebase configuration বা redirect-এ সমস্যা হয়েছে। Firebase settings পরীক্ষা করে আবার চেষ্টা করুন।'
-  return 'Google Login করা যায়নি। আবার চেষ্টা করুন।'
+  if (code === 'auth/internal-error' || code === 'auth/timeout') return `${provider} Login-এর Firebase বা Meta configuration-এ সমস্যা হয়েছে। Firebase ও Meta settings পরীক্ষা করে আবার চেষ্টা করুন।`
+  return `${provider} Login করা যায়নি। আবার চেষ্টা করুন।`
 }
 
 function phoneAuthMessage(error: unknown) {
@@ -94,7 +95,7 @@ export default function Login() {
 
   useEffect(() => {
     // Keep redirect failures actionable without exposing internal Firebase details.
-    if (authError) setError(socialAuthMessage({ code: authError }))
+    if (authError) setError(socialAuthMessage({ code: authError }, 'Google'))
   }, [authError])
 
   if (user) {
@@ -172,7 +173,7 @@ export default function Login() {
       await waitForSocialAuth(loginWithFacebook())
     } catch (err) {
       console.error('Facebook login failed:', err)
-      setError(socialAuthMessage(err))
+      setError(socialAuthMessage(err, 'Facebook'))
     } finally {
       setFacebookLoading(false)
     }
