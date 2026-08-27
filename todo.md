@@ -116,3 +116,4 @@
 - [x] Define safe seller-link targets, local message-cache expiry, and sent-delivered-read state behavior
 - [x] Implement clickable shop identity, cached chat history, and message delivery/read indicators
 - [ ] Validate chat startup speed, cached history, seller navigation, and message-state presentation before deployment
+- [x] Verify production receipt schema, duplicate-thread invariant, build, lint, and deployed public availability
