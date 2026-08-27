@@ -133,3 +133,7 @@
 - [x] Define safe startup recovery and the connected three-gear animation treatment
 - [x] Implement the startup reliability correction and replace the warning icon with the gear animation
 - [x] Validate fresh-load recovery, retry/home actions, build, and production deployment
+- [x] Inspect account profile fields, edit permissions, photo upload flow, and admin completion warnings
+- [x] Define the profile visual hierarchy, dedicated edit route, completion percentage, and privacy-safe field display
+- [x] Implement a product-detail-quality profile page with a pencil edit screen and completion progress panel
+- [ ] Validate profile updates, incomplete-field guidance, mobile layout, build, and production deployment

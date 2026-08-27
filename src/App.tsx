@@ -28,6 +28,7 @@ const ChatThread = lazy(() => import('@/pages/ChatThread'))
 const Wallet = lazy(() => import('@/pages/Wallet'))
 const RewardsHub = lazy(() => import('@/pages/RewardsHub'))
 const Account = lazy(() => import('@/pages/Account'))
+const AccountEdit = lazy(() => import('@/pages/AccountEdit'))
 const SellerProfile = lazy(() => import('@/pages/SellerProfile'))
 const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'))
 const Favorites = lazy(() => import('@/pages/Favorites'))
@@ -211,6 +212,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Account />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/account/edit"
+        element={
+          <ProtectedRoute>
+            <AccountEdit />
           </ProtectedRoute>
         }
       />
