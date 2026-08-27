@@ -92,7 +92,7 @@ export default function ChatList() {
                 to={`/chat/${thread.id}`}
                 className={`flex items-center gap-3 border-b border-outline bg-surface p-3.5 transition last:border-b-0 hover:bg-brand-50/50 active:scale-[0.995] ${unread > 0 ? 'bg-brand-50/40' : ''}`}
               >
-                <div className="flex h-13 w-13 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">
                   {thread.otherPhotoUrl ? <img src={thread.otherPhotoUrl} alt="" className="h-full w-full object-cover" /> : (thread.otherName.charAt(0) || '?')}
                 </div>
                 <div className="min-w-0 flex-1">
