@@ -178,4 +178,4 @@
 - [x] Validate the corrected loader on mobile, build, and deploy the visual fix
 - [x] Audit all seller-only order tabs, post actions, dashboard/listing links, and mobile navigation controls
 - [x] Show purchase-only orders to non-sellers and replace seller actions with a clear Seller হোন entry
-- [ ] Validate seller and non-seller visibility rules on mobile and desktop, then deploy
+- [x] Validate seller and non-seller visibility rules on mobile and desktop, then deploy
