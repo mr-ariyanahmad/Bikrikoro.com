@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { supabaseConfigured } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
+
+const SELLER_STATUS_CACHE_MS = 60 * 1000
+type SellerStatusCache = { isSeller: boolean }
 
 export function useIsSeller() {
   const { user } = useAuth()
@@ -25,9 +29,18 @@ export function useIsSeller() {
       return () => { active = false }
     }
 
-    setLoading(true)
-    setIsSeller(false)
-    setCheckedUserId(null)
+    const cacheKey = userCacheKey(user.uid, 'seller-status')
+    const cachedStatus = readCachedValue<SellerStatusCache>(cacheKey, SELLER_STATUS_CACHE_MS)
+    if (cachedStatus) {
+      setIsSeller(cachedStatus.value.isSeller)
+      setCheckedUserId(user.uid)
+      setLoading(false)
+    } else {
+      setLoading(true)
+      setIsSeller(false)
+      setCheckedUserId(null)
+    }
+
     const loadSellerStatus = async () => {
       try {
         const idToken = await auth.currentUser?.getIdToken()
@@ -36,12 +49,14 @@ export function useIsSeller() {
         const payload = await response.json().catch(() => ({})) as { error?: string; isSeller?: boolean }
         if (!response.ok) throw new Error(payload.error || `Seller access check failed (HTTP ${response.status})`)
         if (!active) return
-        setIsSeller(payload.isSeller === true)
+        const isSeller = payload.isSeller === true
+        setIsSeller(isSeller)
         setCheckedUserId(user.uid)
+        writeCachedValue(cacheKey, { isSeller })
       } catch (error) {
         console.error('Seller access check failed:', error)
         if (active) {
-          setIsSeller(false)
+          if (!cachedStatus) setIsSeller(false)
           setCheckedUserId(user.uid)
         }
       } finally {
