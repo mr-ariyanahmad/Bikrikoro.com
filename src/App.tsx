@@ -40,6 +40,7 @@ const BlogPost = lazy(() => import('@/pages/BlogPost'))
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 import { SiteMeta } from '@/components/SiteMeta'
 import { ConfigurationNotice } from '@/components/ConfigurationNotice'
+import { BrandLoader } from '@/components/BrandLoader'
 
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'))
@@ -64,7 +65,7 @@ function AppRoutes() {
   useEnsureProfile()
 
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-bg"><div className="h-7 w-7 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" /></div>}>
+    <Suspense fallback={<BrandLoader fullScreen />}>
       <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

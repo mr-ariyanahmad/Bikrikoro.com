@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
+import { BrandLoader } from '@/components/BrandLoader'
 import type { OrderStatus } from '@/types/order'
 
 type ViewState = 'checking' | 'confirmed' | 'still_pending' | 'cancelled'
@@ -66,10 +67,7 @@ export default function PaymentCallback() {
     <Layout hideFooter fullScreen>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto py-6 text-center">
         {view === 'checking' && (
-          <>
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" />
-            <p className="mt-4 text-ink-600">পেমেন্ট যাচাই করা হচ্ছে...</p>
-          </>
+          <BrandLoader message="পেমেন্ট যাচাই করা হচ্ছে…" />
         )}
 
         {view === 'confirmed' && (

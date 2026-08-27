@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { validateImageFiles } from '@/lib/fileValidation'
+import { BrandLoader } from '@/components/BrandLoader'
 
 export function ImageUploader({
   images,
@@ -23,7 +24,7 @@ export function ImageUploader({
           <img src={img.url} alt="" className="h-full w-full object-cover" />
           {img.uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink-900/40">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <BrandLoader compact />
             </div>
           )}
           <button

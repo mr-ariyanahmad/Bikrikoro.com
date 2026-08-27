@@ -167,3 +167,7 @@
 - [x] Define consistent safe illustration cards for every verification document type
 - [x] Upgrade selfie and ownership-proof guide visuals and remove unnecessary modal text
 - [ ] Validate all guidance variants, mobile modal layout, build, and production deployment
+- [x] Audit legacy spinners, shared loading components, and current branded logo asset usage
+- [x] Define the reusable smile-logo animation, display sizes, messages, and reduced-motion fallback
+- [x] Replace shared circular loading states with the branded animated logo loader
+- [ ] Validate full-page and inline loading presentation, responsive motion, build, and deployment

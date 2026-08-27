@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { useIsSeller } from '@/hooks/useIsSeller'
+import { BrandLoader } from '@/components/BrandLoader'
 
 const benefits = [
   { icon: ShieldCheck, title: 'কঠোর পর্যালোচনা', body: 'পরিচয়, কাগজপত্র ও বিক্রেতার তথ্য নিরাপদ প্রক্রিয়ায় যাচাই করা হয়।' },
@@ -21,7 +22,7 @@ export default function BecomeSeller() {
   const { isSeller, loading: sellerStatusLoading } = useIsSeller()
 
   useEffect(() => { if (user && !sellerStatusLoading && isSeller) navigate('/seller/dashboard', { replace: true }) }, [isSeller, navigate, sellerStatusLoading, user])
-  if (sellerStatusLoading || isSeller) return <Layout wide><div className="mx-auto max-w-3xl py-16 text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" /><p className="mt-4 text-base font-medium text-ink-700">সেলার অ্যাকাউন্ট প্রস্তুত করা হচ্ছে…</p></div></Layout>
+  if (sellerStatusLoading || isSeller) return <Layout wide><div className="mx-auto max-w-3xl py-16"><BrandLoader message="সেলার অ্যাকাউন্ট প্রস্তুত করা হচ্ছে…" /></div></Layout>
 
   return <Layout wide><div className="mx-auto max-w-4xl pb-20"><SellerHero signedIn={Boolean(user)} onStart={() => navigate('/become-seller/verify?mode=DIGITAL')} />{user && <section className="mt-5 rounded-2xl border border-outline bg-surface p-5 shadow-sm sm:p-6"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><FileCheck2 size={22} /></span><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">যাচাইয়ের আগে</p><h2 className="mt-1 text-xl font-bold text-ink-900">ডিজিটাল বিক্রেতা যাচাই</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">বিক্রেতার ধরন বেছে নিয়ে প্রয়োজনীয় পরিচয়, ঠিকানা, মালিকানা, ব্যবসা বা কোম্পানির কাগজপত্র জমা দিন। আপনার ধরনের জন্য প্রয়োজনীয় কাগজপত্রই দেখানো হবে।</p></div></div></section>}<section className="mt-5 grid gap-3 sm:grid-cols-3">{benefits.map(({ icon: Icon, title, body }) => <article key={title} className="rounded-2xl border border-outline bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Icon size={20} /></span><p className="mt-4 text-base font-bold text-ink-900">{title}</p><p className="mt-1 text-sm leading-6 text-ink-600">{body}</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-brand-700"><CheckCircle2 size={14} />নিরাপদ প্রক্রিয়া</span></article>)}</section></div></Layout>
 }
