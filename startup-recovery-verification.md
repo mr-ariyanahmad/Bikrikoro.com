@@ -9,3 +9,7 @@ This indicates the reported recovery card is intermittent rather than the curren
 ## Post-deployment check
 
 The newly deployed Home document returned HTTP 200. A browser navigation with a fresh query parameter then completed the normal Home startup and rendered the marketplace page rather than the recovery fallback. The recovery component now retries once automatically when a stale JavaScript chunk or dynamically imported module fails during a deployment transition, then presents the connected three-gear recovery treatment with manual retry and Home actions if the issue persists.
+
+## Animation preview
+
+The shared connected three-gear component is live at `/preview/startup-recovery`. The public preview route loaded successfully and showed the three green connected settings icons in the expected recovery-card presentation without creating an error condition.
