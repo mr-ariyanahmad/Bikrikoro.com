@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, Clock3, Flame, Search, Sparkles, Tag, X } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Clock3, Flame, Search, Sparkles, Store, Tag, X } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
@@ -7,6 +7,8 @@ import { formatTaka } from '@/lib/format'
 import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
 import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
+import { shopUrl } from '@/lib/shopProfile'
 import type { Category, Product } from '@/types/product'
 
 interface Suggestion {
@@ -26,6 +28,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [shops, setShops] = useState<SearchShop[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [trendingSearches, setTrendingSearches] = useState<string[]>([])
   const [recentSearches, setRecentSearches] = useState<string[]>([])
@@ -74,13 +77,15 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     const term = query.trim()
     if (term.length < 2) {
       setSuggestions([])
+      setShops([])
       setLoading(false)
       return
     }
     let cancelled = false
     const timer = window.setTimeout(async () => {
       setLoading(true)
-      const { data, error } = await supabase
+      const [{ data, error }, foundShops] = await Promise.all([
+        supabase
         .from(PUBLIC_PRODUCT_TABLE)
         .select(PUBLIC_PRODUCT_FIELDS)
         .eq('is_digital', true)
@@ -88,7 +93,9 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
         .order('popularity_score', { ascending: false })
         .order('view_count', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(24)
+        .limit(24),
+        searchPublicShops(term),
+      ])
       if (!cancelled) {
         if (error) console.warn('Search suggestions failed:', error)
         setSuggestions(rankSearchProductsByInterest((data ?? []) as Product[], getRecentlyViewedIds()).slice(0, 8).map((product) => ({
@@ -99,6 +106,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
           categoryId: product.category_id,
           categoryLabel: categoryNames.get(product.category_id) ?? 'ডিজিটাল পণ্য',
         })))
+        setShops(foundShops)
         setLoading(false)
       }
     }, 250)
@@ -131,9 +139,14 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
     setQuery('')
     navigate(`/products/${suggestion.id}`)
   }
+  const goToShop = (shop: SearchShop) => {
+    setOpen(false)
+    setQuery('')
+    navigate(shopUrl(shop.shop_username, shop.id))
+  }
   const clearRecent = () => { setRecentSearches([]); localStorage.removeItem(RECENT_KEY) }
   const showDiscovery = query.trim().length < 2
-  const hasPanelContent = showDiscovery || loading || suggestions.length > 0 || Boolean(query.trim())
+  const hasPanelContent = showDiscovery || loading || suggestions.length > 0 || shops.length > 0 || Boolean(query.trim())
 
   return <div ref={containerRef} className={`relative ${compact ? 'w-full' : 'w-full max-w-md'}`}>
     <div className="relative">
@@ -168,7 +181,8 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
       </>}
 
       {!showDiscovery && loading && <div className="flex items-center gap-2 px-4 py-5 text-sm text-ink-500"><Sparkles size={16} className="animate-pulse text-brand-600" />ডিজিটাল পণ্য খোঁজা হচ্ছে...</div>}
-      {!showDiscovery && !loading && suggestions.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো ডিজিটাল পণ্য পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য শব্দ দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
+      {!showDiscovery && !loading && shops.length > 0 && <section className="border-b border-outline p-3"><div className="mb-2 flex items-center justify-between"><p className="flex items-center gap-2 text-sm font-bold text-ink-900"><Store size={16} className="text-brand-600" />মিলেছে শপ</p><span className="text-xs text-ink-400">{shops.length}টি</span></div><div className={compact ? 'grid grid-cols-2 gap-2.5' : 'space-y-2'}>{shops.map((shop) => <button type="button" key={shop.id} onClick={() => goToShop(shop)} className={`flex items-center gap-2.5 border border-outline bg-bg text-left transition hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98] ${compact ? 'rounded-xl p-2.5' : 'w-full px-3 py-2.5'}`}><div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 font-bold text-brand-700">{shop.photo_url ? <img src={shop.photo_url} alt="" className="h-full w-full object-cover" /> : (shop.shop_name?.trim() || shop.name).charAt(0)}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-ink-900">{shop.shop_name?.trim() || shop.name}</p><p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500">{shop.is_verified && <BadgeCheck size={13} className="text-brand-600" />}শপ দেখুন</p></div><ArrowRight size={15} className="shrink-0 text-ink-300" /></button>)}</div></section>}
+      {!showDiscovery && !loading && suggestions.length === 0 && shops.length === 0 && <div className="px-4 py-5 text-center"><p className="text-sm font-semibold text-ink-900">কোনো পণ্য বা শপ পাওয়া যায়নি</p><p className="mt-1 text-sm text-ink-500">অন্য শব্দ দিয়ে চেষ্টা করুন অথবা সব ফলাফল দেখুন।</p></div>}
       {!showDiscovery && suggestions.length > 0 && (compact ? <section className="p-3"><div className="mb-3 flex items-center justify-between"><p className="text-base font-bold text-ink-900">সার্চ সাজেশন</p><span className="text-xs text-ink-400">জনপ্রিয় ও পছন্দ অনুযায়ী</span></div><div className="grid grid-cols-2 gap-2.5">{suggestions.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="overflow-hidden rounded-xl border border-outline bg-bg text-left shadow-sm transition active:scale-[0.98]"><div className="aspect-square bg-surface">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div><div className="p-2"><p className="line-clamp-2 min-h-9 text-xs font-semibold leading-4 text-ink-900">{suggestion.title}</p><p className="mt-1 tabular-amount text-sm font-bold text-brand-700">{formatTaka(suggestion.price)}</p></div></button>)}</div></section> : <div>{Object.entries(groupedSuggestions).map(([categoryLabel, items]) => <section key={categoryLabel} className="border-b border-outline last:border-0"><div className="flex items-center justify-between bg-bg px-3.5 py-2"><p className="text-sm font-semibold text-ink-900">{categoryLabel}</p><span className="text-xs text-ink-400">{items.length}টি ফলাফল</span></div>{items.map((suggestion) => <button type="button" key={suggestion.id} onClick={() => goToProduct(suggestion)} className="flex w-full items-center gap-3 border-t border-outline/70 px-3.5 py-2.5 text-left hover:bg-brand-50/60"><div className="h-11 w-11 shrink-0 overflow-hidden border border-outline bg-bg">{suggestion.image && <img src={suggestion.image} alt="" className="h-full w-full object-cover" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-ink-900">{suggestion.title}</p><p className="mt-0.5 text-xs text-ink-500">ডিজিটাল পণ্য <span className="mx-1 text-ink-300">•</span><span className="tabular-amount font-semibold text-brand-700">{formatTaka(suggestion.price)}</span></p></div><ArrowRight size={15} className="shrink-0 text-ink-300" /></button>)}</section>)}</div>)}
       {query.trim() && <button type="button" onClick={() => goToResults()} className="flex w-full items-center justify-between border-t border-outline bg-brand-50 px-3.5 py-3 text-left text-base font-semibold text-brand-700 hover:bg-brand-100"><span>“{query.trim()}”-এর সব ফলাফল দেখুন</span><ArrowRight size={17} /></button>}
     </div>}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookmarkPlus, Grid2X2, List, Search, Share2, SlidersHorizontal } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { BadgeCheck, BookmarkPlus, Grid2X2, List, Search, Share2, SlidersHorizontal, Store } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
 import { Layout } from '@/components/Layout'
@@ -11,6 +11,8 @@ import type { Product, Category } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
+import { shopUrl } from '@/lib/shopProfile'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
@@ -29,6 +31,7 @@ export default function Products() {
 
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [shops, setShops] = useState<SearchShop[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('bikrikoro:products-view') as 'grid' | 'list') || 'grid')
@@ -39,6 +42,15 @@ export default function Products() {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 250)
     return () => window.clearTimeout(timeout)
   }, [query])
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      const foundShops = await searchPublicShops(debouncedQuery)
+      if (!cancelled) setShops(foundShops)
+    }, debouncedQuery.trim().length >= 2 ? 0 : 150)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [debouncedQuery])
 
   useEffect(() => {
     if (!supabaseConfigured) return
@@ -178,6 +190,7 @@ export default function Products() {
         <div className="flex items-center gap-1.5"><button type="button" onClick={saveCurrentSearch} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><BookmarkPlus size={14} />সার্চ সেভ</button><button type="button" onClick={() => void shareCurrentSearch()} className="inline-flex items-center gap-1 border border-outline px-2.5 py-1.5 text-base font-semibold hover:border-brand-500 hover:text-brand-700"><Share2 size={14} />শেয়ার</button><button type="button" onClick={() => changeView('grid')} className={`p-1.5 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="গ্রিড ভিউ"><Grid2X2 size={16} /></button><button type="button" onClick={() => changeView('list')} className={`p-1.5 ${viewMode === 'list' ? 'bg-brand-50 text-brand-700' : 'text-ink-400'}`} aria-label="লিস্ট ভিউ"><List size={17} /></button></div>
       </div>
       {notice && <p className="mt-2 border border-brand-100 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">{notice}</p>}
+      {query.trim().length >= 2 && shops.length > 0 && <section className="mt-4 border border-brand-100 bg-brand-50/50 p-3 sm:p-4"><div className="mb-3 flex items-center gap-2"><Store size={18} className="text-brand-600" /><h2 className="font-bold text-ink-900">মিলেছে শপ</h2><span className="text-sm text-ink-500">{shops.length}টি</span></div><div className="grid gap-2 sm:grid-cols-2">{shops.map((shop) => <Link key={shop.id} to={shopUrl(shop.shop_username, shop.id)} className="flex items-center gap-3 border border-outline bg-surface p-3 transition hover:border-brand-300"><div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 font-bold text-brand-700">{shop.photo_url ? <img src={shop.photo_url} alt="" className="h-full w-full object-cover" /> : (shop.shop_name?.trim() || shop.name).charAt(0)}</div><div className="min-w-0 flex-1"><p className="truncate font-bold text-ink-900">{shop.shop_name?.trim() || shop.name}</p><p className="mt-0.5 flex items-center gap-1 text-sm text-ink-500">{shop.is_verified && <BadgeCheck size={14} className="text-brand-600" />}{shop.review_count > 0 ? `★ ${shop.rating.toFixed(1)} · ${shop.review_count} রিভিউ` : 'ডিজিটাল শপ'}</p></div><span className="text-sm font-semibold text-brand-700">শপ দেখুন</span></Link>)}</div></section>}
 
       <div className={`mt-3 grid gap-3 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'}`}>
         {loading ? Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/4] animate-pulse bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
