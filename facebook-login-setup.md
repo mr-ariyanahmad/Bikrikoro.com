@@ -4,6 +4,10 @@
 
 The BikriKoro Facebook button now uses the same browser popup interaction as the working Google button. It no longer deliberately redirects mobile users to the `bikrikoro.firebaseapp.com` handler page, which was the path shown in the reported blank-screen failure. The deployed login screen renders the Facebook entry button normally.
 
+## Google sign-in safeguard
+
+The Facebook repair changes only the `FacebookAuthProvider` path. The existing `GoogleAuthProvider`, its `select_account` setting, and its popup-with-redirect-fallback logic remain unchanged. Facebook popup closure is now reported only through the Facebook button’s own error message; it does not disable, redirect, or otherwise alter Google sign-in.
+
 ## Vercel environment variables
 
 **No additional Facebook-specific Vercel environment variable is required** for the current Firebase JavaScript SDK implementation. The existing `VITE_FIREBASE_*` variables identify the Firebase project; they do not contain, and must not contain, the Meta App Secret.

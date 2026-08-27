@@ -147,3 +147,7 @@
 - [x] Implement resilient Facebook login initiation and actionable failure recovery
 - [ ] Validate the browser redirect path, build, deployment, and configuration handoff
 - [x] Validate deployed Facebook button rendering and document the Firebase and Meta configuration handoff
+- [x] Inspect the reported Facebook popup-closure state and confirm Google has an isolated provider path
+- [x] Define Facebook-specific setup guidance and Google non-regression boundaries
+- [x] Refine Facebook-only popup failure handling without modifying Google authentication behavior
+- [ ] Validate provider separation, login UI, build, and production deployment
