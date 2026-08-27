@@ -108,3 +108,7 @@
 - [x] Define a safe one-thread-per-buyer-seller rule with product-context message cards
 - [x] Implement seller-level conversation reuse and Shopee-inspired chat list and chat-room presentation
 - [x] Validate multi-product seller chat reuse, profile display, and responsive chat behavior before deployment
+- [x] Inspect shared mobile header variants and route-specific secondary search rows
+- [x] Define a unified home-style mobile header with route-safe back and menu behavior
+- [x] Implement the primary mobile search bar across all customer-facing pages without changing desktop
+- [ ] Validate sitewide mobile header consistency and search navigation before deployment

@@ -54,7 +54,9 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
   ]
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
-  const hasInlineMobileSearch = location.pathname === '/'
+  // Every mobile page uses the compact home-style search in the primary header.
+  // The dedicated /search route already owns its full-screen search input.
+  const showPrimaryMobileSearch = location.pathname !== '/search'
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
@@ -106,7 +108,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
 
             <div className="hidden shrink-0 sm:block"><BackButton fallbackTo={backFallback} label={backLabel} /></div>
             <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
-            {hasInlineMobileSearch && <div className="min-w-0 flex-1 sm:hidden"><SearchBar compact /></div>}
+            {showPrimaryMobileSearch && <div className="min-w-0 flex-1 sm:hidden"><SearchBar compact /></div>}
 
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <div className="relative hidden md:block">
@@ -122,8 +124,6 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
               <button type="button" onClick={toggleMobileMenu} className="rounded-xl border border-outline p-2 text-ink-700 hover:border-brand-300 hover:text-brand-700 md:hidden" aria-label={menuOpen ? 'মেনু বন্ধ করুন' : 'মেনু খুলুন'} aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
             </div>
           </div>
-
-          {!hasInlineMobileSearch && <div className="flex items-center gap-2 border-t border-outline/70 py-2.5 sm:hidden"><BackButton fallbackTo={backFallback} label={backLabel} /><div className="min-w-0 flex-1"><SearchBar compact /></div></div>}
 
           <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
             <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
