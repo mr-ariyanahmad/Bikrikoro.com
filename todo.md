@@ -120,4 +120,4 @@
 - [x] Inspect the marked mobile Home promotions and current global popularity cache behavior
 - [x] Define data-driven ranking revalidation that preserves stable ties and refreshes on genuine engagement changes
 - [x] Remove the marked Home promotional sections and revalidate global product ranking on Home refresh
-- [ ] Validate simplified Home rendering, global ranking movement after engagement changes, and deployment
+- [x] Validate simplified Home rendering, global ranking movement after engagement changes, and deployment
