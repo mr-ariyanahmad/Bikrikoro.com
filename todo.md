@@ -95,4 +95,4 @@
 - [x] Inspect safe public shop data and current product-search suggestion paths
 - [x] Define combined shop-name and product relevance ranking without exposing private seller data
 - [x] Implement shop cards in full-screen search, header suggestions, and search results
-- [ ] Validate shop search navigation and relevance-ranked product results before deployment
+- [x] Validate shop search navigation and relevance-ranked product results before deployment
