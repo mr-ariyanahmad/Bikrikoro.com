@@ -111,4 +111,4 @@
 - [x] Inspect shared mobile header variants and route-specific secondary search rows
 - [x] Define a unified home-style mobile header with route-safe back and menu behavior
 - [x] Implement the primary mobile search bar across all customer-facing pages without changing desktop
-- [ ] Validate sitewide mobile header consistency and search navigation before deployment
+- [x] Validate sitewide mobile header consistency and search navigation before deployment
