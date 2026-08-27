@@ -52,3 +52,25 @@ export async function updateSellerShopProfile(params: {
 export function shopUrl(shopUsername: string | null | undefined, sellerId: string) {
   return shopUsername?.trim() ? `/seller/${encodeURIComponent(shopUsername.trim())}` : `/sellers/${encodeURIComponent(sellerId)}`
 }
+
+/** Avoid rendering raw Firebase/Supabase identifiers or accidental keyboard-garble as public-facing names. */
+export function isIdentifierLikeProfileText(value: string | null | undefined) {
+  const text = value?.trim() ?? ''
+  if (!text) return true
+  if (/^[A-Za-z0-9_-]{18,}$/.test(text)) return true
+  return /[;[\]\\]/.test(text) && /[A-Za-z]/.test(text)
+}
+
+export function displayShopName(shopName: string | null | undefined, userName: string | null | undefined, fallback = 'বিক্রেতা') {
+  if (!isIdentifierLikeProfileText(shopName)) return shopName!.trim()
+  if (!isIdentifierLikeProfileText(userName)) return userName!.trim()
+  return fallback
+}
+
+export function displayUserName(userName: string | null | undefined, fallback = 'ব্যবহারকারী') {
+  return isIdentifierLikeProfileText(userName) ? fallback : userName!.trim()
+}
+
+export function displayShopDescription(description: string | null | undefined) {
+  return isIdentifierLikeProfileText(description) ? '' : description!.trim()
+}

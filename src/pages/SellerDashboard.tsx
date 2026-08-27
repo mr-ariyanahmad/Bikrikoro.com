@@ -10,6 +10,7 @@ import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatDate, formatDateTime, formatTaka } from '@/lib/format'
 import { loadNotifications, loadUnreadNotificationCount } from '@/lib/marketplace'
 import { ShopProfileEditor } from '@/components/ShopProfileEditor'
+import { displayShopDescription, displayShopName, displayUserName } from '@/lib/shopProfile'
 import type { Profile, Product } from '@/types/product'
 import type { OrderStatus } from '@/types/order'
 import type { WalletBalance, WalletWithdrawalSummary } from '@/types/wallet'
@@ -166,7 +167,7 @@ export default function SellerDashboard() {
         <SellerSidebar unreadCount={data?.unreadNotificationCount ?? 0} />
         <main className="w-full min-w-0 max-w-full">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-outline pb-5">
-            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">বিক্রেতার কর্মক্ষেত্র</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">স্বাগতম, {profile?.shop_name || profile?.name || 'সেলার'}</h1><p className="mt-1 text-base text-ink-600">আপনার ডিজিটাল পণ্য, অর্ডার ও ওয়ালেট এক জায়গা থেকে পরিচালনা করুন।</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">বিক্রেতার কর্মক্ষেত্র</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">স্বাগতম, {displayShopName(profile?.shop_name, profile?.name, 'সেলার')}</h1><p className="mt-1 text-base text-ink-600">আপনার ডিজিটাল পণ্য, অর্ডার ও ওয়ালেট এক জায়গা থেকে পরিচালনা করুন।</p></div>
             <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void loadDashboard(true)} className="inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />রিফ্রেশ</button><Link to="/sell" className="inline-flex items-center gap-2 border border-brand-500 bg-brand-500 px-3 py-2.5 text-base font-semibold text-white transition hover:bg-brand-600"><Plus size={17} />নতুন ডিজিটাল পণ্য</Link></div>
           </div>
 
@@ -220,8 +221,10 @@ function SellerSidebar({ unreadCount }: { unreadCount: number }) {
 }
 
 function ProfileHero({ profile, productCount, onEdit }: { profile: Profile | null; productCount: number; onEdit: () => void }) {
-  const name = profile?.shop_name?.trim() || profile?.name || 'Seller'
-  return <section className="mt-5 border border-brand-100 bg-gradient-to-r from-brand-50 via-surface to-surface p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-brand-200 bg-brand-100 text-2xl font-bold text-brand-700">{profile?.photo_url ? <img src={profile.photo_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold text-ink-900">{name}</h2>{profile?.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><ShieldCheck size={13} />যাচাইকৃত</span>}</div><p className="mt-1 line-clamp-2 text-sm text-ink-600">{profile?.shop_description || 'আপনার ডিজিটাল শপের তথ্য সম্পূর্ণ করুন এবং ক্রেতার আস্থা তৈরি করুন।'}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-500"><span>{profile?.review_count ? `★ ${profile.rating.toFixed(1)} · ${profile.review_count}টি রিভিউ` : 'এখনো কোনো রিভিউ নেই'}</span><span>{productCount}টি সক্রিয় পণ্য</span>{profile?.created_at && <span>{formatDate(profile.created_at)} থেকে</span>}</div></div><button type="button" onClick={onEdit} className="inline-flex items-center justify-center gap-2 border border-brand-500 px-3 py-2.5 text-base font-semibold text-brand-700 transition hover:bg-brand-50"><UserRound size={16} />প্রোফাইল এডিট</button></div></section>
+  const name = displayShopName(profile?.shop_name, profile?.name, 'সেলার')
+  const userName = displayUserName(profile?.name)
+  const description = displayShopDescription(profile?.shop_description)
+  return <section className="mt-5 border border-brand-100 bg-gradient-to-r from-brand-50 via-surface to-surface p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-brand-200 bg-brand-100 text-2xl font-bold text-brand-700">{profile?.photo_url ? <img src={profile.photo_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold text-ink-900">{name}</h2>{profile?.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><ShieldCheck size={13} />যাচাইকৃত</span>}</div><p className="mt-1 line-clamp-2 text-sm text-ink-600">{description || `ব্যবহারকারী: ${userName}`}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-500"><span>{profile?.review_count ? `★ ${profile.rating.toFixed(1)} · ${profile.review_count}টি রিভিউ` : 'এখনো কোনো রিভিউ নেই'}</span><span>{productCount}টি সক্রিয় পণ্য</span>{profile?.created_at && <span>{formatDate(profile.created_at)} থেকে</span>}</div></div><button type="button" onClick={onEdit} className="inline-flex items-center justify-center gap-2 border border-brand-500 px-3 py-2.5 text-base font-semibold text-brand-700 transition hover:bg-brand-50"><UserRound size={16} />প্রোফাইল এডিট</button></div></section>
 }
 
 function MetricCard({ icon: Icon, label, value, tone, note }: { icon: LucideIcon; label: string; value: string; tone: 'green' | 'purple' | 'orange' | 'blue' | 'amber'; note: string }) {

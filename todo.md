@@ -100,3 +100,7 @@
 - [x] Design Shopee-inspired mobile sort tabs, filter sheet, and desktop filter presentation
 - [x] Implement refined search filtering and sorting while retaining URL-state persistence
 - [x] Validate filter, sort, query, and responsive result behavior before deployment
+- [x] Inspect identifier-like seller text in dashboard/profile views and current shop-search labels
+- [x] Define human-readable name fallbacks and a Shopee-inspired understated shop result treatment
+- [x] Remove raw identifier-like seller text and replace visible matched-shop labels across search
+- [ ] Validate seller name display and simplified shop-search presentation before deployment
