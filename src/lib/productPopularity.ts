@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 const VISITOR_TOKEN_KEY = 'bikrikoro:public-view-token:v1'
 const VIEWED_TODAY_KEY = 'bikrikoro:public-product-views:v1'
+const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v3'
 
 function getVisitorToken() {
   const existing = window.localStorage.getItem(VISITOR_TOKEN_KEY)
@@ -31,7 +32,12 @@ export async function recordPublicProductView(productId: string) {
     stored[productId] = today
     const compact = Object.fromEntries(Object.entries(stored).filter(([, date]) => date === today))
     window.localStorage.setItem(VIEWED_TODAY_KEY, JSON.stringify(compact))
-    return Boolean(data)
+    const recorded = Boolean(data)
+    if (recorded) {
+      window.localStorage.removeItem(HOMEPAGE_CACHE_KEY)
+      window.dispatchEvent(new Event('bikrikoro:public-product-popularity-changed'))
+    }
+    return recorded
   } catch {
     return false
   }

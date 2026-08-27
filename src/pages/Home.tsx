@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRight, Check, Coins, Loader2, Plus, ShieldCheck, Sparkles, WalletCards, Zap } from 'lucide-react'
+import { Check, Coins, Loader2, Plus, ShieldCheck, WalletCards } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
@@ -7,15 +7,14 @@ import { auth } from '@/lib/firebase'
 import { Layout } from '@/components/Layout'
 import { ProductCard } from '@/components/ProductCard'
 import { CategoryPills } from '@/components/CategoryPills'
-import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { useAuth } from '@/context/AuthContext'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
-import { getPreferredCategoryIds, rankHomepageProductsByCategoryInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
-const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v2'
+const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v3'
 const HOMEPAGE_CACHE_TTL_MS = 5 * 60 * 1000
 
 type HomepageCache = {
@@ -65,7 +64,6 @@ export default function Home() {
   const [checkInLoading, setCheckInLoading] = useState(false)
   const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
-  const rankHomepageFeed = (rows: Product[]) => rankHomepageProductsByCategoryInterest(rows, getRecentlyViewedIds())
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')
@@ -83,7 +81,7 @@ export default function Home() {
       if (cachedHomepage && active) {
         setBanners(cachedHomepage.banners)
         setCategories(cachedHomepage.categories)
-        setProducts(rankHomepageFeed(cachedHomepage.products))
+        setProducts(cachedHomepage.products)
         setSellersById(cachedHomepage.sellersById)
         setProductOffset(cachedHomepage.products.length)
         setHasMoreProducts(cachedHomepage.hasMoreProducts)
@@ -91,22 +89,18 @@ export default function Home() {
       }
       initialFeedRefreshInProgress.current = true
       try {
-        const preferredCategoryIds = getPreferredCategoryIds()
-        const [bannersRes, categoriesRes, templatesRes, productsRes, preferredProductsRes] = await Promise.all([
+        const [bannersRes, categoriesRes, templatesRes, productsRes] = await Promise.all([
           supabase.from('promo_banners').select('*').order('sort_order'),
           supabase.from('categories').select('*').order('sort_order'),
           supabase.from('digital_category_templates').select('category_id, sort_order').eq('is_active', true).order('sort_order'),
-          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
-          preferredCategoryIds.length > 0
-            ? supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('category_id', preferredCategoryIds).not('title', 'ilike', 'TEST / Demo only —%').order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).limit(HOMEPAGE_PRODUCT_PAGE_SIZE)
-            : Promise.resolve({ data: [] as Product[], error: null }),
+          supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false }).order('id', { ascending: false }).range(0, HOMEPAGE_PRODUCT_PAGE_SIZE - 1),
         ])
         if (!active) return
         if (bannersRes.error || categoriesRes.error || productsRes.error) {
           throw bannersRes.error ?? categoriesRes.error ?? productsRes.error
         }
         const globalProducts = (productsRes.data ?? []) as Product[]
-        const loadedProducts = rankHomepageFeed([...new Map([...(preferredProductsRes.data ?? [] as Product[]), ...globalProducts].map((product) => [product.id, product])).values()])
+        const loadedProducts = globalProducts
         const sellerIds = [...new Set(loadedProducts.map((product) => product.seller_id).filter(Boolean))]
         const { data: sellerRows, error: sellerError } = sellerIds.length > 0
           ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds)
@@ -151,6 +145,7 @@ export default function Home() {
         .order('popularity_score', { ascending: false })
         .order('view_count', { ascending: false })
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(productOffset, productOffset + HOMEPAGE_PRODUCT_PAGE_SIZE - 1)
       if (error) throw error
         const nextProducts = (data ?? []) as Product[]
@@ -161,7 +156,7 @@ export default function Home() {
       if (sellerError) console.error('Homepage additional seller summaries load failed:', sellerError)
       setProducts((current) => {
         const knownIds = new Set(current.map((product) => product.id))
-        return rankHomepageFeed([...current, ...nextProducts.filter((product) => !knownIds.has(product.id))])
+        return [...current, ...nextProducts.filter((product) => !knownIds.has(product.id))]
       })
       setSellersById((current) => ({ ...current, ...Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])) }))
       setProductOffset((current) => current + nextProducts.length)
@@ -173,12 +168,6 @@ export default function Home() {
       setLoadingMoreProducts(false)
     }
   }, [hasMoreProducts, loading, loadingMoreProducts, productOffset])
-
-  useEffect(() => {
-    const refreshFeedOrder = () => setProducts((current) => rankHomepageFeed(current))
-    window.addEventListener('bikrikoro:recommendations-changed', refreshFeedOrder)
-    return () => window.removeEventListener('bikrikoro:recommendations-changed', refreshFeedOrder)
-  }, [])
 
   useEffect(() => {
     if (!hasMoreProducts) return
@@ -251,8 +240,6 @@ export default function Home() {
         <div className="mt-4 grid grid-cols-3 gap-2 rounded-[1.6rem] border border-white/90 bg-white/85 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.08)]"><Link to="/wallet" className="min-w-0 rounded-2xl bg-brand-50 px-3 py-3"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-brand-700 shadow-sm"><WalletCards size={17} /></span><p className="mt-2 truncate text-[10px] font-semibold text-brand-700">ওয়ালেট</p><p className="mt-0.5 truncate tabular-amount text-sm font-bold text-ink-900">{user ? formatTaka(balance) : 'লগইন'}</p></Link><button type="button" onClick={() => void checkIn()} disabled={checkInLoading || checkedIn} className="min-w-0 rounded-2xl bg-amber-50 px-3 py-3 text-left disabled:opacity-60"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-amber-600 shadow-sm">{checkInLoading ? <Loader2 size={17} className="animate-spin" /> : <Coins size={17} />}</span><p className="mt-2 truncate text-[10px] font-semibold text-amber-700">দৈনিক চেক-ইন</p><p className="mt-0.5 truncate text-sm font-bold text-ink-900">{checkedIn ? 'নেওয়া হয়েছে' : '+১০ কয়েন'}</p></button><Link to="/products" className="min-w-0 rounded-2xl bg-sky-50 px-3 py-3"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><ShieldCheck size={17} /></span><p className="mt-2 truncate text-[10px] font-semibold text-sky-700">ডিজিটাল সুরক্ষা</p><p className="mt-0.5 truncate text-sm font-bold text-ink-900">এসক্রো নিরাপদ</p></Link></div>
       </section>
       {checkInMessage && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">{checkInMessage}</p>}
-      <section className="mt-6"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-ink-900">আজকের ডিজিটাল ডিল</h2><Link to="/products" className="inline-flex items-center gap-0.5 text-xs font-bold text-brand-700">সব দেখুন <ArrowRight size={14} /></Link></div>{banners.length > 0 ? <div className="scrollbar-none mt-3 flex gap-3 overflow-x-auto pb-1">{banners.map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-32 w-56 shrink-0 overflow-hidden rounded-2xl bg-outline/30 shadow-sm"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div> : <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]"><Link to="/products" className="min-h-32 bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white"><Zap size={19} className="text-amber-300" /><p className="mt-4 text-sm font-bold">অটো ডেলিভারি</p><p className="mt-1 text-[11px] leading-4 text-brand-50">পেমেন্ট নিশ্চিত হলেই দ্রুত অর্ডার প্রস্তুত</p></Link><Link to="/sell" className="min-h-32 bg-gradient-to-br from-amber-300 to-orange-500 p-4 text-ink-900"><Sparkles size={19} /><p className="mt-4 text-sm font-bold">বিক্রি শুরু করুন</p><p className="mt-1 text-[11px] leading-4 font-medium text-ink-800/80">নিরাপদ ডিজিটাল পণ্য পোস্ট দিন</p></Link></div>}</section>
-      <section className="mt-6 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white"><p className="text-xs font-semibold text-brand-50/80">নিরাপদ ডিজিটাল বাজার</p><h2 className="mt-1 text-xl font-bold">বিশ্বাস করে কিনুন, নিশ্চিন্তে বিক্রি করুন</h2><p className="mt-2 text-xs leading-5 text-brand-50/90">এসক্রো সুরক্ষায় পেমেন্ট থেকে ডেলিভারি পর্যন্ত প্রতিটি ধাপ স্বচ্ছ রাখুন।</p><Link to="/sell" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs font-bold text-brand-700">পণ্য পোস্ট করুন <ArrowRight size={14} /></Link></section>
       <div className="mt-6"><CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /></div>
       <section className="mt-6"><div className="flex items-center justify-between"><h2 className="text-base font-bold text-ink-900">পণ্য</h2><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div>{productGrid}</section>
       {!loading && products.length === 0 && <p className="mt-8 text-center text-sm text-ink-600">এখনো কোনো পণ্য যোগ হয়নি।</p>}
