@@ -179,3 +179,6 @@
 - [x] Audit all seller-only order tabs, post actions, dashboard/listing links, and mobile navigation controls
 - [x] Show purchase-only orders to non-sellers and replace seller actions with a clear Seller হোন entry
 - [x] Validate seller and non-seller visibility rules on mobile and desktop, then deploy
+- [x] Audit the mobile dock gap, safe-area padding, active state, and central role-aware action layout
+- [x] Redesign the mobile dock as a bottom-edge-integrated bar with rounded upper corners and stronger visual hierarchy
+- [ ] Validate the mobile dock on an actual phone viewport, build, and deploy
