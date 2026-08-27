@@ -7,7 +7,7 @@ import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProduct
 import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
 import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { formatTaka } from '@/lib/format'
-import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { isTestDemoProduct, rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import type { Category, Product } from '@/types/product'
 
 const RECENT_KEY = 'bikrikoro:recent-searches'
@@ -48,7 +48,7 @@ export default function SearchPage() {
       const { data, error } = await request.limit(query.length >= 2 ? 40 : 12)
       if (!active) return
       if (error) { setProducts([]); setLoading(false); return }
-      setProducts(rankSearchProductsByInterest((data ?? []) as Product[], getRecentlyViewedIds()))
+      setProducts(rankSearchProductsByInterest((data ?? []) as Product[], getRecentlyViewedIds()).filter((product) => !isTestDemoProduct(product)))
       setLoading(false)
     }, query.length >= 2 ? 220 : 0)
     return () => { active = false; window.clearTimeout(timer) }
