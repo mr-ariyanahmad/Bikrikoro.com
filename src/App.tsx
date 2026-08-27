@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from '@/context/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SellerRoute } from '@/components/SellerRoute'
 import { AdminRoute } from '@/components/AdminRoute'
 import { useEnsureProfile } from '@/hooks/useEnsureProfile'
 const Login = lazy(() => import('@/pages/Login'))
@@ -104,7 +105,7 @@ function AppRoutes() {
         path="/sell"
         element={
           <ProtectedRoute>
-            <Sell />
+            <SellerRoute><Sell /></SellerRoute>
           </ProtectedRoute>
         }
       />
@@ -112,7 +113,7 @@ function AppRoutes() {
         path="/sell/:id"
         element={
           <ProtectedRoute>
-            <Sell />
+            <SellerRoute><Sell /></SellerRoute>
           </ProtectedRoute>
         }
       />
@@ -120,7 +121,7 @@ function AppRoutes() {
         path="/my-listings"
         element={
           <ProtectedRoute>
-            <MyListings />
+            <SellerRoute><MyListings /></SellerRoute>
           </ProtectedRoute>
         }
       />
@@ -230,7 +231,7 @@ function AppRoutes() {
         path="/seller/dashboard"
         element={
           <ProtectedRoute>
-            <SellerDashboard />
+            <SellerRoute><SellerDashboard /></SellerRoute>
           </ProtectedRoute>
         }
       />

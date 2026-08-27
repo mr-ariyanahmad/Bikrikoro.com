@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { useIsSeller } from '@/hooks/useIsSeller'
 import { BrandSelect } from '@/components/BrandSelect'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
@@ -36,6 +37,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 
 export default function Orders() {
   const { user } = useAuth()
+  const { isSeller } = useIsSeller()
   const uid = user!.uid
   const [tab, setTab] = useState<Tab>('buying')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
@@ -112,15 +114,18 @@ export default function Orders() {
 
   const buying = orders.filter((order) => order.buyer_id === uid)
   const selling = orders.filter((order) => order.seller_id === uid)
-  const source = tab === 'buying' ? buying : selling
+  const source = isSeller && tab === 'selling' ? selling : buying
   const list = useMemo(() => source.filter((order) => (statusFilter === 'ALL' || order.status === statusFilter) && (!orderQuery.trim() || order.product_title.toLowerCase().includes(orderQuery.trim().toLowerCase()) || formatOrderNumber(order.order_number, order.id).toLowerCase().includes(orderQuery.trim().toLowerCase()))), [source, statusFilter, orderQuery])
   const activeCount = source.filter((order) => !['COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status)).length
+  const visibleOrderCount = isSeller ? orders.length : buying.length
+
+  useEffect(() => { if (!isSeller) setTab('buying') }, [isSeller])
 
   return (
     <Layout wide>
-      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-semibold text-brand-700">ডিজিটাল অর্ডার</p><h1 className="mt-1 text-xl font-semibold text-ink-900">আমার অর্ডার</h1><p className="mt-1 text-base text-ink-600">{activeCount}টি চলমান অর্ডার</p></div><div className="bg-brand-50 px-3 py-2 text-base font-semibold text-brand-700">মোট {orders.length}টি</div></div>
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-semibold text-brand-700">ডিজিটাল অর্ডার</p><h1 className="mt-1 text-xl font-semibold text-ink-900">আমার অর্ডার</h1><p className="mt-1 text-base text-ink-600">{activeCount}টি চলমান অর্ডার</p></div><div className="bg-brand-50 px-3 py-2 text-base font-semibold text-brand-700">মোট {visibleOrderCount}টি</div></div>
 
-      <div className="mt-4 flex border border-outline p-1"><button type="button" onClick={() => setTab('buying')} className={`flex-1 py-2 text-base font-medium ${tab === 'buying' ? 'bg-brand-500 text-white' : 'text-ink-700'}`}>কিনেছি</button><button type="button" onClick={() => setTab('selling')} className={`flex-1 py-2 text-base font-medium ${tab === 'selling' ? 'bg-brand-500 text-white' : 'text-ink-700'}`}>বিক্রি করেছি</button></div>
+      {isSeller && <div className="mt-4 flex border border-outline p-1"><button type="button" onClick={() => setTab('buying')} className={`flex-1 py-2 text-base font-medium ${tab === 'buying' ? 'bg-brand-500 text-white' : 'text-ink-700'}`}>কিনেছি</button><button type="button" onClick={() => setTab('selling')} className={`flex-1 py-2 text-base font-medium ${tab === 'selling' ? 'bg-brand-500 text-white' : 'text-ink-700'}`}>বিক্রি করেছি</button></div>}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" /><input value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} placeholder="পণ্য বা অর্ডার নম্বর খুঁজুন..." className="w-full border border-outline py-2.5 pl-9 pr-3 text-base outline-none focus:border-brand-500" /></label><div className="min-w-52"><BrandSelect label="অর্ডারের অবস্থা" value={statusFilter} options={[{ value: 'ALL', label: 'সব অবস্থা' }, ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))]} onChange={(value) => setStatusFilter(value as OrderStatus | 'ALL')} /></div></div>
 
       {loadError && <p className="mt-4 border border-error/20 bg-error/5 p-3 text-base text-error">অর্ডার লোড করা যায়নি: {loadError}</p>}

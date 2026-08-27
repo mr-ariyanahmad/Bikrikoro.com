@@ -17,7 +17,7 @@ const NAV_LINKS: NavItem[] = [
   { to: '/', label: 'হোম', icon: Home },
   { to: '/products', label: 'প্রোডাক্ট', icon: ShoppingBag },
   { to: '/compare', label: 'তুলনা', icon: Package },
-  { to: '/become-seller', label: 'বিক্রি করুন', icon: WalletCards },
+  { to: '/become-seller', label: 'সেলার হোন', icon: Store },
   { to: '/orders', label: 'অর্ডার', icon: Package },
   { to: '/blog', label: 'গাইড', icon: BookOpen },
 ]
@@ -49,7 +49,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const mobileQuickLinks: MobileQuickNavItem[] = [
     { to: '/', label: 'হোম', icon: Home },
     { to: '/orders', label: 'অর্ডার', icon: Package },
-    { to: isSeller ? '/sell' : '/become-seller', label: 'পোস্ট', icon: Plus, prominent: true },
+    { to: isSeller ? '/sell' : '/become-seller', label: isSeller ? 'পোস্ট' : 'সেলার হোন', icon: isSeller ? Plus : Store, prominent: true },
     { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
     { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
   ]
