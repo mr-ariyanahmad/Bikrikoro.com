@@ -231,3 +231,59 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Startup recovery: three interlocking settings gears replace the generic warning state. */
+.connected-gears {
+  position: relative;
+  width: 92px;
+  height: 72px;
+  color: var(--color-brand-500);
+}
+
+.connected-gears .gear {
+  position: absolute;
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--color-brand-700) 20%, transparent));
+}
+
+.connected-gears .gear-main {
+  left: 30px;
+  top: 7px;
+  width: 40px;
+  height: 40px;
+  animation: gear-turn-clockwise 2.8s linear infinite;
+}
+
+.connected-gears .gear-left {
+  left: 5px;
+  top: 33px;
+  width: 31px;
+  height: 31px;
+  animation: gear-turn-counter-clockwise 2.2s linear infinite;
+}
+
+.connected-gears .gear-right {
+  right: 3px;
+  top: 35px;
+  width: 27px;
+  height: 27px;
+  animation: gear-turn-counter-clockwise 1.9s linear infinite;
+}
+
+.connected-gears .gear-link {
+  position: absolute;
+  z-index: -1;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-500) 48%, white);
+  transform-origin: left center;
+}
+
+.connected-gears .gear-link-left { left: 26px; top: 45px; width: 24px; transform: rotate(140deg); }
+.connected-gears .gear-link-right { left: 58px; top: 44px; width: 22px; transform: rotate(42deg); }
+
+@keyframes gear-turn-clockwise { to { transform: rotate(360deg); } }
+@keyframes gear-turn-counter-clockwise { to { transform: rotate(-360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .connected-gears .gear { animation: none; }
+}

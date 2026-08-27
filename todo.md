@@ -129,3 +129,7 @@
 - [x] Define social preview fallbacks, bounded shop-load recovery, and safe labeled unread toggles
 - [x] Implement product/shop preview metadata, reliable shared shop loading, and unread controls
 - [x] Validate external preview markup, shared shop routes, unread toggles, build, and deployment
+- [x] Inspect the reported startup error, error-boundary behavior, and deployed browser console evidence
+- [x] Define safe startup recovery and the connected three-gear animation treatment
+- [x] Implement the startup reliability correction and replace the warning icon with the gear animation
+- [ ] Validate fresh-load recovery, retry/home actions, build, and production deployment
