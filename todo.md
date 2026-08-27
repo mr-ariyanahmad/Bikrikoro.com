@@ -159,3 +159,7 @@
 - [x] Define realistic but non-identifying NID front/back guide proportions and polished verification card hierarchy
 - [x] Implement enhanced verification cards and differentiated NID front/back guide visuals
 - [ ] Validate document-guide clarity, protected data handling, responsive layout, build, and deployment
+- [x] Inspect NID file upload and camera capture validation paths for client-side quality guidance insertion
+- [x] Define browser-only blur and brightness quality signals with non-blocking warning thresholds
+- [x] Implement NID image quality warnings for selected files and camera captures
+- [ ] Validate warning behavior, upload continuity, build, and production deployment
