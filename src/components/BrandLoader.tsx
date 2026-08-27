@@ -13,13 +13,6 @@ export function BrandLoader({ message = 'BikriKoro প্রস্তুত হ�
         <span className="brand-loader-orbit brand-loader-orbit-two" />
         <div className={`${logoSize} brand-loader-logo-frame relative z-10`} aria-hidden="true">
           <img src="/icon-512.png" alt="" className="brand-loader-logo h-full w-full rounded-2xl shadow-[0_12px_30px_rgba(1,124,80,0.22)]" />
-          <span className="brand-loader-face">
-            <span className="brand-loader-eye brand-loader-eye-left"><span className="brand-loader-pupil" /></span>
-            <span className="brand-loader-eye brand-loader-eye-right"><span className="brand-loader-pupil" /></span>
-            <span className="brand-loader-cheek brand-loader-cheek-left" />
-            <span className="brand-loader-cheek brand-loader-cheek-right" />
-            <span className="brand-loader-mouth" />
-          </span>
         </div>
         <span className="brand-loader-spark brand-loader-spark-left" />
         <span className="brand-loader-spark brand-loader-spark-right" />

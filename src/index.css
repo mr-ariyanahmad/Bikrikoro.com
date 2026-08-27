@@ -303,15 +303,6 @@ body {
 .brand-loader-orbit-one { width: 6.5rem; height: 6.5rem; animation: brand-loader-orbit 2.8s linear infinite; }
 .brand-loader-orbit-two { width: 7.5rem; height: 3.4rem; transform: rotate(-25deg); animation: brand-loader-orbit-reverse 2.2s linear infinite; }
 .brand-loader-logo-frame { animation: brand-loader-smile 1.25s cubic-bezier(.37, 0, .2, 1) infinite; }
-.brand-loader-face { position: absolute; inset: 0; pointer-events: none; }
-.brand-loader-eye { position: absolute; top: 35%; z-index: 2; width: 20%; height: 24%; overflow: hidden; border-radius: 50%; background: #f7fffa; box-shadow: inset 0 -0.11em 0 rgba(4, 83, 58, .2); transform-origin: center 58%; animation: brand-loader-blink 1.9s ease-in-out infinite; }
-.brand-loader-eye-left { left: 25%; }
-.brand-loader-eye-right { right: 25%; animation-delay: .03s; }
-.brand-loader-pupil { position: absolute; left: 50%; bottom: 13%; width: 47%; height: 48%; border-radius: 50%; background: #14382d; box-shadow: inset .06em .06em 0 rgba(255, 255, 255, .8); transform: translateX(-50%); animation: brand-loader-look 1.9s ease-in-out infinite; }
-.brand-loader-mouth { position: absolute; z-index: 2; left: 22%; top: 61%; width: 57%; height: 19%; border-bottom: .22em solid #fff; border-radius: 0 0 60% 60%; filter: drop-shadow(0 .05em 0 rgba(1, 83, 57, .2)); animation: brand-loader-grin 1.25s cubic-bezier(.37, 0, .2, 1) infinite; }
-.brand-loader-cheek { position: absolute; z-index: 1; top: 59%; width: 12%; height: 7%; border-radius: 50%; background: rgba(248, 188, 125, .48); animation: brand-loader-cheek 1.25s ease-in-out infinite; }
-.brand-loader-cheek-left { left: 15%; }
-.brand-loader-cheek-right { right: 15%; }
 .brand-loader-spark { position: absolute; z-index: 20; width: 0.45rem; height: 0.45rem; border-radius: 999px; background: #f5a524; box-shadow: 0 0 0.8rem rgba(245, 165, 36, 0.75); animation: brand-loader-twinkle 1.35s ease-in-out infinite; }
 .brand-loader-spark-left { left: 0.3rem; top: 1.2rem; }
 .brand-loader-spark-right { right: 0.15rem; bottom: 1.15rem; animation-delay: .48s; }
@@ -325,11 +316,7 @@ body {
 @keyframes brand-loader-orbit { to { transform: rotate(360deg); } }
 @keyframes brand-loader-orbit-reverse { from { transform: rotate(-25deg); } to { transform: rotate(-385deg); } }
 @keyframes brand-loader-twinkle { 0%, 100% { opacity: .25; transform: scale(.55); } 50% { opacity: 1; transform: scale(1.35); } }
-@keyframes brand-loader-blink { 0%, 39%, 47%, 100% { transform: scaleY(1); } 43% { transform: scaleY(.08); } }
-@keyframes brand-loader-look { 0%, 26%, 100% { transform: translateX(-50%); } 38% { transform: translateX(-63%); } 58% { transform: translateX(-40%); } }
-@keyframes brand-loader-grin { 0%, 100% { transform: translateY(0) scaleX(1); border-radius: 0 0 60% 60%; } 35% { transform: translateY(-.06em) scaleX(1.08); border-radius: 0 0 72% 72%; } 58% { transform: translateY(.04em) scaleX(.96); } }
-@keyframes brand-loader-cheek { 0%, 100% { opacity: .26; transform: scale(.8); } 35% { opacity: .72; transform: scale(1.08); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-loader-logo-frame, .brand-loader-orbit, .brand-loader-spark, .brand-loader-eye, .brand-loader-pupil, .brand-loader-mouth, .brand-loader-cheek { animation: none; }
+  .brand-loader-logo-frame, .brand-loader-orbit, .brand-loader-spark { animation: none; }
 }

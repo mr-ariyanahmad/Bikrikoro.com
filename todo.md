@@ -174,3 +174,5 @@
 - [x] Add clearly visible eye-blink and smile-expression motion to the branded loader mascot
 - [x] Reduce seller-status wait time with safe cache-first resolution and faster loading-state handoff
 - [x] Validate the refined animated mascot and shorter loading transition on mobile, then deploy
+- [x] Remove the misaligned facial overlay and preserve the original BikriKoro mascot face during loading motion
+- [ ] Validate the corrected loader on mobile, build, and deploy the visual fix
