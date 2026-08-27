@@ -8,7 +8,10 @@ import { Layout } from '@/components/Layout'
 import { uploadProductImages } from '@/lib/storage'
 import { validateImageFiles } from '@/lib/fileValidation'
 import { useIsSeller } from '@/hooks/useIsSeller'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { Profile } from '@/types/product'
+
+const ACCOUNT_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 export default function Account() {
   const { user, changePassword, sendVerificationEmail } = useAuth()
@@ -26,8 +29,17 @@ export default function Account() {
   const [securitySaving, setSecuritySaving] = useState(false)
   const [verificationSending, setVerificationSending] = useState(false)
   const [securityError, setSecurityError] = useState<string | null>(null)
+  const cacheKey = userCacheKey(uid, 'account-profile')
 
   useEffect(() => {
+    const cached = readCachedValue<Profile>(cacheKey, ACCOUNT_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setProfile(cached.value)
+      setName(cached.value.name ?? '')
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     supabase
       .from('profiles')
       .select('*')
@@ -36,9 +48,10 @@ export default function Account() {
       .then(({ data }) => {
         setProfile(data)
         setName(data?.name ?? '')
+        if (data) writeCachedValue(cacheKey, data as Profile)
         setLoading(false)
-      })
-  }, [uid])
+      }, () => setLoading(false))
+  }, [cacheKey, uid])
 
   const showToast = (message: string) => {
     setToast(message)

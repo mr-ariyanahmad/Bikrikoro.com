@@ -8,7 +8,11 @@ import { LedgerThread } from '@/components/LedgerThread'
 import { BrandSelect } from '@/components/BrandSelect'
 import { WithdrawModal } from '@/components/WithdrawModal'
 import { formatDateTime, formatTaka } from '@/lib/format'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { WalletBalance, WalletLedgerEntry, WalletWithdrawalSummary, WithdrawalRequest } from '@/types/wallet'
+
+type CachedWallet = { balance: WalletBalance; entries: WalletLedgerEntry[]; withdrawalSummary: WalletWithdrawalSummary | null; withdrawals: WithdrawalRequest[] }
+const WALLET_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 export default function Wallet() {
   const { user, loading: authLoading } = useAuth()
@@ -54,6 +58,7 @@ export default function Wallet() {
       setEntries(payload.ledger ?? [])
       setWithdrawalSummary(payload.withdrawalSummary ?? null)
       setWithdrawals(payload.withdrawals ?? [])
+      writeCachedValue(userCacheKey(uid, 'wallet'), { balance: payload.balance, entries: payload.ledger ?? [], withdrawalSummary: payload.withdrawalSummary ?? null, withdrawals: payload.withdrawals ?? [] } satisfies CachedWallet)
       setLoadError(payload.warning ?? null)
       setHasLoaded(true)
     } catch (error) {
@@ -72,7 +77,18 @@ export default function Wallet() {
 
   useEffect(() => {
     if (authLoading || !uid) return
-    void loadWallet()
+    const cached = readCachedValue<CachedWallet>(userCacheKey(uid, 'wallet'), WALLET_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setBalance(cached.value.balance)
+      setEntries(cached.value.entries)
+      setWithdrawalSummary(cached.value.withdrawalSummary)
+      setWithdrawals(cached.value.withdrawals)
+      setHasLoaded(true)
+      setLoading(false)
+      void loadWallet(true)
+    } else {
+      void loadWallet()
+    }
 
     const scheduleBackgroundRefresh = () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)

@@ -4,6 +4,9 @@ import { Layout } from '@/components/Layout'
 import { useAuth } from '@/context/AuthContext'
 import { loadDigitalLibrary, type DigitalLibraryItem } from '@/lib/marketplace'
 import { formatDate, formatTaka } from '@/lib/format'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
+
+const LIBRARY_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 export default function Library() {
   const { user } = useAuth()
@@ -13,8 +16,19 @@ export default function Library() {
 
   useEffect(() => {
     if (!user) return
+    const cacheKey = userCacheKey(user.uid, 'digital-library')
+    const cached = readCachedValue<DigitalLibraryItem[]>(cacheKey, LIBRARY_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setItems(cached.value)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     loadDigitalLibrary(user.uid)
-      .then(setItems)
+      .then((nextItems) => {
+        setItems(nextItems)
+        writeCachedValue(cacheKey, nextItems)
+      })
       .catch((err) => {
         console.error('digital library load failed:', err)
         setError('ডিজিটাল লাইব্রেরি লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')

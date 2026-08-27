@@ -9,10 +9,13 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
 import { displayShopName, displayUserName, shopUrl } from '@/lib/shopProfile'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { ChatThread, ChatMessage } from '@/types/chat'
 
 type ProductContext = { id: string; title: string; images: string[] | null; price: number }
 type ParticipantProfile = { name: string | null; shop_name: string | null; shop_username: string | null; photo_url: string | null; is_verified: boolean }
+type CachedChatMetadata = { thread: ChatThread; profile: ParticipantProfile | null; productContext: ProductContext | null }
+const CHAT_METADATA_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 export default function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>()
@@ -32,8 +35,8 @@ export default function ChatThreadPage() {
 
   const storeMessages = useCallback((nextMessages: ChatMessage[]) => {
     setMessages(nextMessages)
-    if (threadId) saveCachedChatMessages(threadId, nextMessages)
-  }, [threadId])
+    if (threadId && uid) saveCachedChatMessages(uid, threadId, nextMessages)
+  }, [threadId, uid])
 
   const loadMessages = useCallback(async () => {
     if (!threadId || !uid) return []
@@ -49,9 +52,18 @@ export default function ChatThreadPage() {
       return
     }
     let active = true
-    const cached = loadCachedChatMessages(threadId)
-    if (cached.length > 0) {
+    const cached = loadCachedChatMessages(uid, threadId)
+    const metadataCacheKey = userCacheKey(uid, 'chat-metadata', threadId)
+    const cachedMetadata = readCachedValue<CachedChatMetadata>(metadataCacheKey, CHAT_METADATA_CACHE_MAX_AGE_MS)
+    if (cached.length > 0 || cachedMetadata) {
       setMessages(cached)
+      if (cachedMetadata) {
+        setThread(cachedMetadata.value.thread)
+        setOtherProfile(cachedMetadata.value.profile)
+        setProductContext(cachedMetadata.value.productContext)
+        const isSellerConversation = cachedMetadata.value.thread.buyer_id === uid
+        setOtherName(isSellerConversation ? displayShopName(cachedMetadata.value.profile?.shop_name, cachedMetadata.value.profile?.name) : displayUserName(cachedMetadata.value.profile?.name))
+      }
       setLoading(false)
     } else {
       setMessages([])
@@ -76,20 +88,21 @@ export default function ChatThreadPage() {
 
         const otherId = threadData.buyer_id === uid ? threadData.seller_id : threadData.buyer_id
         const isSellerConversation = threadData.buyer_id === uid
-        void supabase.from('profiles').select('name, shop_name, shop_username, photo_url, is_verified').eq('id', otherId).maybeSingle().then(({ data, error: profileError }) => {
-          if (profileError) console.warn('Chat participant profile load failed:', profileError)
-          if (!active) return
-          const profile = data as ParticipantProfile | null
-          setOtherProfile(profile)
-          setOtherName(isSellerConversation ? displayShopName(profile?.shop_name, profile?.name) : displayUserName(profile?.name))
-        })
-
-        if (threadData.product_id) {
-          void supabase.from(PUBLIC_PRODUCT_TABLE).select('id, title, images, price').eq('id', threadData.product_id).maybeSingle().then(({ data, error: productError }) => {
-            if (productError) console.warn('Chat product context load failed:', productError)
-            if (active) setProductContext(data as ProductContext | null)
-          })
-        } else if (active) setProductContext(null)
+        const [profileResult, productResult] = await Promise.all([
+          supabase.from('profiles').select('name, shop_name, shop_username, photo_url, is_verified').eq('id', otherId).maybeSingle(),
+          threadData.product_id
+            ? supabase.from(PUBLIC_PRODUCT_TABLE).select('id, title, images, price').eq('id', threadData.product_id).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ])
+        if (!active) return
+        if (profileResult.error) console.warn('Chat participant profile load failed:', profileResult.error)
+        if (productResult.error) console.warn('Chat product context load failed:', productResult.error)
+        const profile = profileResult.data as ParticipantProfile | null
+        const nextProductContext = productResult.data as ProductContext | null
+        setOtherProfile(profile)
+        setOtherName(isSellerConversation ? displayShopName(profile?.shop_name, profile?.name) : displayUserName(profile?.name))
+        setProductContext(nextProductContext)
+        writeCachedValue(metadataCacheKey, { thread: threadData, profile, productContext: nextProductContext })
 
         void chatRequest({ action: 'mark_read', threadId }).then(() => {
           if (!active) return
@@ -138,7 +151,7 @@ export default function ChatThreadPage() {
       setPendingMessageIds((current) => { const next = new Set(current); next.delete(optimisticId); return next })
       setMessages((current) => {
         const nextMessages = current.map((message) => message.id === optimisticId ? { ...message, id: messageId } : message)
-        saveCachedChatMessages(thread.id, nextMessages)
+        saveCachedChatMessages(uid, thread.id, nextMessages)
         return nextMessages
       })
       void loadMessages().catch(() => undefined)
@@ -147,7 +160,7 @@ export default function ChatThreadPage() {
       setPendingMessageIds((current) => { const next = new Set(current); next.delete(optimisticId); return next })
       setMessages((current) => {
         const nextMessages = current.filter((message) => message.id !== optimisticId)
-        saveCachedChatMessages(thread.id, nextMessages)
+        saveCachedChatMessages(uid, thread.id, nextMessages)
         return nextMessages
       })
       setError(sendError instanceof Error ? sendError.message : 'মেসেজ পাঠানো যায়নি।')

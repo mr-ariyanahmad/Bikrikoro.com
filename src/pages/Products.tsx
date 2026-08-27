@@ -13,12 +13,11 @@ import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
 import { shopUrl } from '@/lib/shopProfile'
+import { publicCacheKey, readCachedValue, writeCachedValue } from '@/lib/clientCache'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
-type CachedProducts = { expiresAt: number; products: Product[] }
-const productQueryCache = new Map<string, CachedProducts>()
-const PRODUCT_CACHE_TTL_MS = 30_000
+const PRODUCT_CACHE_MAX_AGE_MS = 15 * 60 * 1000
 
 export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -28,11 +27,12 @@ export default function Products() {
   const condition = (searchParams.get('condition') as ConditionFilter) || 'all'
   const minPrice = searchParams.get('min') ?? ''
   const maxPrice = searchParams.get('max') ?? ''
+  const productCacheKey = publicCacheKey('products', JSON.stringify({ categoryId, query: query.trim(), sort, condition, minPrice, maxPrice }))
 
   const [categories, setCategories] = useState<Category[]>([])
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>(() => readCachedValue<Product[]>(productCacheKey, PRODUCT_CACHE_MAX_AGE_MS)?.value ?? [])
   const [shops, setShops] = useState<SearchShop[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !readCachedValue<Product[]>(productCacheKey, PRODUCT_CACHE_MAX_AGE_MS))
   const [showFilters, setShowFilters] = useState(false)
   const [draftMinPrice, setDraftMinPrice] = useState('')
   const [draftMaxPrice, setDraftMaxPrice] = useState('')
@@ -75,7 +75,7 @@ export default function Products() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    let restoredCachedProducts = false
 
     async function load() {
       if (!supabaseConfigured) {
@@ -85,13 +85,15 @@ export default function Products() {
         return
       }
       try {
-        const cacheKey = JSON.stringify({ categoryId, query: debouncedQuery.trim(), sort, condition, minPrice, maxPrice })
-        const cached = productQueryCache.get(cacheKey)
-        if (cached && cached.expiresAt > Date.now()) {
-          setProducts(sort === 'popular' ? rankSearchProductsByInterest(cached.products, getRecentlyViewedIds()) : cached.products)
+        const cacheKey = publicCacheKey('products', JSON.stringify({ categoryId, query: debouncedQuery.trim(), sort, condition, minPrice, maxPrice }))
+        const cached = readCachedValue<Product[]>(cacheKey, PRODUCT_CACHE_MAX_AGE_MS)
+        if (cached && !cancelled) {
+          restoredCachedProducts = true
+          setProducts(sort === 'popular' ? rankSearchProductsByInterest(cached.value, getRecentlyViewedIds()) : cached.value)
           setNotice(null)
           setLoading(false)
-          return
+        } else if (!cached && !cancelled) {
+          setLoading(true)
         }
         let request = supabase
           .from(PUBLIC_PRODUCT_TABLE)
@@ -116,12 +118,12 @@ export default function Products() {
           if (sort === 'discount') nextProducts.sort((a, b) => ((b.original_price ?? b.price) - b.price) / Math.max(b.original_price ?? b.price, 1) - ((a.original_price ?? a.price) - a.price) / Math.max(a.original_price ?? a.price, 1))
           const rankedProducts = sort === 'popular' ? rankSearchProductsByInterest(nextProducts, getRecentlyViewedIds()) : nextProducts
           setProducts(rankedProducts)
-          productQueryCache.set(cacheKey, { expiresAt: Date.now() + PRODUCT_CACHE_TTL_MS, products: rankedProducts })
+          writeCachedValue(cacheKey, rankedProducts)
         }
       } catch (loadError) {
         console.error('Digital products load failed:', loadError)
         if (!cancelled) {
-          setProducts([])
+          if (!restoredCachedProducts) setProducts([])
           setNotice('পণ্য এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
         }
       } finally {

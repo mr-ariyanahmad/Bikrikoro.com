@@ -12,10 +12,12 @@ import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
 const HOMEPAGE_CACHE_KEY = 'bikrikoro:homepage-public-marketplace:v3'
 const HOMEPAGE_CACHE_TTL_MS = 5 * 60 * 1000
+const HOME_ACCOUNT_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 type HomepageCache = {
   cachedAt: number
@@ -183,6 +185,14 @@ export default function Home() {
   useEffect(() => {
     if (!user) { setBalance(0); setRewardCoins(0); setCheckinStreak(0); setCheckedIn(false); return }
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date())
+    const cacheKey = userCacheKey(user.uid, 'home-account-summary')
+    const cached = readCachedValue<{ balance: number; rewardCoins: number; checkinStreak: number; lastCheckinDate: string | null }>(cacheKey, HOME_ACCOUNT_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setBalance(cached.value.balance)
+      setRewardCoins(cached.value.rewardCoins)
+      setCheckinStreak(cached.value.checkinStreak)
+      setCheckedIn(cached.value.lastCheckinDate === today)
+    }
     const loadAccountSnapshot = async () => {
       try {
         const idToken = await auth.currentUser?.getIdToken()
@@ -197,6 +207,12 @@ export default function Home() {
         setRewardCoins(Number(rewards.data?.coins ?? 0))
         setCheckinStreak(Number(rewards.data?.checkin_streak ?? 0))
         setCheckedIn(rewards.data?.last_checkin_date === today)
+        writeCachedValue(cacheKey, {
+          balance: Number(walletPayload.balance?.available_balance ?? 0),
+          rewardCoins: Number(rewards.data?.coins ?? 0),
+          checkinStreak: Number(rewards.data?.checkin_streak ?? 0),
+          lastCheckinDate: rewards.data?.last_checkin_date ?? null,
+        })
       } catch (error) {
         console.error('Account snapshot load failed:', error)
         setCheckInMessage('ওয়ালেট বা পুরস্কারের তথ্য এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')

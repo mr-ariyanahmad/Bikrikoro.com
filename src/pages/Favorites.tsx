@@ -8,6 +8,10 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { ProductCard } from '@/components/ProductCard'
 import type { Product } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
+
+type CachedFavorites = { products: Product[]; folders: Array<{ id: string; name: string; color: string }>; folderByProduct: Record<string, string> }
+const FAVORITES_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 export default function Favorites() {
   const { user } = useAuth()
@@ -23,7 +27,16 @@ export default function Favorites() {
 
   useEffect(() => {
     let active = true
-    setLoading(true)
+    const cacheKey = userCacheKey(uid, 'favorites')
+    const cached = readCachedValue<CachedFavorites>(cacheKey, FAVORITES_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setProducts(cached.value.products)
+      setFolders(cached.value.folders)
+      setFolderByProduct(cached.value.folderByProduct)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     setMessage(null)
     async function load() {
       try {
@@ -37,16 +50,23 @@ export default function Favorites() {
         const { data: folderData, error: folderError } = await supabase.from('wishlist_folders').select('id, name, color').eq('user_id', uid).order('created_at')
         if (folderError) throw folderError
         if (!active) return
-        setFolderByProduct(Object.fromEntries(rows.map((row) => [row.product_id, row.folder_id ?? ''])))
-        setFolders(folderData ?? [])
+        const nextFolderByProduct = Object.fromEntries(rows.map((row) => [row.product_id, row.folder_id ?? '']))
+        const nextFolders = folderData ?? []
+        setFolderByProduct(nextFolderByProduct)
+        setFolders(nextFolders)
         const ids = rows.map((f) => f.product_id)
         if (ids.length === 0) {
           setProducts([])
+          writeCachedValue(cacheKey, { products: [], folders: nextFolders, folderByProduct: nextFolderByProduct })
           return
         }
         const { data, error: productsError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).in('id', ids)
         if (productsError) throw productsError
-        if (active) setProducts(data ?? [])
+        if (active) {
+          const nextProducts = data ?? []
+          setProducts(nextProducts)
+          writeCachedValue(cacheKey, { products: nextProducts, folders: nextFolders, folderByProduct: nextFolderByProduct })
+        }
       } catch (error) {
         console.error('Favorites load failed:', error)
         if (active) setMessage(error instanceof Error ? error.message : 'পছন্দের তালিকা লোড করা যায়নি।')

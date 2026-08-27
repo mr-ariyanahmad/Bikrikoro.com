@@ -10,20 +10,24 @@ import { formatTaka } from '@/lib/format'
 import { isTestDemoProduct, rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
 import { shopUrl } from '@/lib/shopProfile'
+import { publicCacheKey, readCachedValue, writeCachedValue } from '@/lib/clientCache'
 import type { Category, Product } from '@/types/product'
 
 const RECENT_KEY = 'bikrikoro:recent-searches'
+const SEARCH_CACHE_MAX_AGE_MS = 15 * 60 * 1000
+type CachedSearch = { products: Product[]; shops: SearchShop[] }
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const query = searchParams.get('q')?.trim() ?? ''
+  const searchCacheKey = publicCacheKey('search', query.toLowerCase() || 'discovery')
   const [categories, setCategories] = useState<Category[]>([])
   const [trending, setTrending] = useState<string[]>([])
   const [recent, setRecent] = useState<string[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [shops, setShops] = useState<SearchShop[]>([])
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState<Product[]>(() => readCachedValue<CachedSearch>(searchCacheKey, SEARCH_CACHE_MAX_AGE_MS)?.value.products ?? [])
+  const [shops, setShops] = useState<SearchShop[]>(() => readCachedValue<CachedSearch>(searchCacheKey, SEARCH_CACHE_MAX_AGE_MS)?.value.shops ?? [])
+  const [loading, setLoading] = useState(() => !readCachedValue<CachedSearch>(searchCacheKey, SEARCH_CACHE_MAX_AGE_MS))
 
   useEffect(() => {
     try { setRecent(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')) } catch { setRecent([]) }
@@ -42,7 +46,15 @@ export default function SearchPage() {
 
   useEffect(() => {
     let active = true
-    setLoading(true)
+    const cacheKey = publicCacheKey('search', query.toLowerCase() || 'discovery')
+    const cached = readCachedValue<CachedSearch>(cacheKey, SEARCH_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setProducts(cached.value.products)
+      setShops(cached.value.shops)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     const timer = window.setTimeout(async () => {
       let request = supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('is_digital', true)
       request = query.length >= 2
@@ -50,7 +62,7 @@ export default function SearchPage() {
         : request.order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).order('created_at', { ascending: false })
       const [{ data, error }, foundShops] = await Promise.all([request.limit(query.length >= 2 ? 40 : 12), searchPublicShops(query)])
       if (!active) return
-      if (error) { setProducts([]); setShops([]); setLoading(false); return }
+      if (error) { if (!cached) { setProducts([]); setShops([]) }; setLoading(false); return }
       const shopIds = foundShops.map((shop) => shop.id)
       const { data: shopProducts } = query.length >= 2 && shopIds.length > 0
         ? await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('is_digital', true).in('seller_id', shopIds).order('popularity_score', { ascending: false }).order('view_count', { ascending: false }).limit(24)
@@ -58,8 +70,10 @@ export default function SearchPage() {
       if (!active) return
       const allProducts = [...(data ?? []), ...(shopProducts ?? [])] as Product[]
       const uniqueProducts = [...new Map(allProducts.map((product) => [product.id, product])).values()]
-      setProducts(rankSearchProductsByInterest(uniqueProducts, getRecentlyViewedIds()).filter((product) => !isTestDemoProduct(product)))
+      const nextProducts = rankSearchProductsByInterest(uniqueProducts, getRecentlyViewedIds()).filter((product) => !isTestDemoProduct(product))
+      setProducts(nextProducts)
       setShops(foundShops)
+      writeCachedValue(cacheKey, { products: nextProducts, shops: foundShops })
       setLoading(false)
     }, query.length >= 2 ? 220 : 0)
     return () => { active = false; window.clearTimeout(timer) }

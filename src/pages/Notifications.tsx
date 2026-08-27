@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
 import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
 import { supabase } from '@/lib/supabase'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 
 interface NotificationItem {
   id: string
@@ -19,6 +20,7 @@ interface NotificationItem {
 }
 
 type NotificationFilter = 'all' | 'unread' | 'ORDER' | 'PAYMENT' | 'VERIFICATION' | 'CHAT' | 'WALLET' | 'CAMPAIGN' | 'SYSTEM'
+const NOTIFICATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const filterOptions: Array<[NotificationFilter, string]> = [
   ['all', 'সব'],
@@ -46,6 +48,7 @@ export default function Notifications() {
   const [pushState, setPushState] = useState<'idle' | 'loading' | 'registered' | 'denied' | 'unsupported' | 'missing-config' | 'unavailable'>('idle')
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
+  const notificationCacheKey = user ? userCacheKey(user.uid, 'notifications') : null
 
   useEffect(() => {
     let active = true
@@ -81,11 +84,11 @@ export default function Notifications() {
 
   const load = useCallback(async () => {
     if (!user) return
-    setLoading(true)
     try {
       const data = (await loadNotifications(user.uid)) as NotificationItem[]
       setItems(data)
       notifyHeader(data.filter((item) => !item.is_read).length)
+      writeCachedValue(userCacheKey(user.uid, 'notifications'), data)
       setError(null)
     } catch (err) {
       console.error('notifications load failed:', err)
@@ -97,6 +100,14 @@ export default function Notifications() {
 
   useEffect(() => {
     if (!user) return
+    const cached = notificationCacheKey ? readCachedValue<NotificationItem[]>(notificationCacheKey, NOTIFICATION_CACHE_MAX_AGE_MS) : null
+    if (cached) {
+      setItems(cached.value)
+      notifyHeader(cached.value.filter((item) => !item.is_read).length)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     void load()
     const channel = supabase
       .channel(`notifications-${user.uid}`)
@@ -110,7 +121,7 @@ export default function Notifications() {
       document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
-  }, [load, user])
+  }, [load, notificationCacheKey, user])
 
   const enablePushNotifications = async () => {
     if (!user || pushState === 'loading') return

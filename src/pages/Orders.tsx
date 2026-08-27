@@ -13,10 +13,13 @@ import { buyerCancelOrder, confirmDigitalDelivery, sellerCancelOrder, sellerDeli
 import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
 import { formatTaka, formatDate } from '@/lib/format'
 import { formatOrderNumber } from '@/lib/orderNumber'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { Order, OrderStatus } from '@/types/order'
 
 type Tab = 'buying' | 'selling'
 type DeliveryInfo = { order_id: string; delivery_type: string; delivery_text: string; status: 'PENDING' | 'READY' | 'REVOKED'; delivered_at: string | null; updated_at: string }
+type CachedOrders = { orders: Order[]; deliveries: DeliveryInfo[]; reviewedOrderIds: string[]; disputes: Array<{ id: string; order_id: string }> }
+const ORDERS_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'পেমেন্ট বাকি',
@@ -49,9 +52,16 @@ export default function Orders() {
   const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
   const [sellerCancelTarget, setSellerCancelTarget] = useState<Order | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const cacheKey = userCacheKey(uid, 'orders')
+
+  const applyOrderPayload = useCallback((payload: CachedOrders) => {
+    setOrders(payload.orders ?? [])
+    setDeliveries(new Map((payload.deliveries ?? []).map((delivery) => [delivery.order_id, delivery])))
+    setReviewedOrderIds(new Set(payload.reviewedOrderIds ?? []))
+    setDisputeIdByOrder(new Map((payload.disputes ?? []).map((dispute) => [dispute.order_id, dispute.id])))
+  }, [])
 
   const load = useCallback(async () => {
-    setLoading(true)
     setLoadError(null)
     try {
       const idToken = await auth.currentUser?.getIdToken()
@@ -59,23 +69,29 @@ export default function Orders() {
       const response = await fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'list' }) })
       const payload = await response.json().catch(() => ({})) as { error?: string; orders?: Order[]; deliveries?: DeliveryInfo[]; reviewedOrderIds?: string[]; disputes?: Array<{ id: string; order_id: string }> }
       if (!response.ok) throw new Error(payload.error || `অর্ডার লোড করা যায়নি (HTTP ${response.status})`)
-      setOrders(payload.orders ?? [])
-      setDeliveries(new Map((payload.deliveries ?? []).map((delivery) => [delivery.order_id, delivery])))
-      setReviewedOrderIds(new Set(payload.reviewedOrderIds ?? []))
-      setDisputeIdByOrder(new Map((payload.disputes ?? []).map((dispute) => [dispute.order_id, dispute.id])))
+      const nextPayload: CachedOrders = { orders: payload.orders ?? [], deliveries: payload.deliveries ?? [], reviewedOrderIds: payload.reviewedOrderIds ?? [], disputes: payload.disputes ?? [] }
+      applyOrderPayload(nextPayload)
+      writeCachedValue(cacheKey, nextPayload)
     } catch (loadOrderError) {
       console.error('Orders load failed:', loadOrderError)
       setLoadError(loadOrderError instanceof Error ? loadOrderError.message : 'অর্ডার লোড করা যায়নি।')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyOrderPayload, cacheKey])
 
   useEffect(() => {
+    const cached = readCachedValue<CachedOrders>(cacheKey, ORDERS_CACHE_MAX_AGE_MS)
+    if (cached) {
+      applyOrderPayload(cached.value)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     void load()
     const channel = supabase.channel(`orders-${uid}`).on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { void load() }).subscribe()
     return () => { void supabase.removeChannel(channel) }
-  }, [uid, load])
+  }, [applyOrderPayload, cacheKey, uid, load])
 
   const showToast = (message: string) => {
     setToast(message)

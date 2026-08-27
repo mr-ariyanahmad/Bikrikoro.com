@@ -14,6 +14,7 @@ import { shopUrl } from '@/lib/shopProfile'
 import { displayShopDescription, displayShopName, displayUserName } from '@/lib/shopProfile'
 import { SITE_URL } from '@/lib/site'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
+import { publicCacheKey, readCachedValue, writeCachedValue } from '@/lib/clientCache'
 import type { Product, Profile } from '@/types/product'
 import type { Review } from '@/types/order'
 
@@ -22,6 +23,8 @@ type PublicReview = Pick<Review, 'id' | 'product_id' | 'product_title' | 'buyer_
 type ProductFilter = 'ALL' | 'POPULAR' | 'LATEST' | 'LOWEST' | 'HIGHEST'
 
 const PUBLIC_REVIEW_FIELDS = 'id, product_id, product_title, buyer_name, rating, comment, created_at'
+const SELLER_PROFILE_CACHE_MAX_AGE_MS = 30 * 60 * 1000
+type CachedSellerProfile = { seller: PublicSeller; products: Product[]; reviews: PublicReview[] }
 
 export default function SellerProfile() {
   const { id, username } = useParams<{ id?: string; username?: string }>()
@@ -43,7 +46,16 @@ export default function SellerProfile() {
   useEffect(() => {
     if (!lookup) return
     let active = true
-    setLoading(true)
+    const cacheKey = publicCacheKey('seller-profile', lookup.toLowerCase())
+    const cached = readCachedValue<CachedSellerProfile>(cacheKey, SELLER_PROFILE_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setSeller(cached.value.seller)
+      setProducts(cached.value.products)
+      setReviews(cached.value.reviews)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     setLoadError(null)
     async function load() {
       try {
@@ -54,6 +66,9 @@ export default function SellerProfile() {
           if (active) setSeller(null)
           return
         }
+        if (!active) return
+        setSeller(sellerData)
+        setLoading(false)
         const sellerId = sellerData.id
         const [productsRes, reviewsRes, featureStatus] = await Promise.all([
           supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('seller_id', sellerId).eq('is_digital', true).order('created_at', { ascending: false }),
@@ -63,10 +78,12 @@ export default function SellerProfile() {
         if (productsRes.error) throw productsRes.error
         if (reviewsRes.error) throw reviewsRes.error
         if (!active) return
-        setSeller(sellerData)
-        setProducts((productsRes.data ?? []) as Product[])
-        setReviews((reviewsRes.data ?? []) as PublicReview[])
+        const nextProducts = (productsRes.data ?? []) as Product[]
+        const nextReviews = (reviewsRes.data ?? []) as PublicReview[]
+        setProducts(nextProducts)
+        setReviews(nextReviews)
         setFollowing(featureStatus.following)
+        writeCachedValue(cacheKey, { seller: sellerData, products: nextProducts, reviews: nextReviews })
       } catch (error) {
         console.error('Seller profile load failed:', error)
         if (active) setLoadError(error instanceof Error ? error.message : 'সেলার প্রোফাইল লোড করা যায়নি।')

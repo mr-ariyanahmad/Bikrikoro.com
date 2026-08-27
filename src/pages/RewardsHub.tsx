@@ -5,6 +5,9 @@ import { Helmet } from 'react-helmet-async'
 import { Layout } from '@/components/Layout'
 import { useAuth } from '@/context/AuthContext'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
+
+const REWARDS_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 export default function RewardsHub() {
   const { user } = useAuth()
@@ -20,12 +23,23 @@ export default function RewardsHub() {
       setLoading(false)
       return
     }
+    const cacheKey = userCacheKey(user.uid, 'rewards')
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date())
+    const cached = readCachedValue<{ coins: number; streak: number; lastCheckinDate: string | null }>(cacheKey, REWARDS_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setCoins(cached.value.coins)
+      setStreak(cached.value.streak)
+      setCheckedIn(cached.value.lastCheckinDate === today)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
     const { data, error } = await supabase.from('reward_balances').select('coins, checkin_streak, last_checkin_date').eq('user_id', user.uid).maybeSingle()
     if (error) setMessage('Reward data এখন লোড করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date())
     setCoins(Number(data?.coins ?? 0))
     setStreak(Number(data?.checkin_streak ?? 0))
     setCheckedIn(data?.last_checkin_date === today)
+    if (data) writeCachedValue(cacheKey, { coins: Number(data.coins ?? 0), streak: Number(data.checkin_streak ?? 0), lastCheckinDate: data.last_checkin_date ?? null })
     setLoading(false)
   }, [user])
 

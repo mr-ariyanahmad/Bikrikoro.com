@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { BadgeCheck, MessageCircle, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { formatDateTime } from '@/lib/format'
 import { displayShopName, displayUserName } from '@/lib/shopProfile'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { ChatThread } from '@/types/chat'
 
 interface ThreadWithName extends ChatThread {
@@ -16,6 +17,8 @@ interface ThreadWithName extends ChatThread {
   otherVerified: boolean
 }
 
+const CHAT_LIST_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 export default function ChatList() {
   const { user } = useAuth()
   const uid = user!.uid
@@ -23,6 +26,8 @@ export default function ChatList() {
   const [query, setQuery] = useState('')
   const [view, setView] = useState<'all' | 'unread'>('all')
   const [loading, setLoading] = useState(true)
+  const hasCachedThreads = useRef(false)
+  const cacheKey = userCacheKey(uid, 'chat-list')
 
   const load = useCallback(async () => {
     try {
@@ -35,8 +40,7 @@ export default function ChatList() {
       : { data: [] }
     const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
 
-      setThreads(
-        rows.map((t) => {
+      const nextThreads = rows.map((t) => {
           const isSellerConversation = t.buyer_id === uid
           const otherId = isSellerConversation ? t.seller_id : t.buyer_id
           const profile = profileById.get(otherId)
@@ -48,21 +52,31 @@ export default function ChatList() {
             isSellerConversation,
           }
         })
-      )
+      setThreads(nextThreads)
+      writeCachedValue(cacheKey, nextThreads)
     } catch {
-      setThreads([])
+      if (!hasCachedThreads.current) setThreads([])
     } finally {
       setLoading(false)
     }
-  }, [uid])
+  }, [cacheKey, uid])
 
   useEffect(() => {
+    const cachedThreads = readCachedValue<ThreadWithName[]>(cacheKey, CHAT_LIST_CACHE_MAX_AGE_MS)
+    if (cachedThreads) {
+      hasCachedThreads.current = true
+      setThreads(cachedThreads.value)
+      setLoading(false)
+    } else {
+      hasCachedThreads.current = false
+      setLoading(true)
+    }
     void load()
     const poller = window.setInterval(() => {
       void load()
     }, 12000)
     return () => window.clearInterval(poller)
-  }, [load])
+  }, [cacheKey, load])
 
   const visibleThreads = useMemo(() => threads.filter((thread) => { const unread = thread.buyer_id === uid ? thread.buyer_unread_count : thread.seller_unread_count; return (view === 'all' || unread > 0) && (!query.trim() || thread.otherName.toLowerCase().includes(query.trim().toLowerCase()) || (thread.last_message ?? '').toLowerCase().includes(query.trim().toLowerCase())) }), [query, threads, uid, view])
 

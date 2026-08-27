@@ -9,9 +9,12 @@ import { formatDate, formatTaka } from '@/lib/format'
 import { formatOrderNumber } from '@/lib/orderNumber'
 import { ReportDisputeModal } from '@/components/ReportDisputeModal'
 import { ReviewModal } from '@/components/ReviewModal'
+import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { Order, OrderStatus } from '@/types/order'
 
 type DeliveryInfo = { order_id: string; delivery_type: string; delivery_text: string; status: 'PENDING' | 'READY' | 'REVOKED'; delivered_at: string | null; updated_at: string }
+type CachedOrderDetail = { order: Order; delivery: DeliveryInfo | null; reviewed: boolean }
+const ORDER_DETAIL_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: 'পেমেন্ট বাকি',
@@ -53,10 +56,23 @@ export default function OrderDetail() {
     setDelivery(payload.delivery ?? null)
     setAutoDeliveryEnabled(payload.order.auto_delivery_enabled !== false)
     setReviewed(payload.reviewed === true)
+    writeCachedValue(userCacheKey(user.uid, 'order-detail', id), { order: payload.order, delivery: payload.delivery ?? null, reviewed: payload.reviewed === true } satisfies CachedOrderDetail)
   }, [id, user])
 
   useEffect(() => {
     let cancelled = false
+    if (id && user) {
+      const cached = readCachedValue<CachedOrderDetail>(userCacheKey(user.uid, 'order-detail', id), ORDER_DETAIL_CACHE_MAX_AGE_MS)
+      if (cached) {
+        setOrder(cached.value.order)
+        setDelivery(cached.value.delivery)
+        setAutoDeliveryEnabled(cached.value.order.auto_delivery_enabled !== false)
+        setReviewed(cached.value.reviewed)
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
+    }
     const run = async () => {
       try {
         await loadOrder()
@@ -69,7 +85,7 @@ export default function OrderDetail() {
     }
     void run()
     return () => { cancelled = true }
-  }, [loadOrder])
+  }, [id, loadOrder, user])
 
   const showToast = (message: string) => {
     setToast(message)

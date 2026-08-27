@@ -21,6 +21,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth, firebaseConfigured } from '@/lib/firebase'
+import { clearUserCachedData } from '@/lib/clientCache'
 
 interface AuthContextValue {
   user: FirebaseUser | null
@@ -202,7 +203,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => firebaseSignOut(auth)
+  const logout = async () => {
+    const userId = auth.currentUser?.uid
+    if (userId) clearUserCachedData(userId)
+    await firebaseSignOut(auth)
+  }
 
   return (
     <AuthContext.Provider

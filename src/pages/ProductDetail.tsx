@@ -22,6 +22,16 @@ import { SITE_URL } from '@/lib/site'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { ProductDeliveryBadge, ProductDeliveryTypeBadge } from '@/components/ProductDeliveryBadge'
 import { getProductDeliverySummary } from '@/lib/productDelivery'
+import { publicCacheKey, readCachedValue, writeCachedValue } from '@/lib/clientCache'
+
+const PRODUCT_DETAIL_CACHE_MAX_AGE_MS = 15 * 60 * 1000
+type CachedProductDetail = {
+  product: Product
+  digitalSpecs: ProductDigitalSpecs | null
+  seller: Profile | null
+  sellerBadges: Array<{ badge_key: string; badge_label: string }>
+  sellerStats: { followerCount: number; productCount: number }
+}
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
@@ -57,12 +67,24 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!id) return
     let active = true
-    setLoading(true)
+    const cacheKey = publicCacheKey('product-detail', id)
+    const cached = readCachedValue<CachedProductDetail>(cacheKey, PRODUCT_DETAIL_CACHE_MAX_AGE_MS)
+    if (cached) {
+      setProduct(cached.value.product)
+      setDigitalSpecs(cached.value.digitalSpecs)
+      setSeller(cached.value.seller)
+      setSellerBadges(cached.value.sellerBadges)
+      setSellerStats(cached.value.sellerStats)
+      setLoading(false)
+    } else {
+      setLoading(true)
+      setProduct(null)
+      setDigitalSpecs(null)
+      setSeller(null)
+      setSellerBadges([])
+      setSellerStats({ followerCount: 0, productCount: 0 })
+    }
     setLoadError(null)
-    setProduct(null)
-    setDigitalSpecs(null)
-    setSeller(null)
-    setSellerBadges([])
     setActiveMedia(0)
     setVideoPlaying(false)
 
@@ -72,31 +94,34 @@ export default function ProductDetail() {
         if (productError) throw productError
         if (!active) return
         setProduct(productData as Product | null)
+        setLoading(false)
 
         if (productData?.is_digital) {
-          const { data: specsData, error: specsError } = await supabase
+          const [specsResult, sellerResult, sellerPublicResult, badgeResult] = await Promise.all([
+            supabase
             .from('product_digital_specs')
             .select('product_id, specifications, auto_delivery_enabled, deactivate_when_out_of_stock, stock_mode, stock_quantity, fulfillment_window_minutes, region_code, subscription_period, warranty_period, delivery_note, updated_at')
             .eq('product_id', id)
-            .maybeSingle()
-          if (specsError && !/relation .* does not exist/i.test(specsError.message)) console.error('Digital specs load failed:', specsError)
-          if (specsData && active) setDigitalSpecs(specsData as ProductDigitalSpecs)
-        }
-
-        if (productData) {
-          const { data: sellerData } = await supabase
+            .maybeSingle(),
+            supabase
             .from('profiles')
             .select('id, name, photo_url, shop_name, shop_description, shop_username, shop_cover_url, is_verified, rating, review_count, created_at')
             .eq('id', productData.seller_id)
-            .maybeSingle()
+            .maybeSingle(),
+            supabase.rpc('get_public_seller_profile', { p_lookup: productData.seller_id }),
+            supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }),
+          ])
           if (!active) return
+          if (specsResult.error && !/relation .* does not exist/i.test(specsResult.error.message)) console.error('Digital specs load failed:', specsResult.error)
+          const nextSpecs = specsResult.data ? specsResult.data as ProductDigitalSpecs : null
+          const sellerData = sellerResult.data as Profile | null
+          const sellerPublic = Array.isArray(sellerPublicResult.data) ? sellerPublicResult.data[0] : sellerPublicResult.data
+          const nextBadges = (badgeResult.data ?? []) as Array<{ badge_key: string; badge_label: string }>
           setSeller(sellerData as Profile | null)
-          const { data: sellerPublicData } = await supabase.rpc('get_public_seller_profile', { p_lookup: productData.seller_id })
-          const sellerPublic = Array.isArray(sellerPublicData) ? sellerPublicData[0] : sellerPublicData
-          if (active) setSellerStats({ followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) })
-          supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }).then(({ data: badgeData }) => {
-            if (active) setSellerBadges((badgeData ?? []) as Array<{ badge_key: string; badge_label: string }>)
-          })
+          setDigitalSpecs(nextSpecs)
+          setSellerStats({ followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) })
+          setSellerBadges(nextBadges)
+          writeCachedValue(cacheKey, { product: productData as Product, digitalSpecs: nextSpecs, seller: sellerData, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
           void trackProductView(productData.id)
           if (!isTestDemoProduct(productData as Product)) {
             trackCategoryInterest(productData.category_id, 'view')
