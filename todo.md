@@ -138,3 +138,7 @@
 - [x] Implement a product-detail-quality profile page with a pencil edit screen and completion progress panel
 - [ ] Validate profile updates, incomplete-field guidance, mobile layout, build, and production deployment
 - [x] Add and validate a safe standalone preview route for the startup connected-gear animation
+- [x] Inspect the oversized profile completion card and seller shop editing entry points
+- [x] Define compact circular completion placement and card-based seller shop edit sections
+- [x] Replace the large completion card and implement polished seller shop edit cards
+- [ ] Validate mobile profile hierarchy, seller shop fields, build, and production deployment
