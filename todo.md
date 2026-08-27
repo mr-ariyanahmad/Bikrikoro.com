@@ -128,4 +128,4 @@
 - [x] Inspect product/shop OG preview handlers, shared shop routing, and current unread state actions
 - [x] Define social preview fallbacks, bounded shop-load recovery, and safe labeled unread toggles
 - [x] Implement product/shop preview metadata, reliable shared shop loading, and unread controls
-- [ ] Validate external preview markup, shared shop routes, unread toggles, build, and deployment
+- [x] Validate external preview markup, shared shop routes, unread toggles, build, and deployment
