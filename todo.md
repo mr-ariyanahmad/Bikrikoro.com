@@ -154,4 +154,4 @@
 - [x] Inspect seller onboarding and verification pages for dark hero treatments and shared card styling
 - [x] Define soft-green rounded hero and action-card patterns that preserve seller verification flows
 - [x] Replace dark seller onboarding and verification visuals with polished rounded cards
-- [ ] Validate mobile and desktop presentation, core actions, build, and production deployment
+- [x] Validate public seller onboarding presentation, build, and production deployment; preserve signed-in document submission for user validation
