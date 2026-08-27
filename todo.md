@@ -124,4 +124,4 @@
 - [x] Audit customer-page fetch flows, existing cache use, and data that requires protected freshness
 - [x] Define reusable cache scope, version, expiry, and per-user isolation rules
 - [x] Implement cache-first stale-while-revalidate loading across chat, marketplace, product, shop, order, and account pages
-- [ ] Validate cached initial render, background revalidation, logout isolation, and live-sensitive data refresh
+- [x] Validate cached initial render, background revalidation, logout isolation, and live-sensitive data refresh
