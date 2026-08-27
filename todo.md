@@ -188,3 +188,7 @@
 - [x] Audit the shared mobile dock against the provided premium active-tab, floating-card, safe-area, and icon-hierarchy requirements
 - [x] Redesign the mobile dock visual treatment while preserving all existing routes, role-aware actions, and labels
 - [x] Validate the premium dock at small and large mobile widths, then build and deploy
+- [x] Map all customer-facing and admin-panel screens for a design-only audit without touching backend behavior
+- [x] Document visual consistency gaps and prioritize shared, mobile, customer, seller, and admin interface refinements
+- [x] Apply frontend-only design upgrades while preserving current routes, data flows, permissions, and business logic
+- [ ] Validate responsive customer and admin surfaces, build, and deploy the design-only upgrade

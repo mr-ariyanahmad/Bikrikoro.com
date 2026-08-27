@@ -68,11 +68,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="admin-theme min-h-screen bg-bg text-ink-900">
       <div className="flex min-h-screen">
         {open && <button type="button" aria-label="মেনু বন্ধ করুন" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-ink-900/50 md:hidden" />}
-        <aside className={`fixed inset-y-0 left-0 z-50 flex w-[278px] flex-col bg-ink-900 text-white shadow-2xl transition-transform duration-200 md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
-            <Link to="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2.5 text-xl font-semibold tracking-tight">
-              <img src="/icon-512.png" alt="BikriKoro" className="h-9 w-9 rounded-xl" />
-              <span>BikriKoro <span className="text-brand-300">Admin</span></span>
+        <aside className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-white/10 bg-[#10281f] text-white shadow-[18px_0_46px_rgba(9,38,28,0.16)] transition-transform duration-200 md:static md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
+            <Link to="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 p-1"><img src="/icon-512.png" alt="BikriKoro" className="h-full w-full rounded-lg" /></span>
+              <span>BikriKoro <span className="text-brand-100">Admin</span></span>
             </Link>
             <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white md:hidden" aria-label="মেনু বন্ধ করুন"><X size={20} /></button>
           </div>
@@ -82,7 +82,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               if (visibleLinks.length === 0) return null
               return (
               <div key={group.label} className="mb-6">
-                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">{group.label}</p>
+                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white/45">{group.label}</p>
                 <div className="space-y-1">
                   {visibleLinks.map((link) => (
                     <NavLink
@@ -90,7 +90,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                       to={link.to}
                       end={link.to === '/admin'}
                       onClick={() => setOpen(false)}
-                      className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-brand-500 text-white shadow-lg shadow-brand-900/25' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                      className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${isActive ? 'bg-brand-500 text-white shadow-[0_8px_18px_rgba(1,124,80,0.22)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                     >
                       <span className="flex h-6 w-6 items-center justify-center"><link.icon size={17} strokeWidth={1.8} /></span>
                       <span className="flex-1">{link.label}</span>
@@ -103,23 +103,23 @@ export function AdminShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="border-t border-white/10 p-4">
-            <div className="mb-3 truncate rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">{isAdmin ? `${roleLabel ?? 'অ্যাডমিন'} · ${user?.email ?? ''}` : 'অ্যাক্সেস যাচাই হচ্ছে...'}</div>
+            <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white/75">{isAdmin ? `${roleLabel ?? 'অ্যাডমিন'} · সুরক্ষিত অ্যাক্সেস` : 'অ্যাক্সেস যাচাই হচ্ছে...'}</div>
             <button type="button" onClick={() => logout()} className="flex w-full items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-left text-sm text-white/75 hover:bg-white/10 hover:text-white"><LogOut size={16} />লগআউট</button>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-outline bg-surface/95 px-4 shadow-sm backdrop-blur md:px-8">
+          <header className="sticky top-0 z-30 flex h-[4.5rem] items-center justify-between border-b border-outline/80 bg-white/95 px-4 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur md:px-8">
             <div className="flex items-center gap-3">
               <BackButton fallbackTo="/admin" />
               <button type="button" onClick={() => setOpen(true)} className="rounded-xl border border-outline p-2 text-ink-700 md:hidden" aria-label="অ্যাডমিন মেনু খুলুন"><Menu size={20} /></button>
               <div>
-                <p className="text-xs font-medium text-ink-400">BikriKoro.Com</p>
-                <p className="text-sm font-semibold text-ink-900">অ্যাডমিন ওয়ার্কস্পেস</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600">BikriKoro.Com</p>
+                <p className="text-sm font-bold text-ink-900">অ্যাডমিন ওয়ার্কস্পেস</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link to="/" className="inline-flex items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600">সাইট দেখুন <ExternalLink size={15} /></Link>
+              <Link to="/" className="inline-flex items-center gap-2 rounded-xl border border-outline bg-white px-3 py-2 text-sm font-semibold text-ink-600 hover:border-brand-500 hover:text-brand-600">সাইট দেখুন <ExternalLink size={15} /></Link>
               <span className="hidden h-9 w-9 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700 sm:flex">{(user?.displayName || user?.email || 'A').charAt(0).toUpperCase()}</span>
             </div>
           </header>
@@ -136,8 +136,8 @@ export function AdminPageHeader({ title, description, actions }: { title: string
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-ink-500">{description}</p>}
+        <h1 className="text-2xl font-extrabold tracking-tight text-ink-900 sm:text-[1.75rem]">{title}</h1>
+        {description && <p className="mt-1.5 max-w-2xl text-sm leading-6 text-ink-500">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
@@ -145,12 +145,12 @@ export function AdminPageHeader({ title, description, actions }: { title: string
 }
 
 export function AdminStatCard({ label, value, helper, tone = 'green' }: { label: string; value: string | number; helper?: string; tone?: 'green' | 'blue' | 'amber' | 'red' }) {
-  const tones = { green: 'text-brand-700 bg-brand-50', blue: 'text-brand-700 bg-brand-50', amber: 'text-amber-700 bg-amber-50', red: 'text-red-700 bg-red-50' }
+  const tones = { green: 'text-brand-700 bg-brand-50', blue: 'text-blue-700 bg-blue-50', amber: 'text-amber-700 bg-amber-50', red: 'text-red-700 bg-red-50' }
   return (
-    <div className="rounded-2xl border border-outline bg-surface p-5 shadow-sm">
-      <p className="text-sm font-medium text-ink-500">{label}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-ink-900">{value}</p>
-      {helper && <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${tones[tone]}`}>{helper}</span>}
+    <div className="rounded-2xl border border-outline bg-surface p-5 shadow-[0_8px_22px_rgba(15,23,42,0.045)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:p-6">
+      <p className="text-sm font-semibold text-ink-500">{label}</p>
+      <p className="mt-3 text-3xl font-extrabold tracking-tight text-ink-900">{value}</p>
+      {helper && <span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${tones[tone]}`}>{helper}</span>}
     </div>
   )
 }

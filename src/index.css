@@ -51,15 +51,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-:where(button, [role="button"]) {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
-
-:where(a[class*="bg-brand-"], a[class*="border-brand-"], a[class*="bg-error"], a[class*="border-outline"], a[class*="border-slate-"]) {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
+/* Components own their corner radius and type scale through Tailwind utilities. */
+:where(button, [role="button"], input, textarea, select) { border-radius: 0.75rem; }
 
 :where(button):active {
   transform: scale(0.985);
@@ -82,30 +75,6 @@ body {
   }
 }
 
-/* Minimal storefront language: the splash screen is the visual source of truth. */
-.site-minimal :where(button, [role="button"]) {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
-
-.site-minimal a[class*="bg-brand-"],
-.site-minimal a[class*="border-brand-"],
-.site-minimal a[class*="border-outline"],
-.site-minimal a[class*="bg-error"] {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
-
-.site-minimal :where(input, textarea, select) {
-  border-radius: 4px !important;
-}
-
-.site-minimal [class*="rounded-3xl"] { border-radius: 12px !important; }
-.site-minimal [class*="rounded-2xl"] { border-radius: 10px !important; }
-.site-minimal [class*="rounded-xl"] { border-radius: 8px !important; }
-.site-minimal [class*="rounded-lg"] { border-radius: 6px !important; }
-.site-minimal :where(button, [role="button"])[class*="rounded-full"] { border-radius: 0 !important; }
-
 /* Non-semantic decorative accents use one brand family instead of rainbow utility colors. */
 .site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) {
   background-color: var(--color-brand-50) !important;
@@ -117,25 +86,7 @@ body {
   border-color: var(--color-brand-100) !important;
 }
 
-/* Admin controls follow the same 16px square-corner interaction language. */
-.admin-theme :where(button, [role="button"]) {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
-.admin-theme a[class*="bg-brand-"],
-.admin-theme a[class*="border-brand-"],
-.admin-theme a[class*="border-slate-"] {
-  border-radius: 0 !important;
-  font-size: 1rem !important;
-}
-.admin-theme :where(input, textarea, select) { border-radius: 4px !important; }
-.admin-theme [class*="rounded-3xl"] { border-radius: 12px !important; }
-.admin-theme [class*="rounded-2xl"] { border-radius: 10px !important; }
-.admin-theme [class*="rounded-xl"] { border-radius: 8px !important; }
-.admin-theme [class*="rounded-lg"] { border-radius: 6px !important; }
-.admin-theme :where(button, [role="button"])[class*="rounded-full"] { border-radius: 0 !important; }
-
-/* Admin non-semantic accents remain readable but are mapped to the brand family. */
+/* Admin non-semantic accents remain readable but retain a useful information-blue meaning. */
 .admin-theme :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) { background-color: var(--color-brand-50) !important; }
 .admin-theme :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-orange-"], [class*="text-emerald-"]) { color: var(--color-brand-700) !important; }
 
@@ -183,14 +134,14 @@ body {
 
 .admin-theme .bg-blue-50,
 .admin-theme .bg-blue-100 {
-  background-color: var(--color-brand-50) !important;
+  background-color: #eff6ff !important;
 }
 
 .admin-theme .text-blue-900,
 .admin-theme .text-blue-800,
 .admin-theme .text-blue-700,
 .admin-theme .text-blue-600 {
-  color: var(--color-brand-700) !important;
+  color: #1d4ed8 !important;
 }
 
 .admin-theme .border-blue-100,
@@ -198,7 +149,7 @@ body {
 .admin-theme .border-blue-300,
 .admin-theme .border-blue-400,
 .admin-theme .border-blue-500 {
-  border-color: var(--color-brand-100) !important;
+  border-color: #bfdbfe !important;
 }
 
 /* Legacy customer-detail UID is retained only for protected actions, never visual presentation. */
@@ -208,11 +159,11 @@ body {
 
 .admin-theme .bg-blue-500,
 .admin-theme .bg-blue-600 {
-  background-color: var(--color-brand-500) !important;
+  background-color: #2563eb !important;
 }
 
 .admin-theme .bg-blue-700 {
-  background-color: var(--color-brand-600) !important;
+  background-color: #1d4ed8 !important;
 }
 
 

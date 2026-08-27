@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AlertTriangle, ArrowUpRight, BadgeCheck, ShoppingBag, TicketPercent } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/components/admin/AdminShell'
@@ -45,8 +46,8 @@ export default function AdminDashboard() {
 
   return (
     <AdminShell>
-      <AdminPageHeader title="ড্যাশবোর্ড" description="BikriKoro-এর বিক্রি, কাস্টমার এবং অপারেশন এক নজরে দেখুন।" actions={<Link to="/admin/products" className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-600">+ প্রোডাক্ট ম্যানেজ করুন</Link>} />
-      {error && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">Dashboard লোড করা যায়নি: {error}</p>}
+      <AdminPageHeader title="ড্যাশবোর্ড" description="BikriKoro-এর বিক্রি, কাস্টমার এবং অপারেশন এক নজরে দেখুন।" actions={<Link to="/admin/products" className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-brand-600">প্রোডাক্ট ম্যানেজ করুন <ArrowUpRight size={16} /></Link>} />
+      {error && <p className="mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">Dashboard লোড করা যায়নি: {error}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard label="মোট অর্ডার" value={loading ? '—' : stats.orders.toLocaleString('bn-BD')} helper={`${stats.pending.toLocaleString('bn-BD')}টি চলমান`} tone="blue" />
@@ -56,10 +57,10 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link to="/admin/orders" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300"><p className="text-sm font-semibold text-slate-800">অর্ডার অপারেশন</p><p className="mt-1 text-xs text-slate-500">সব অর্ডার ও ডেলিভারি দেখুন →</p></Link>
-        <Link to="/admin/coupons" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300"><p className="text-sm font-semibold text-slate-800">কুপন তৈরি করুন</p><p className="mt-1 text-xs text-slate-500">নতুন promotion code যোগ করুন →</p></Link>
-        <Link to="/admin/disputes" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300"><p className="text-sm font-semibold text-slate-800">ডিসপিউট রিভিউ</p><p className="mt-1 text-xs text-slate-500">{stats.disputes.toLocaleString('bn-BD')}টি অপেক্ষায় →</p></Link>
-        <Link to="/admin/sellers" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300"><p className="text-sm font-semibold text-slate-800">সেলার যাচাই</p><p className="mt-1 text-xs text-slate-500">{stats.sellers.toLocaleString('bn-BD')}টি আবেদন →</p></Link>
+        <QuickAction href="/admin/orders" title="অর্ডার অপারেশন" detail="সব অর্ডার ও ডেলিভারি দেখুন" icon={ShoppingBag} tone="green" />
+        <QuickAction href="/admin/coupons" title="কুপন তৈরি করুন" detail="নতুন promotion code যোগ করুন" icon={TicketPercent} tone="blue" />
+        <QuickAction href="/admin/disputes" title="ডিসপিউট রিভিউ" detail={`${stats.disputes.toLocaleString('bn-BD')}টি অপেক্ষায়`} icon={AlertTriangle} tone="red" />
+        <QuickAction href="/admin/sellers" title="সেলার যাচাই" detail={`${stats.sellers.toLocaleString('bn-BD')}টি আবেদন`} icon={BadgeCheck} tone="amber" />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -77,7 +78,12 @@ export default function AdminDashboard() {
   )
 }
 
+function QuickAction({ href, title, detail, icon: Icon, tone }: { href: string; title: string; detail: string; icon: typeof ShoppingBag; tone: 'green' | 'blue' | 'amber' | 'red' }) {
+  const tones = { green: 'bg-brand-50 text-brand-700', blue: 'bg-blue-50 text-blue-700', amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-700' }
+  return <Link to={href} className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_6px_18px_rgba(15,23,42,0.035)] transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)]"><span className="flex items-start justify-between"><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}><Icon size={19} strokeWidth={2} /></span><ArrowUpRight size={17} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand-600" /></span><p className="mt-4 text-sm font-bold text-slate-800">{title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p></Link>
+}
+
 function HealthRow({ label, value, href, tone }: { label: string; value: string | number; href: string; tone: 'green' | 'blue' | 'amber' | 'red' }) {
-  const colors = { green: 'bg-brand-50 text-brand-700', blue: 'bg-brand-50 text-brand-700', amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-700' }
-  return <Link to={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-3 hover:bg-slate-50"><span className="text-sm text-slate-600">{label}</span><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${colors[tone]}`}>{typeof value === 'number' ? value.toLocaleString('bn-BD') : value}</span></Link>
+  const colors = { green: 'bg-brand-50 text-brand-700', blue: 'bg-blue-50 text-blue-700', amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-700' }
+  return <Link to={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-3 transition hover:border-brand-100 hover:bg-brand-50/40"><span className="text-sm font-medium text-slate-600">{label}</span><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${colors[tone]}`}>{typeof value === 'number' ? value.toLocaleString('bn-BD') : value}</span></Link>
 }
