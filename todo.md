@@ -87,4 +87,4 @@
 - [x] Define query-match, local-interest, recent-click, and public-popularity ordering for search
 - [x] Implement personalized ranking for search page and header suggestions
 - [x] Redesign the mobile search flow with Shopee-inspired search controls and product suggestion grid
-- [ ] Validate search ranking and responsive presentation before deployment
+- [x] Validate search ranking and responsive presentation before deployment
