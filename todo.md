@@ -155,3 +155,7 @@
 - [x] Define soft-green rounded hero and action-card patterns that preserve seller verification flows
 - [x] Replace dark seller onboarding and verification visuals with polished rounded cards
 - [x] Validate public seller onboarding presentation, build, and production deployment; preserve signed-in document submission for user validation
+- [x] Inspect current seller verification layout, document cards, and NID front/back guide presentation
+- [x] Define realistic but non-identifying NID front/back guide proportions and polished verification card hierarchy
+- [x] Implement enhanced verification cards and differentiated NID front/back guide visuals
+- [ ] Validate document-guide clarity, protected data handling, responsive layout, build, and deployment
