@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
-function siteUrl() {
-  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com').replace(/\/+$/, '')
+function siteUrl(req: VercelRequest) {
+  const forwardedHost = req.headers['x-forwarded-host']
+  const rawHost = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host
+  const host = rawHost?.split(',')[0]?.trim().toLowerCase()
+  if (host === 'bikrikoro.com' || host === 'www.bikrikoro.com') return 'https://www.bikrikoro.com'
+  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://www.bikrikoro.com').replace(/\/+$/, '')
 }
 
 function isAllowedSupabaseImage(value: unknown, supabaseUrl: string) {
@@ -10,7 +14,9 @@ function isAllowedSupabaseImage(value: unknown, supabaseUrl: string) {
   try {
     const imageUrl = new URL(value)
     const storageUrl = new URL(supabaseUrl)
-    return imageUrl.protocol === 'https:' && imageUrl.hostname === storageUrl.hostname
+    const isSupabaseStorage = imageUrl.protocol === 'https:' && imageUrl.hostname === storageUrl.hostname
+    const isGoogleProfileImage = imageUrl.protocol === 'https:' && (imageUrl.hostname === 'lh3.googleusercontent.com' || imageUrl.hostname.endsWith('.googleusercontent.com'))
+    return isSupabaseStorage || isGoogleProfileImage
   } catch {
     return false
   }
@@ -21,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const id = typeof req.query.id === 'string' ? req.query.id.trim() : ''
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
-  const fallbackImage = `${siteUrl()}/icon-512.png`
+  const fallbackImage = `${siteUrl(req)}/icon-512.png`
 
   if ((!username && !id) || !supabaseUrl || !supabaseAnonKey) {
     res.redirect(307, fallbackImage)
