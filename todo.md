@@ -192,3 +192,7 @@
 - [x] Document visual consistency gaps and prioritize shared, mobile, customer, seller, and admin interface refinements
 - [x] Apply frontend-only design upgrades while preserving current routes, data flows, permissions, and business logic
 - [x] Validate responsive customer and admin surfaces, build, and deploy the design-only upgrade
+
+- [ ] Audit mobile Home and Products header, search, category, filter, sort, and spacing hierarchy
+- [x] Refine mobile Home and Products layout without changing backend, data fetching, or desktop behavior
+- [ ] Validate phone-width and desktop preservation, build, and deploy the Home and Products design pass
