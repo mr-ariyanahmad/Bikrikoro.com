@@ -27,3 +27,9 @@ The deployed catalogue was opened after its data resolved. The search/filter con
 | Admin workspace | Use a deep forest operational sidebar with a calm white workspace, taller and more scannable stat cards, and cleaner table/filter panels. Apply green for trust/success, amber for items needing attention, red for sensitive actions, and blue only for neutral information. | Admin shell, shared admin page header/stat/table primitives, and existing page-level visual class treatments. |
 
 > The implementation will not modify backend requests, Supabase/Firebase calls, data structures, routes, authentication, permissions, or commerce rules. It is a presentation-only pass.
+
+## User Dashboard and Profile Pass
+
+The current account page has strong content coverage, but its profile hero, quick-access section, and security reassurance read as three similarly weighted blocks. The refinement keeps the same information and links while creating a clearer sequence: identity first, action shortcuts second, trust reassurance third. The quick-access links become separated tactile tiles instead of a dense grid, while the seller action retains a distinct soft-green treatment. The edit page will follow the same visual rhythm with a compact page header, a primary profile-information card, and a quieter security card.
+
+No account query, cache behavior, seller-status rule, route, or permission is changed by this pass.

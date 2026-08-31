@@ -196,3 +196,7 @@
 - [ ] Audit mobile Home and Products header, search, category, filter, sort, and spacing hierarchy
 - [x] Refine mobile Home and Products layout without changing backend, data fetching, or desktop behavior
 - [ ] Validate phone-width and desktop preservation, build, and deploy the Home and Products design pass
+
+- [x] Audit User Dashboard and Profile layout hierarchy, progress, quick actions, and responsive states
+- [x] Improve User Dashboard and Profile frontend presentation without changing data, routes, permissions, or business logic
+- [ ] Validate account surfaces at mobile and desktop widths, build, and deploy the design upgrade
