@@ -200,3 +200,6 @@
 - [x] Audit User Dashboard and Profile layout hierarchy, progress, quick actions, and responsive states
 - [x] Improve User Dashboard and Profile frontend presentation without changing data, routes, permissions, or business logic
 - [ ] Validate account surfaces at mobile and desktop widths, build, and deploy the design upgrade
+- [x] Audit seller onboarding form steps, current state, and final submission boundary
+- [x] Add a review-and-confirm step with section summary cards and pencil edit actions
+- [ ] Validate review, edit-return, confirmation, responsive layout, and build quality
