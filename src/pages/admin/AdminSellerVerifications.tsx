@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, X, XCircle } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, Search, X, XCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
@@ -32,6 +32,8 @@ export default function AdminSellerVerifications() {
   const [reviewHistory, setReviewHistory] = useState<SellerReviewHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [expandedHistoryAccount, setExpandedHistoryAccount] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [queueFilter, setQueueFilter] = useState<'ALL' | 'NEEDS_REVIEW' | 'READY'>('ALL')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,6 +64,19 @@ export default function AdminSellerVerifications() {
   useEffect(() => { load() }, [load])
 
   const historyGroups = useMemo(() => groupReviewHistory(reviewHistory), [reviewHistory])
+  const queueStats = useMemo(() => ({
+    total: registrations.length,
+    needsReview: registrations.filter((registration) => registration.documents.some((document) => document.status === 'PENDING')).length,
+    ready: registrations.filter((registration) => registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED')).length,
+  }), [registrations])
+  const filteredRegistrations = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return registrations.filter((registration) => {
+      const matchesSearch = !query || [registration.full_name, registration.business_name, registration.sector, registration.business_type].filter(Boolean).some((value) => String(value).toLowerCase().includes(query))
+      const matchesFilter = queueFilter === 'ALL' || (queueFilter === 'NEEDS_REVIEW' ? registration.documents.some((document) => document.status === 'PENDING') : registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED'))
+      return matchesSearch && matchesFilter
+    })
+  }, [queueFilter, registrations, searchTerm])
 
   const reviewDocument = async (documentId: string, status: ReviewAction) => {
     setProcessingId(documentId)
@@ -85,14 +100,15 @@ export default function AdminSellerVerifications() {
   return (
     <AdminShell>
       <AdminPageHeader title="সেলার ভেরিফিকেশন রিভিউ" description="একটি আবেদন বেছে নিয়ে বিস্তারিত document review ও final decision দিন।" />
-      <div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-6 text-brand-800">
+            <div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-6 text-brand-800">
         <FileCheck2 className="mr-2 inline-block align-text-bottom" size={17} />
         Approved seller-এর profile-এ mode ও sector অনুযায়ী trust badge তৈরি হবে। Sensitive documents public করা হয় না।
       </div>
-
-      {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : registrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">অনুমোদনের অপেক্ষায় কোনো আবেদন নেই।</p></AdminTableCard> : (
+      <div className="mb-5 grid gap-3 sm:grid-cols-3"><QueueStat label="মোট আবেদন" value={queueStats.total} tone="neutral" /><QueueStat label="Review দরকার" value={queueStats.needsReview} tone="warning" /><QueueStat label="Final decision-ready" value={queueStats.ready} tone="success" /></div>
+      <AdminTableCard className="mb-5"><div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="নাম, ব্যবসা বা সেক্টর খুঁজুন" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500" /></label><div className="flex gap-2 overflow-x-auto"><FilterChip active={queueFilter === 'ALL'} onClick={() => setQueueFilter('ALL')}>সব আবেদন</FilterChip><FilterChip active={queueFilter === 'NEEDS_REVIEW'} onClick={() => setQueueFilter('NEEDS_REVIEW')}>Review দরকার</FilterChip><FilterChip active={queueFilter === 'READY'} onClick={() => setQueueFilter('READY')}>Approve-ready</FilterChip></div></div></AdminTableCard>
+      {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : filteredRegistrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">অনুমোদনের অপেক্ষায় কোনো আবেদন নেই।</p></AdminTableCard> : (
         <div className="space-y-3">
-          {registrations.map((registration) => {
+          {filteredRegistrations.map((registration) => {
             const approvedCount = registration.documents.filter((document) => document.status === 'APPROVED').length
             const pendingCount = registration.documents.filter((document) => document.status === 'PENDING').length
             const allDocumentsApproved = registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED')
@@ -283,3 +299,12 @@ function groupReviewHistory(entries: SellerReviewHistory[]): HistoryGroup[] {
 function formatDocumentType(value: string) { return value.replace(/_/g, ' ') }
 
 function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</p></div> }
+
+function QueueStat({ label, value, tone }: { label: string; value: number; tone: 'neutral' | 'warning' | 'success' }) {
+  const toneClass = tone === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : tone === 'success' ? 'border-brand-200 bg-brand-50 text-brand-800' : 'border-slate-200 bg-white text-slate-800'
+  return <div className={`rounded-2xl border p-4 ${toneClass}`}><p className="text-xs font-semibold opacity-75">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return <button type="button" onClick={onClick} className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition ${active ? 'bg-brand-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-brand-50 hover:text-brand-700'}`}>{children}</button>
+}

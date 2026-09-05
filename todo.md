@@ -203,3 +203,8 @@
 - [x] Audit seller onboarding form steps, current state, and final submission boundary
 - [x] Add a review-and-confirm step with section summary cards and pencil edit actions
 - [ ] Validate review, edit-return, confirmation, responsive layout, and build quality
+
+- [x] Audit seller registration success/status rendering and existing admin seller-verification requests and actions
+- [x] Build a polished seller success and waiting-for-review dashboard for pending, approved, and rejected states
+- [x] Add an admin seller-verification management workflow with list, filters, detail review, approve, reject, and status feedback
+- [ ] Validate seller status transitions, admin actions, responsive layouts, permissions, and build quality
