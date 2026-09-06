@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
-    await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }).catch(() => {})
+    try { await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }) } catch { /* expiry cleanup must never block order loading */ }
     if (input.action === 'create' || input.action === 'create_wallet' || input.action === 'create_online') {
       if (!input.productId) throw new Error('Digital product is required')
       const walletPayment = input.action === 'create_wallet'
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (onlinePayment) {
         const { data: charge, error: chargeError } = await supabase.functions.invoke<{ payment_url?: string; error?: string }>('uddoktapay-create-charge', { body: { orderId } })
         if (chargeError || !charge?.payment_url) {
-          await supabase.rpc('buyer_cancel_pending_order', { p_order_id: orderId, p_buyer_id: token.uid }).catch(() => {})
+          try { await supabase.rpc('buyer_cancel_pending_order', { p_order_id: orderId, p_buyer_id: token.uid }) } catch { /* best-effort rollback */ }
           throw new Error(charge?.error || chargeError?.message || 'Payment could not be started')
         }
         const { data: reminderOrder } = await supabase.from('orders').select('product_title, price, escrow_fee, payment_expires_at, delivery_email').eq('id', orderId).maybeSingle()
