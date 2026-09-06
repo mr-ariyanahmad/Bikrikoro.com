@@ -48,7 +48,7 @@ export async function createOnlineCheckout(params: {
 }): Promise<{ orderId: string; paymentUrl: string }> {
   if (auth.currentUser?.uid !== params.buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
   const idToken = await auth.currentUser.getIdToken()
-  const response = await fetch('/api/checkout', {
+  const response = await fetch('/api/pending-order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify({

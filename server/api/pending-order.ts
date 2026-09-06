@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
-type Body = { action?: 'create' | 'create_wallet' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
+type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
 
 function supabaseErrorMessage(error: unknown) {
@@ -31,9 +31,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
-    if (input.action === 'create' || input.action === 'create_wallet') {
+    if (input.action === 'create' || input.action === 'create_wallet' || input.action === 'create_online') {
       if (!input.productId) throw new Error('Digital product is required')
       const walletPayment = input.action === 'create_wallet'
+      const onlinePayment = input.action === 'create_online'
       const result = walletPayment
         ? input.couponCode?.trim()
           ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
@@ -42,7 +43,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
           : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null })
       if (result.error) throw result.error
-      res.status(200).json({ orderId: result.data, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
+      const orderId = typeof result.data === 'string' ? result.data : ''
+      if (!orderId) throw new Error('Order could not be created')
+      if (onlinePayment) {
+        const { data: charge, error: chargeError } = await supabase.functions.invoke<{ payment_url?: string; error?: string }>('uddoktapay-create-charge', { body: { orderId } })
+        if (chargeError || !charge?.payment_url) {
+          await supabase.rpc('buyer_cancel_pending_order', { p_order_id: orderId, p_buyer_id: token.uid }).catch(() => {})
+          throw new Error(charge?.error || chargeError?.message || 'Payment could not be started')
+        }
+        res.status(200).json({ orderId, paymentUrl: charge.payment_url, paymentMethod: 'ONLINE' })
+        return
+      }
+      res.status(200).json({ orderId, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
       return
     }
     if (input.action === 'cancel') {
