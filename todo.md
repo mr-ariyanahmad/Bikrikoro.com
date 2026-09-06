@@ -208,3 +208,5 @@
 - [x] Build a polished seller success and waiting-for-review dashboard for pending, approved, and rejected states
 - [x] Add an admin seller-verification management workflow with list, filters, detail review, approve, reject, and status feedback
 - [x] Validate seller status transitions, admin actions, responsive layouts, permissions, and build quality
+- [ ] Measure checkout latency by stage and safely reduce UddoktaPay payment startup time without weakening server-side verification
+- [ ] Combine pending-order creation and UddoktaPay charge initiation into one secure server-side checkout request

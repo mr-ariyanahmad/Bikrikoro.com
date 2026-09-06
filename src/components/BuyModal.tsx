@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ShieldCheck } from 'lucide-react'
-import { createPendingOrder, createWalletOrder, getWalletBalance, startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { createOnlineCheckout, createWalletOrder, getWalletBalance, cancelPendingOrder } from '@/lib/payments'
 import type { Product, ProductDigitalSpecs } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { validateCoupon, type CouponPreview } from '@/lib/marketplace'
@@ -100,11 +100,12 @@ export function BuyModal({
     let orderId: string | null = null
     try {
       const orderParams = { productId: product.id, buyerId, deliveryEmail: requiresDeliveryEmail ? deliveryEmail.trim() : undefined, couponCode: coupon?.valid ? coupon.normalized_code : undefined }
-      orderId = paymentMethod === 'WALLET' ? await createWalletOrder(orderParams) : await createPendingOrder(orderParams)
       if (paymentMethod === 'ONLINE') {
-        const paymentUrl = await startUddoktaPayCheckout(orderId)
-        window.location.href = paymentUrl
+        const checkout = await createOnlineCheckout(orderParams)
+        orderId = checkout.orderId
+        window.location.href = checkout.paymentUrl
       } else {
+        orderId = await createWalletOrder(orderParams)
         window.location.href = '/orders'
       }
     } catch (checkoutError) {

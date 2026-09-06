@@ -39,7 +39,31 @@ export async function createWalletOrder(params: {
   return result.orderId
 }
 
-/** Asks the uddoktapay-create-charge Edge Function for a hosted payment URL, then the caller redirects there. */
+/** Creates the pending order and starts UddoktaPay in one authenticated server request. */
+export async function createOnlineCheckout(params: {
+  productId: string
+  buyerId: string
+  deliveryEmail?: string
+  couponCode?: string
+}): Promise<{ orderId: string; paymentUrl: string }> {
+  if (auth.currentUser?.uid !== params.buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
+  const idToken = await auth.currentUser.getIdToken()
+  const response = await fetch('/api/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({
+      action: 'create_online',
+      productId: params.productId,
+      deliveryEmail: params.deliveryEmail?.trim() || undefined,
+      couponCode: params.couponCode?.trim() || undefined,
+    }),
+  })
+  const result = await response.json().catch(() => ({})) as { orderId?: string; paymentUrl?: string; error?: string }
+  if (!response.ok || !result.orderId || !result.paymentUrl) throw new Error(result.error || `Checkout failed (HTTP ${response.status})`)
+  return { orderId: result.orderId, paymentUrl: result.paymentUrl }
+}
+
+/** Resumes payment for an existing pending order. */
 export async function startUddoktaPayCheckout(orderId: string): Promise<string> {
   const { data, error } = await supabase.functions.invoke<{ payment_url?: string; error?: string }>(
     'uddoktapay-create-charge',
