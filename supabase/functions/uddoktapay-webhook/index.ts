@@ -33,6 +33,27 @@ const UDDOKTAPAY_API_KEY = Deno.env.get("UDDOKTAPAY_API_KEY");
 const UDDOKTAPAY_BASE_URL = Deno.env.get("UDDOKTAPAY_BASE_URL") ?? "https://sandbox.uddoktapay.com";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL");
+
+function escapeHtml(value: string) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
+function shortOrderNumber(orderNumber: number | null | undefined, fallbackId: string) {
+  return typeof orderNumber === 'number' && Number.isFinite(orderNumber) ? `BKCOM${Math.trunc(orderNumber)}` : `BKCOM${fallbackId.replaceAll('-', '').slice(0, 6).toUpperCase()}`;
+}
+
+async function sendPaidOrderEmail(to: string, role: 'BUYER' | 'SELLER', order: Record<string, unknown>) {
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL || !to) return;
+  const orderNumber = shortOrderNumber(Number(order.order_number), String(order.id));
+  const title = escapeHtml(String(order.product_title ?? 'BikriKoro product'));
+  const name = escapeHtml(String(role === 'BUYER' ? order.buyer_name ?? 'প্রিয় ক্রেতা' : order.seller_name ?? 'প্রিয় সেলার'));
+  const orderLink = `https://bikrikoro.com/orders/${encodeURIComponent(String(order.id))}`;
+  const html = `<!doctype html><html lang="bn"><body style="margin:0;background:#f5faf7;padding:24px;font-family:Arial,sans-serif;color:#17231f"><div style="max-width:620px;margin:auto;background:#fff;border:1px solid #dce8e2;border-radius:20px;padding:28px"><h1 style="margin:0 0 12px;color:#087f5b">${role === 'BUYER' ? 'পেমেন্ট সফল হয়েছে' : 'নতুন পেইড অর্ডার এসেছে'}</h1><p>হ্যালো ${name}, ${role === 'BUYER' ? 'আপনার পেমেন্ট সফলভাবে যাচাই হয়েছে।' : 'আপনার listing-এর জন্য পেমেন্ট সম্পন্ন একটি অর্ডার এসেছে।'}</p><div style="margin:20px 0;padding:16px;border-radius:12px;background:#f0faf5"><p style="margin:0 0 8px"><strong>পণ্য:</strong> ${title}</p><p style="margin:0 0 8px"><strong>অর্ডার:</strong> ${escapeHtml(orderNumber)}</p><p style="margin:0"><strong>স্ট্যাটাস:</strong> পেমেন্ট যাচাই হয়েছে</p></div><a href="${orderLink}" style="display:inline-block;background:#087f5b;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px">অর্ডার দেখুন</a><p style="margin-top:28px;color:#66756e;font-size:12px">এই emailটি BikriKoro.Com থেকে স্বয়ংক্রিয়ভাবে পাঠানো হয়েছে।</p></div></body></html>`;
+  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Idempotency-Key': `bikrikoro-paid-order-${order.id}-${role.toLowerCase()}` }, body: JSON.stringify({ from: RESEND_FROM_EMAIL, to: [to], subject: `${role === 'BUYER' ? 'পেমেন্ট সফল' : 'নতুন পেইড অর্ডার'} — ${orderNumber}`, html, text: `${role === 'BUYER' ? 'পেমেন্ট সফল হয়েছে' : 'নতুন পেইড অর্ডার এসেছে'}\n\nপণ্য: ${order.product_title}\nঅর্ডার: ${orderNumber}\nঅর্ডার দেখুন: ${orderLink}` }) });
+  if (!response.ok) console.error('Paid order email failed:', await response.text());
+}
 
 serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -99,7 +120,7 @@ serve(async (req) => {
 
   // Idempotent: only flips orders that are still actually awaiting payment,
   // so a duplicate COMPLETED webhook delivery is a no-op.
-  const { error: updateError } = await supabaseAdmin
+  const { data: transitionedOrder, error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
       status: "ESCROW_HELD",
@@ -108,11 +129,27 @@ serve(async (req) => {
     })
     .eq("id", orderId)
     .eq("status", "PENDING_PAYMENT")
-    .gt("payment_expires_at", new Date().toISOString());
+    .gt("payment_expires_at", new Date().toISOString())
+    .select("id")
+    .maybeSingle();
 
 
   if (updateError) {
     return new Response(JSON.stringify({ error: updateError.message }), { status: 500 });
+  }
+
+  if (transitionedOrder?.id) {
+    const { data: order } = await supabaseAdmin.from("orders").select("id, order_number, product_title, buyer_id, seller_id, delivery_email").eq("id", orderId).maybeSingle();
+    if (order) {
+      const participantIds = [order.buyer_id, order.seller_id].filter(Boolean);
+      const { data: profiles } = participantIds.length ? await supabaseAdmin.from("profiles").select("id, name, email").in("id", participantIds) : { data: [] };
+      const buyer = profiles?.find((profile) => profile.id === order.buyer_id);
+      const seller = profiles?.find((profile) => profile.id === order.seller_id);
+      await Promise.allSettled([
+        buyer?.email ? sendPaidOrderEmail(order.delivery_email ?? buyer.email, 'BUYER', { ...order, buyer_name: buyer.name }) : Promise.resolve(),
+        seller?.email ? sendPaidOrderEmail(seller.email, 'SELLER', { ...order, seller_name: seller.name }) : Promise.resolve(),
+      ]);
+    }
   }
 
   return new Response("ok", { status: 200 });

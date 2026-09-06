@@ -217,3 +217,6 @@
 - [ ] Add admin-managed Facebook/WhatsApp community links with seller popup and public cards
 - [ ] Show community/link cards across Seller Edu Hub, Seller Dashboard, Home, and Search contexts
 - [ ] Replace browser print with a branded custom BikriKoro invoice PDF download
+- [ ] Show short BKCOM order numbers in transactional emails while keeping secure links intact
+- [ ] Send pending-payment, seller-new-order, buyer/seller chat, and new-account welcome emails through the existing email infrastructure
+- [ ] Use the real BikriKoro logo in branded invoice output

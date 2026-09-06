@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { sendChatMessageEmail } from '../lib/resendEmail.js'
 
 type Action = 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send'
 
@@ -105,6 +106,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         p_text: text,
       })
       if (error) throw error
+      void (async () => {
+        try {
+          const { data: thread } = await supabase.rpc('get_my_chat_thread', { p_user_id: token.uid, p_thread_id: threadId })
+          const threadRecord = thread as { buyer_id?: string; seller_id?: string } | null
+          const recipientId = threadRecord?.buyer_id === token.uid ? threadRecord.seller_id : threadRecord?.buyer_id
+          if (!recipientId) return
+          const participantIds = [token.uid, recipientId]
+          const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', participantIds)
+          const sender = (profiles ?? []).find((profile) => profile.id === token.uid)
+          const recipient = (profiles ?? []).find((profile) => profile.id === recipientId)
+          if (!recipient?.email) return
+          await sendChatMessageEmail({ messageId: String(data), to: recipient.email, recipientName: recipient.name ?? 'প্রিয় ব্যবহারকারী', senderName: sender?.name ?? 'BikriKoro user', message: text, threadLink: `https://bikrikoro.com/chat/${threadId}` })
+        } catch (emailError) {
+          console.error('Chat email delivery failed:', emailError)
+        }
+      })()
       res.status(200).json({ messageId: data })
       return
     }

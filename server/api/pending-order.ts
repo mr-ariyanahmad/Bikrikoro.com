@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
-import { sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
+import { sendNewOrderEmail, sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
 
 type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
@@ -47,19 +47,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (result.error) throw result.error
       const orderId = typeof result.data === 'string' ? result.data : ''
       if (!orderId) throw new Error('Order could not be created')
+      const { data: createdOrder } = await supabase.from('orders').select('id, order_number, product_title, price, escrow_fee, status, buyer_id, seller_id, delivery_email').eq('id', orderId).maybeSingle()
+      if (createdOrder) {
+        const participantIds = [createdOrder.buyer_id, createdOrder.seller_id].filter((value): value is string => Boolean(value))
+        const { data: profiles } = participantIds.length > 0 ? await supabase.from('profiles').select('id, name, email').in('id', participantIds) : { data: [] as Array<{ id: string; name: string | null; email: string | null }> }
+        const buyer = (profiles ?? []).find((profile) => profile.id === createdOrder.buyer_id)
+        const seller = (profiles ?? []).find((profile) => profile.id === createdOrder.seller_id)
+        const amount = Number(createdOrder.price) + Number(createdOrder.escrow_fee)
+        const orderLink = `https://bikrikoro.com/orders/${orderId}`
+        const emailTasks = []
+        if (!onlinePayment && seller?.email) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'SELLER', to: seller.email, productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller.name ?? 'Seller', orderLink }))
+        if (!onlinePayment && (createdOrder.delivery_email || buyer?.email)) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'CUSTOMER', to: createdOrder.delivery_email || buyer?.email || '', productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller?.name ?? 'Seller', orderLink }))
+        if (emailTasks.length > 0) void Promise.all(emailTasks).catch((emailError) => console.error('New order email delivery failed:', emailError))
+      }
       if (onlinePayment) {
         const { data: charge, error: chargeError } = await supabase.functions.invoke<{ payment_url?: string; error?: string }>('uddoktapay-create-charge', { body: { orderId } })
         if (chargeError || !charge?.payment_url) {
           try { await supabase.rpc('buyer_cancel_pending_order', { p_order_id: orderId, p_buyer_id: token.uid }) } catch { /* best-effort rollback */ }
           throw new Error(charge?.error || chargeError?.message || 'Payment could not be started')
         }
-        const { data: reminderOrder } = await supabase.from('orders').select('product_title, price, escrow_fee, payment_expires_at, delivery_email').eq('id', orderId).maybeSingle()
+        const { data: reminderOrder } = await supabase.from('orders').select('order_number, product_title, price, escrow_fee, payment_expires_at, delivery_email').eq('id', orderId).maybeSingle()
         if (reminderOrder?.payment_expires_at) {
           const { data: profile } = reminderOrder.delivery_email ? { data: null } : await supabase.from('profiles').select('email').eq('id', token.uid).maybeSingle()
           const recipient = reminderOrder.delivery_email || profile?.email || ''
           if (recipient) {
             void sendPendingPaymentReminderEmail({
               orderId,
+              orderNumber: reminderOrder.order_number,
               to: recipient,
               productTitle: reminderOrder.product_title,
               amount: Number(reminderOrder.price) + Number(reminderOrder.escrow_fee),
