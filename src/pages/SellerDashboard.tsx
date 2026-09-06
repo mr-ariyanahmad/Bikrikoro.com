@@ -10,6 +10,7 @@ import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatDate, formatDateTime, formatTaka } from '@/lib/format'
 import { loadNotifications, loadUnreadNotificationCount } from '@/lib/marketplace'
 import { ShopProfileEditor } from '@/components/ShopProfileEditor'
+import { CommunityLinks } from '@/components/CommunityLinks'
 import { displayShopDescription, displayShopName, displayUserName } from '@/lib/shopProfile'
 import type { Profile, Product } from '@/types/product'
 import type { OrderStatus } from '@/types/order'
@@ -174,6 +175,7 @@ export default function SellerDashboard() {
           {notice && <p className="mt-4 border border-brand-200 bg-brand-50 p-3 text-base text-brand-800">{notice}</p>}
           {loadError && <p className="mt-4 border border-error/20 bg-error/5 p-3 text-base text-error">ড্যাশবোর্ড লোড করা যায়নি: {loadError}</p>}
           {data?.walletWarning && <p className="mt-4 border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">{data.walletWarning}</p>}
+          <div className="mt-5"><CommunityLinks placement="SELLER_DASHBOARD" popup compact /></div>
 
           {loading || !data || !stats ? <DashboardSkeleton /> : (
             <>

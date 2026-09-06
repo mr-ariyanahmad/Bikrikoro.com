@@ -271,3 +271,43 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .brand-loader-logo-frame, .brand-loader-orbit, .brand-loader-spark { animation: none; }
 }
+
+/* Branded invoice: print only the dedicated receipt surface, never the website chrome. */
+.invoice-print-only { display: none; }
+@media print {
+  @page { size: A4; margin: 14mm; }
+  html, body { background: #ffffff !important; }
+  body * { visibility: hidden !important; }
+  .invoice-print-only, .invoice-print-only * { visibility: visible !important; }
+  .invoice-print-only { display: block !important; position: absolute; inset: 0; width: 100%; }
+  .invoice-paper { width: 100%; max-width: 760px; margin: 0 auto; color: #12211C; font-family: "Hind Siliguri", "Noto Sans Bengali", sans-serif; }
+  .invoice-header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 2px solid #017C50; padding-bottom: 18px; }
+  .invoice-brand-mark { display: inline-flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 12px; background: #017C50; color: #fff; font-size: 22px; font-weight: 800; }
+  .invoice-brand-name { margin: 6px 0 0; font-size: 22px; font-weight: 800; color: #014D30; }
+  .invoice-brand-name span { color: #059863; }
+  .invoice-muted { margin: 2px 0 0; color: #5C6D67; font-size: 11px; }
+  .invoice-title { text-align: right; color: #014D30; }
+  .invoice-title p { margin: 0; font-size: 22px; font-weight: 800; }
+  .invoice-title span { font-family: monospace; font-size: 10px; letter-spacing: .2em; color: #5C6D67; }
+  .invoice-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; padding: 14px; border: 1px solid #C3E8D6; border-radius: 12px; background: #F7FBF9; }
+  .invoice-meta span, .invoice-total span, .invoice-product span, .invoice-note span { display: block; color: #5C6D67; font-size: 11px; }
+  .invoice-meta strong { display: block; margin-top: 3px; font-size: 13px; }
+  .invoice-section-title { border-bottom: 1px solid #E1E6E5; padding-bottom: 8px; color: #014D30; font-size: 13px; font-weight: 800; }
+  .invoice-product { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid #E1E6E5; }
+  .invoice-product-image { display: flex; height: 66px; width: 66px; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border-radius: 10px; background: #E6F5EE; }
+  .invoice-product-image img { height: 100%; width: 100%; object-fit: cover; }
+  .invoice-product strong { display: block; font-size: 14px; }
+  .invoice-product span { margin-top: 3px; }
+  .invoice-total { margin-left: auto; width: min(100%, 330px); padding-top: 18px; }
+  .invoice-total > div { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; font-size: 12px; }
+  .invoice-total strong { font-family: monospace; font-size: 12px; }
+  .invoice-grand-total { margin-top: 5px; border-top: 2px solid #017C50; padding-top: 9px !important; color: #014D30; font-size: 15px !important; font-weight: 800; }
+  .invoice-grand-total strong { font-size: 15px; }
+  .invoice-note { margin-top: 18px; padding: 10px 12px; border: 1px solid #C3E8D6; border-radius: 10px; background: #F7FBF9; }
+  .invoice-note strong { display: block; color: #014D30; font-size: 12px; }
+  .invoice-secure { display: flex; gap: 10px; margin-top: 26px; padding: 12px; border: 1px solid #C3E8D6; border-radius: 10px; background: #E6F5EE; }
+  .invoice-secure > span { display: flex; height: 22px; width: 22px; align-items: center; justify-content: center; border-radius: 999px; background: #017C50; color: #fff; font-weight: 800; }
+  .invoice-secure strong { color: #014D30; font-size: 12px; }
+  .invoice-secure p { margin: 2px 0 0; color: #5C6D67; font-size: 10px; }
+  .invoice-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; border-top: 1px solid #E1E6E5; padding-top: 12px; color: #5C6D67; font-size: 10px; }
+}

@@ -52,6 +52,7 @@ const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
 const AdminCatalogue = lazy(() => import('@/pages/admin/AdminCatalogue'))
 const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
 const AdminContent = lazy(() => import('@/pages/admin/AdminContent'))
+const AdminCommunityLinks = lazy(() => import('@/pages/admin/AdminCommunityLinks'))
 const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'))
 const AdminSystemStatus = lazy(() => import('@/pages/admin/AdminSystemStatus'))
 const AdminFinance = lazy(() => import('@/pages/admin/AdminFinance'))
@@ -379,6 +380,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminReviews />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/community-links"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminCommunityLinks />
             </AdminRoute>
           </ProtectedRoute>
         }

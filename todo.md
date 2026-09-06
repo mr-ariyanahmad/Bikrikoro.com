@@ -214,3 +214,6 @@
 - [ ] Add server-enforced 30-minute pending-order expiry with countdown and email reminder
 - [ ] Open order details in a dedicated full-information page from the Orders list
 - [ ] Fix `supabase.rpc(...).catch is not a function` so order list/detail loading remains resilient
+- [ ] Add admin-managed Facebook/WhatsApp community links with seller popup and public cards
+- [ ] Show community/link cards across Seller Edu Hub, Seller Dashboard, Home, and Search contexts
+- [ ] Replace browser print with a branded custom BikriKoro invoice PDF download
