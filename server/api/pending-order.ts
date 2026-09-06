@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
 
 type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
@@ -31,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
+    await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }).catch(() => {})
     if (input.action === 'create' || input.action === 'create_wallet' || input.action === 'create_online') {
       if (!input.productId) throw new Error('Digital product is required')
       const walletPayment = input.action === 'create_wallet'
@@ -50,6 +52,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (chargeError || !charge?.payment_url) {
           await supabase.rpc('buyer_cancel_pending_order', { p_order_id: orderId, p_buyer_id: token.uid }).catch(() => {})
           throw new Error(charge?.error || chargeError?.message || 'Payment could not be started')
+        }
+        const { data: reminderOrder } = await supabase.from('orders').select('product_title, price, escrow_fee, payment_expires_at, delivery_email').eq('id', orderId).maybeSingle()
+        if (reminderOrder?.payment_expires_at) {
+          const { data: profile } = reminderOrder.delivery_email ? { data: null } : await supabase.from('profiles').select('email').eq('id', token.uid).maybeSingle()
+          const recipient = reminderOrder.delivery_email || profile?.email || ''
+          if (recipient) {
+            void sendPendingPaymentReminderEmail({
+              orderId,
+              to: recipient,
+              productTitle: reminderOrder.product_title,
+              amount: Number(reminderOrder.price) + Number(reminderOrder.escrow_fee),
+              expiresAt: reminderOrder.payment_expires_at,
+              orderLink: `https://bikrikoro.com/orders/${orderId}`,
+            }).then((result) => {
+              if (!result.skipped) return supabase.from('orders').update({ pending_payment_reminder_sent_at: new Date().toISOString() }).eq('id', orderId)
+              return null
+            }).catch((reminderError) => console.error('Pending payment reminder failed:', reminderError))
+          }
         }
         res.status(200).json({ orderId, paymentUrl: charge.payment_url, paymentMethod: 'ONLINE' })
         return

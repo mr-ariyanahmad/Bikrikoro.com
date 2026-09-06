@@ -107,7 +107,8 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId)
-    .eq("status", "PENDING_PAYMENT");
+    .eq("status", "PENDING_PAYMENT")
+    .gt("payment_expires_at", new Date().toISOString());
 
 
   if (updateError) {

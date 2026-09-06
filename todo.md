@@ -211,3 +211,5 @@
 - [ ] Measure checkout latency by stage and safely reduce UddoktaPay payment startup time without weakening server-side verification
 - [ ] Combine pending-order creation and UddoktaPay charge initiation into one secure server-side checkout request
 - [ ] Fix the Vercel `API route not found` regression from the combined online-checkout endpoint and restore working UddoktaPay checkout
+- [ ] Add server-enforced 30-minute pending-order expiry with countdown and email reminder
+- [ ] Open order details in a dedicated full-information page from the Orders list

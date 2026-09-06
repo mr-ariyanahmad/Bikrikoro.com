@@ -53,13 +53,17 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
-      .select("id, price, escrow_fee, status, buyer_id, product_title")
+      .select("id, price, escrow_fee, status, buyer_id, product_title, payment_expires_at")
       .eq("id", orderId)
       .single();
 
     if (orderError || !order) return json({ error: "Order not found" }, 404);
     if (order.status !== "PENDING_PAYMENT") {
       return json({ error: "Order is not awaiting payment" }, 409);
+    }
+    if (order.payment_expires_at && new Date(order.payment_expires_at).getTime() <= Date.now()) {
+      await supabaseAdmin.from("orders").update({ status: "CANCELLED", updated_at: new Date().toISOString() }).eq("id", order.id).eq("status", "PENDING_PAYMENT");
+      return json({ error: "এই অর্ডারের পেমেন্টের সময় শেষ হয়ে গেছে।" }, 410);
     }
 
     const { data: buyer } = await supabaseAdmin

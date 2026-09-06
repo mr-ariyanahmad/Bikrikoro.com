@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Search, ShieldCheck } from 'lucide-react'
+import { Clock3, Search, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
@@ -46,7 +46,6 @@ export default function Orders() {
   const [deliveries, setDeliveries] = useState<Map<string, DeliveryInfo>>(new Map())
   const [reviewedOrderIds, setReviewedOrderIds] = useState<Set<string>>(new Set())
   const [disputeIdByOrder, setDisputeIdByOrder] = useState<Map<string, string>>(new Map())
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -54,6 +53,7 @@ export default function Orders() {
   const [reviewTarget, setReviewTarget] = useState<Order | null>(null)
   const [sellerCancelTarget, setSellerCancelTarget] = useState<Order | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [, setClock] = useState(() => Date.now())
   const cacheKey = userCacheKey(uid, 'orders')
 
   const applyOrderPayload = useCallback((payload: CachedOrders) => {
@@ -121,6 +121,12 @@ export default function Orders() {
 
   useEffect(() => { if (!isSeller) setTab('buying') }, [isSeller])
 
+  useEffect(() => {
+    if (!orders.some((order) => order.status === 'PENDING_PAYMENT' && order.payment_expires_at)) return
+    const timer = window.setInterval(() => setClock(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [orders])
+
   return (
     <Layout wide>
       <section className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-brand-100 bg-surface px-4 py-4 shadow-[0_7px_20px_rgba(15,23,42,0.04)] sm:px-5"><div><p className="text-sm font-bold text-brand-700">ডিজিটাল অর্ডার</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight text-ink-900">আমার অর্ডার</h1><p className="mt-1 text-sm text-ink-600">{activeCount}টি চলমান অর্ডার</p></div><div className="rounded-xl bg-brand-50 px-3 py-2 text-sm font-extrabold text-brand-700">মোট {visibleOrderCount}টি</div></section>
@@ -133,13 +139,13 @@ export default function Orders() {
         {loading ? Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-2xl bg-outline/40" />) : list.length === 0 ? <div className="rounded-2xl border border-outline bg-surface p-8 text-center text-sm text-ink-700 shadow-[0_5px_14px_rgba(15,23,42,0.03)]">{tab === 'buying' ? 'আপনি এখনো কোনো ডিজিটাল পণ্য অর্ডার করেননি।' : 'আপনার ডিজিটাল পণ্যের অর্ডার এখনো আসেনি।'}</div> : list.map((order) => {
           const delivery = deliveries.get(order.id)
           const autoDeliveryEnabled = order.auto_delivery_enabled !== false
-          const isExpanded = expandedOrderId === order.id
+          const isExpanded = false
           const openDispute = order.dispute_status === 'REPORTED' || order.dispute_status === 'UNDER_REVIEW'
           const canDispute = tab === 'buying' && !openDispute && ['ESCROW_HELD', 'DIGITAL_DELIVERED'].includes(order.status)
           const readableOrderNumber = formatOrderNumber(order.order_number, order.id)
           return (
             <article key={order.id} className="overflow-hidden rounded-2xl border border-outline bg-surface shadow-[0_5px_14px_rgba(15,23,42,0.035)] transition hover:border-brand-200 hover:shadow-[0_9px_22px_rgba(15,23,42,0.06)]">
-              <div className="flex items-center gap-3 p-3.5 sm:p-4"><Link to={`/products/${order.product_id}`} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-outline/30 sm:h-16 sm:w-16">{order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}</Link><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className="line-clamp-1 text-sm font-bold text-ink-900 sm:text-base">{order.product_title}</p><span className="shrink-0 rounded-lg bg-bg px-2 py-1 text-[11px] font-bold text-ink-700">{STATUS_LABEL[order.status]}</span></div><p className="mt-0.5 text-xs font-bold tracking-wide text-brand-700">{readableOrderNumber}</p><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-ink-500"><span className="tabular-amount font-bold text-brand-700">{formatTaka(order.price)}</span><span>•</span><span>{formatDate(order.created_at)}</span></div></div><button type="button" aria-expanded={isExpanded} onClick={() => setExpandedOrderId(isExpanded ? null : order.id)} className="shrink-0 rounded-xl border border-brand-500 px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50">{isExpanded ? 'সংক্ষেপ করুন' : 'বিস্তারিত দেখুন'}</button></div>
+              <div className="flex items-center gap-3 p-3.5 sm:p-4"><Link to={`/products/${order.product_id}`} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-outline/30 sm:h-16 sm:w-16">{order.product_image && <img src={order.product_image} alt="" className="h-full w-full object-cover" />}</Link><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className="line-clamp-1 text-sm font-bold text-ink-900 sm:text-base">{order.product_title}</p><span className="shrink-0 rounded-lg bg-bg px-2 py-1 text-[11px] font-bold text-ink-700">{STATUS_LABEL[order.status]}</span></div><p className="mt-0.5 text-xs font-bold tracking-wide text-brand-700">{readableOrderNumber}</p><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-ink-500"><span className="tabular-amount font-bold text-brand-700">{formatTaka(order.price)}</span><span>•</span><span>{formatDate(order.created_at)}</span></div>{order.status === 'PENDING_PAYMENT' && order.payment_expires_at && <p className="mt-1 flex items-center gap-1 text-xs font-bold text-warning"><Clock3 size={13} />পেমেন্টের সময় বাকি: {formatCountdown(order.payment_expires_at)}</p>}</div><Link to={`/orders/${order.id}`} className="shrink-0 rounded-xl border border-brand-500 px-3 py-2 text-center text-sm font-bold text-brand-700 hover:bg-brand-50">বিস্তারিত দেখুন</Link></div>
 
               {isExpanded && <div className="border-t border-outline bg-bg/50 p-3 sm:p-4"><div className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink-600"><span>অর্ডার নম্বর: <strong className="text-ink-900">{readableOrderNumber}</strong></span><Link to={`/orders/${order.id}`} className="font-semibold text-brand-700 hover:underline">পুরো পেজ খুলুন →</Link></div>{order.delivery_email && <p className="mt-3 border border-brand-200 bg-brand-50 p-3 text-sm text-ink-700"><strong className="text-ink-900">ডেলিভারি ইমেইল:</strong> {order.delivery_email}</p>}{delivery && <div className={`mt-3 flex items-start gap-2 border p-3 text-sm ${delivery.status === 'READY' ? 'border-brand-200 bg-brand-50 text-brand-800' : 'border-outline bg-surface text-ink-700'}`}><ShieldCheck size={17} className="mt-0.5 shrink-0" /><div><p className="font-semibold">{delivery.status === 'READY' ? 'ডিজিটাল ডেলিভারি প্রস্তুত' : delivery.status === 'PENDING' ? (autoDeliveryEnabled ? 'অটো ডেলিভারি প্রস্তুত হচ্ছে' : 'ম্যানুয়াল ডেলিভারি অপেক্ষমান') : 'ডেলিভারি প্রত্যাহার করা হয়েছে'}</p>{tab === 'buying' && delivery.status === 'READY' && delivery.delivery_text && <p className="mt-1 max-h-44 overflow-y-auto break-words whitespace-pre-wrap text-sm">{delivery.delivery_text}</p>}</div></div>}{order.dispute_status && <Link to={disputeIdByOrder.has(order.id) ? `/disputes/${disputeIdByOrder.get(order.id)}` : '#'} className="mt-3 block border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning">{openDispute ? 'অভিযোগ পর্যালোচনাধীন — বিস্তারিত দেখতে চাপুন' : order.dispute_status === 'RESOLVED_REFUNDED' ? 'সমাধান হয়েছে — টাকা ফেরত দেওয়া হয়েছে' : 'সমাধান হয়েছে — অর্থ ফেরত প্রযোজ্য নয়'}</Link>}
 
@@ -161,4 +167,13 @@ export default function Orders() {
 function ActionButton({ label, variant, loading, onClick }: { label: string; variant: 'primary' | 'outline' | 'danger'; loading?: boolean; onClick: () => void }) {
   const styles = { primary: 'bg-brand-500 text-white hover:bg-brand-600', outline: 'border border-outline text-ink-700 hover:border-brand-500 hover:text-brand-700', danger: 'border border-error/40 text-error hover:bg-error/5' }[variant]
   return <button type="button" onClick={onClick} disabled={loading} className={`rounded-xl px-3 py-2 text-sm font-bold transition disabled:opacity-50 ${styles}`}>{loading ? '...' : label}</button>
+}
+
+function formatCountdown(expiresAt: string) {
+  const remaining = Math.max(0, new Date(expiresAt).getTime() - Date.now())
+  const totalSeconds = Math.floor(remaining / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }

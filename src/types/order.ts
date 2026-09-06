@@ -34,6 +34,8 @@ export interface Order {
   escrow_released_at?: string | null
   refunded_at?: string | null
   created_at: string
+  payment_expires_at?: string | null
+  pending_payment_reminder_sent_at?: string | null
 }
 
 export interface OrderDispute {

@@ -19,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
+    await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }).catch(() => {})
     if (input.action === 'list') {
       const { data: orders, error: ordersError } = await supabase.rpc('buyer_list_orders', { p_user_id: token.uid })
       if (ordersError) throw ordersError

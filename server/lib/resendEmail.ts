@@ -100,3 +100,38 @@ export async function sendWelcomeEmail(input: WelcomeEmailInput) {
   if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
   return { skipped: false, id: payload.id ?? null }
 }
+
+export type PendingPaymentReminderInput = {
+  orderId: string
+  to: string
+  productTitle: string
+  amount: number | string
+  expiresAt: string
+  orderLink: string
+}
+
+export async function sendPendingPaymentReminderEmail(input: PendingPaymentReminderInput) {
+  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  const email = input.to.trim().toLowerCase()
+  if (!apiKey || !from) return { skipped: true, reason: 'RESEND_NOT_CONFIGURED' as const }
+  if (!email) return { skipped: true, reason: 'NO_EMAIL' as const }
+
+  const productTitle = escapeHtml(input.productTitle || 'BikriKoro product')
+  const orderId = escapeHtml(input.orderId)
+  const amount = escapeHtml(amountLabel(input.amount))
+  const orderLink = escapeHtml(input.orderLink)
+  const expiresAt = escapeHtml(new Date(input.expiresAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' }))
+  const subject = `আপনার পেমেন্ট এখনো বাকি — ${input.productTitle || 'BikriKoro order'}`
+  const html = `<!doctype html><html lang="bn"><body style="font-family:Arial,sans-serif;background:#f7faf9;padding:24px;color:#17231f"><div style="max-width:620px;margin:auto;background:#fff;border:1px solid #dce8e2;border-radius:18px;padding:28px"><h1 style="color:#087f5b;margin:0 0 12px">পেমেন্ট সম্পন্ন করুন</h1><p>আপনার অর্ডারটি এখনো পেমেন্টের অপেক্ষায় আছে। ৩০ মিনিটের সময়সীমার মধ্যে পেমেন্ট না হলে অর্ডারটি স্বয়ংক্রিয়ভাবে বাতিল হবে।</p><div style="background:#fff8e8;border-radius:12px;padding:16px;margin:20px 0"><p style="margin:0 0 8px"><strong>পণ্য:</strong> ${productTitle}</p><p style="margin:0 0 8px"><strong>মোট:</strong> ${amount}</p><p style="margin:0 0 8px"><strong>অর্ডার:</strong> ${orderId}</p><p style="margin:0"><strong>শেষ সময়:</strong> ${expiresAt}</p></div><p><a href="${orderLink}" style="display:inline-block;background:#087f5b;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px">অর্ডার খুলুন ও পেমেন্ট করুন</a></p><p style="color:#66756e;font-size:12px;margin-top:28px">এই emailটি BikriKoro.Com থেকে স্বয়ংক্রিয়ভাবে পাঠানো হয়েছে।</p></div></body></html>`
+  const text = `পেমেন্ট সম্পন্ন করুন\n\nআপনার অর্ডারটি এখনো পেমেন্টের অপেক্ষায় আছে। ৩০ মিনিটের মধ্যে পেমেন্ট না হলে অর্ডারটি স্বয়ংক্রিয়ভাবে বাতিল হবে।\n\nপণ্য: ${input.productTitle}\nমোট: ${amountLabel(input.amount)}\nঅর্ডার: ${input.orderId}\nশেষ সময়: ${new Date(input.expiresAt).toLocaleString('bn-BD')}\n\nঅর্ডার খুলুন: ${input.orderLink}`
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `bikrikoro-pending-payment-${input.orderId}` },
+    body: JSON.stringify({ from, to: [email], subject, html, text }),
+  })
+  const payload = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string }
+  if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
+  return { skipped: false, id: payload.id ?? null }
+}
