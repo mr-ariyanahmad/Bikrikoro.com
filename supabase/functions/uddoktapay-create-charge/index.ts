@@ -21,8 +21,10 @@ import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const UDDOKTAPAY_API_KEY = Deno.env.get("UDDOKTAPAY_API_KEY");
-const UDDOKTAPAY_BASE_URL = Deno.env.get("UDDOKTAPAY_BASE_URL") ?? "https://sandbox.uddoktapay.com";
-const SITE_URL = Deno.env.get("SITE_URL") ?? "http://localhost:5173";
+const UDDOKTAPAY_BASE_URL = (Deno.env.get("UDDOKTAPAY_BASE_URL") ?? "https://sandbox.uddoktapay.com")
+  .replace(/\/+$/, "")
+  .replace(/\/api$/, "");
+const SITE_URL = (Deno.env.get("SITE_URL") ?? "https://bikrikoro.com").replace(/\/+$/, "");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -92,7 +94,8 @@ serve(async (req) => {
     });
 
     const chargeData = await chargeResponse.json();
-    if (!chargeResponse.ok || chargeData.status !== "true" || !chargeData.payment_url) {
+    const chargeSucceeded = chargeData.status === true || chargeData.status === "true";
+    if (!chargeResponse.ok || !chargeSucceeded || !chargeData.payment_url) {
       return json({ error: "UddoktaPay charge creation failed", details: chargeData }, 502);
     }
 
