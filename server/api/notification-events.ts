@@ -96,7 +96,7 @@ async function sendOrderEmailIfNeeded(
   const recipientEmail = recipient.email?.trim()
   if (!recipientEmail) return { status: 'SKIPPED' as const, reason: `${role}_EMAIL_MISSING` }
 
-  const siteUrl = (process.env.SITE_URL || 'https://bikrikoro.com').replace(/\/$/, '')
+  const siteUrl = (process.env.SITE_URL || 'https://www.bikrikoro.com').replace(/\/$/, '')
   const result = await sendNewOrderEmail({
     orderId: typedOrder.id,
     role,

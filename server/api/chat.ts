@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const sender = (profiles ?? []).find((profile) => profile.id === token.uid)
           const recipient = (profiles ?? []).find((profile) => profile.id === recipientId)
           if (!recipient?.email) return
-          await sendChatMessageEmail({ messageId: String(data), to: recipient.email, recipientName: recipient.name ?? 'প্রিয় ব্যবহারকারী', senderName: sender?.name ?? 'BikriKoro user', message: text, threadLink: `https://bikrikoro.com/chat/${threadId}` })
+          await sendChatMessageEmail({ messageId: String(data), to: recipient.email, recipientName: recipient.name ?? 'প্রিয় ব্যবহারকারী', senderName: sender?.name ?? 'BikriKoro user', message: text, threadLink: `https://www.bikrikoro.com/chat/${threadId}` })
         } catch (emailError) {
           console.error('Chat email delivery failed:', emailError)
         }

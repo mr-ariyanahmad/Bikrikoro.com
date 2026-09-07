@@ -15,7 +15,7 @@ function publicSiteUrl(req: VercelRequest) {
   const rawHost = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host
   const host = rawHost?.split(',')[0]?.trim().toLowerCase()
   if (host === 'bikrikoro.com' || host === 'www.bikrikoro.com') return 'https://www.bikrikoro.com'
-  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com').replace(/\/+$/, '')
+  return (process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://www.bikrikoro.com').replace(/\/+$/, '')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

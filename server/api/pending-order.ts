@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const buyer = (profiles ?? []).find((profile) => profile.id === createdOrder.buyer_id)
         const seller = (profiles ?? []).find((profile) => profile.id === createdOrder.seller_id)
         const amount = Number(createdOrder.price) + Number(createdOrder.escrow_fee)
-        const orderLink = `https://bikrikoro.com/orders/${orderId}`
+        const orderLink = `https://www.bikrikoro.com/orders/${orderId}`
         const emailTasks = []
         if (!onlinePayment && seller?.email) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'SELLER', to: seller.email, productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller.name ?? 'Seller', orderLink }))
         if (!onlinePayment && (createdOrder.delivery_email || buyer?.email)) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'CUSTOMER', to: createdOrder.delivery_email || buyer?.email || '', productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller?.name ?? 'Seller', orderLink }))
@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               productTitle: reminderOrder.product_title,
               amount: Number(reminderOrder.price) + Number(reminderOrder.escrow_fee),
               expiresAt: reminderOrder.payment_expires_at,
-              orderLink: `https://bikrikoro.com/orders/${orderId}`,
+              orderLink: `https://www.bikrikoro.com/orders/${orderId}`,
             }).then((result) => {
               if (!result.skipped) return supabase.from('orders').update({ pending_payment_reminder_sent_at: new Date().toISOString() }).eq('id', orderId)
               return null

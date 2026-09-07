@@ -34,7 +34,7 @@ export async function getFirebaseApp(): Promise<FirebaseApp> {
 }
 
 export function getPublicPushAssets() {
-  const siteUrl = (process.env.SITE_URL || 'https://bikrikoro.com').replace(/\/$/, '')
+  const siteUrl = (process.env.SITE_URL || 'https://www.bikrikoro.com').replace(/\/$/, '')
   return {
     icon: `${siteUrl}/icon-192.png`,
     badge: `${siteUrl}/notification-badge-v2.png`,

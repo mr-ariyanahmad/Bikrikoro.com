@@ -14,6 +14,7 @@ import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recom
 import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
 import { shopUrl } from '@/lib/shopProfile'
 import { publicCacheKey, readCachedValue, writeCachedValue } from '@/lib/clientCache'
+import { SITE_URL } from '@/lib/site'
 
 type SortOption = 'newest' | 'oldest' | 'price_asc' | 'price_desc' | 'popular' | 'discount'
 type ConditionFilter = 'all' | 'NEW' | 'USED'
@@ -190,7 +191,7 @@ export default function Products() {
       <Helmet>
         <title>ডিজিটাল পণ্য ব্রাউজ করুন | BikriKoro.Com</title>
         <meta name="description" content="বাংলাদেশের নিরাপদ digital key, file, access এবং service marketplace।" />
-        <link rel="canonical" href="https://bikrikoro.com/products" />
+        <link rel="canonical" href={`${SITE_URL}/products`} />
       </Helmet>
 
       <div className="mb-4 hidden rounded-2xl border border-brand-100 bg-surface p-2.5 shadow-[0_8px_22px_rgba(15,23,42,0.05)] sm:mb-5 sm:flex sm:items-center sm:gap-3 sm:p-3">

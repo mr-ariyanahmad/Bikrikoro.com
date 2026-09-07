@@ -53,7 +53,7 @@ export default function BlogPost() {
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       {post.cover_image_url && <meta property="og:image" content={post.cover_image_url} />}
-      <meta property="og:url" content={`https://bikrikoro.com/blog/${post.slug}`} />
+      <meta property="og:url" content={`${SITE_URL}/blog/${post.slug}`} />
       <script type="application/ld+json">{JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'Article',
@@ -68,7 +68,7 @@ export default function BlogPost() {
       })}</script>
     </Helmet>
     <article className="mx-auto max-w-3xl">
-      {post.cover_image_url && <img src={post.cover_image_url} alt="" className="mt-5 aspect-[16/9] w-full object-cover" />}
+      {post.cover_image_url && <img src={post.cover_image_url} alt={`${post.title} — BikriKoro`} className="mt-5 aspect-[16/9] w-full object-cover" />}
       <p className="mt-6 text-sm font-semibold text-brand-700">BikriKoro গাইড</p>
       <h1 className="mt-2 text-2xl font-bold leading-9 text-ink-900 sm:text-3xl">{post.title}</h1>
       <p className="mt-3 text-base leading-7 text-ink-600">{post.excerpt}</p>
