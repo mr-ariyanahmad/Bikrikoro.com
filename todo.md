@@ -234,4 +234,4 @@
 
 - [x] Diagnose Vercel production deployment failure for commit 9f49709 and identify the exact build error
 - [x] Apply the minimal deployment-safe correction without changing marketplace behavior
-- [ ] Re-run production validation and push the deployment fix
+- [x] Re-run production validation and push the deployment fix
