@@ -236,6 +236,6 @@
 - [x] Apply the minimal deployment-safe correction without changing marketplace behavior
 - [x] Re-run production validation and push the deployment fix
 
-- [ ] Audit Facebook/share-link URL generation for the malformed `bikkrikoro.com` host
-- [ ] Enforce the official `www.bikrikoro.com` canonical host for generated links and safe host redirects
-- [ ] Validate product, seller, homepage, and Facebook share URLs and push the domain correction
+- [x] Audit Facebook/share-link URL generation for the malformed `bikkrikoro.com` host
+- [x] Enforce the official `www.bikrikoro.com` canonical host for generated links and safe host redirects
+- [x] Validate product, seller, homepage, and Facebook share URLs and push the domain correction
