@@ -221,3 +221,4 @@
 - [ ] Send pending-payment, seller-new-order, buyer/seller chat, and new-account welcome emails through the existing email infrastructure
 - [ ] Use the real BikriKoro logo in branded invoice output
 - [ ] Fix Admin Community Links `Unsupported admin operation` RPC regression so WhatsApp/Facebook links can be managed
+- [ ] Replace Community Links image URL input with direct admin image upload and render uploaded assets publicly
