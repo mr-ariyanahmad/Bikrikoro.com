@@ -220,3 +220,4 @@
 - [ ] Show short BKCOM order numbers in transactional emails while keeping secure links intact
 - [ ] Send pending-payment, seller-new-order, buyer/seller chat, and new-account welcome emails through the existing email infrastructure
 - [ ] Use the real BikriKoro logo in branded invoice output
+- [ ] Fix Admin Community Links `Unsupported admin operation` RPC regression so WhatsApp/Facebook links can be managed
