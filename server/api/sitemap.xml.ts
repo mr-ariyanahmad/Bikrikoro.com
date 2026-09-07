@@ -16,6 +16,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
+function escapeXml(value: unknown) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+}
+
+function canonicalSiteUrl() {
+  return 'https://www.bikrikoro.com'
+}
+
 type BlogSitemapRow = { slug?: string | null; published_at?: string | null; updated_at?: string | null }
 type SellerSitemapRow = { shop_username?: string | null; updated_at?: string | null; created_at?: string | null }
 
@@ -23,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
 
-  const site = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://bikrikoro.com'
+  const site = canonicalSiteUrl()
   const staticUrls = [
     { loc: `${site}/`, priority: '1.0', changefreq: 'daily' },
     { loc: `${site}/products`, priority: '0.9', changefreq: 'hourly' },
@@ -39,14 +47,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (supabaseUrl && supabaseAnonKey) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const [{ data: products }, { data: blogs }, { data: sellers }] = await Promise.all([
-      supabase.from('public_products').select('id, created_at').order('created_at', { ascending: false }).limit(5000),
+      supabase.from('public_products').select('id, created_at, updated_at').order('created_at', { ascending: false }).limit(5000),
       supabase.rpc('get_published_content', { p_content_type: 'BLOG', p_slug: null }),
       supabase.from('profiles').select('shop_username, updated_at, created_at').not('shop_username', 'is', null).eq('is_blocked', false).limit(5000),
     ])
 
     productUrls = (products ?? []).map((p) => ({
       loc: `${site}/products/${p.id}`,
-      lastmod: new Date(p.created_at).toISOString().split('T')[0],
+      lastmod: new Date(p.updated_at || p.created_at).toISOString().split('T')[0],
     }))
     blogUrls = (blogs as BlogSitemapRow[] | null ?? []).flatMap((post: BlogSitemapRow) => {
       const slug = post.slug?.trim()
@@ -62,12 +70,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
+  const allUrls = [...staticUrls, ...productUrls.map((u) => ({ ...u, changefreq: 'weekly', priority: '0.7' })), ...blogUrls.map((u) => ({ ...u, changefreq: 'monthly', priority: '0.7' })), ...sellerUrls.map((u) => ({ ...u, changefreq: 'weekly', priority: '0.8' }))]
+  const seen = new Set<string>()
+  const uniqueUrls = allUrls.filter((entry) => {
+    const key = entry.loc.split('#')[0]
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${staticUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join('\n')}
-${productUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n')}
-${blogUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>`).join('\n')}
-${sellerUrls.map((u) => `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`).join('\n')}
+${uniqueUrls.map((u) => `  <url>\n    <loc>${escapeXml(u.loc)}</loc>${'lastmod' in u && u.lastmod ? `\n    <lastmod>${escapeXml(u.lastmod)}</lastmod>` : ''}\n    <changefreq>${escapeXml(u.changefreq)}</changefreq>\n    <priority>${escapeXml(u.priority)}</priority>\n  </url>`).join('\n')}
 </urlset>`
 
   res.setHeader('Content-Type', 'application/xml')

@@ -38,8 +38,10 @@ const SettingsHub = lazy(() => import('@/pages/SettingsHub'))
 const PublicContentPage = lazy(() => import('@/pages/PublicContentPage'))
 const Blog = lazy(() => import('@/pages/Blog'))
 const BlogPost = lazy(() => import('@/pages/BlogPost'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
 import { FirstVisitSplash } from '@/components/FirstVisitSplash'
 import { SiteMeta } from '@/components/SiteMeta'
+import { Seo } from '@/components/Seo'
 import { ConfigurationNotice } from '@/components/ConfigurationNotice'
 import { BrandLoader } from '@/components/BrandLoader'
 
@@ -514,7 +516,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   )
@@ -527,6 +529,7 @@ function AppContent() {
 
   return (
     <>
+      <Seo />
       <SiteMeta />
       <ConfigurationNotice />
       {isAuthRoute || isSharedPublicRoute ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}

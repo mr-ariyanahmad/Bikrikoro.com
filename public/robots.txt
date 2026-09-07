@@ -1,15 +1,31 @@
 User-agent: *
 Allow: /
-Disallow: /orders
-Disallow: /orders/*
-Disallow: /disputes/*
+
+# Private account, admin, seller-management, messaging, and payment routes
+Disallow: /account
+Disallow: /admin
 Disallow: /chat
 Disallow: /chat/*
-Disallow: /wallet
+Disallow: /disputes
+Disallow: /disputes/*
+Disallow: /favorites
+Disallow: /forgot-password
+Disallow: /library
+Disallow: /login
+Disallow: /my-listings
+Disallow: /notifications
+Disallow: /orders
+Disallow: /orders/*
+Disallow: /preview
+Disallow: /rewards
+Disallow: /saved-searches
 Disallow: /sell
 Disallow: /sell/*
-Disallow: /my-listings
+Disallow: /seller/dashboard
+Disallow: /settings
+Disallow: /wallet
 Disallow: /become-seller/verify
-Disallow: /login
+Disallow: /api/
 
-Sitemap: https://bikrikoro.com/sitemap.xml
+# Keep /products, /seller, /blog, /about, /contact, and policy pages crawlable.
+Sitemap: https://www.bikrikoro.com/sitemap.xml

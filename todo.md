@@ -221,4 +221,13 @@
 - [ ] Send pending-payment, seller-new-order, buyer/seller chat, and new-account welcome emails through the existing email infrastructure
 - [ ] Use the real BikriKoro logo in branded invoice output
 - [ ] Fix Admin Community Links `Unsupported admin operation` RPC regression so WhatsApp/Facebook links can be managed
-- [ ] Replace Community Links image URL input with direct admin image upload and render uploaded assets publicly
+- [x] Replace Community Links image URL input with direct admin image upload and render uploaded assets publicly
+
+- [x] Audit BikriKoro technical SEO, crawling, metadata, canonical URLs, social previews, structured data, and public-route indexing behavior
+- [x] Add centralized branded SEO metadata with Organization, WebSite, BreadcrumbList, and route-aware robots directives
+- [x] Improve homepage brand metadata, SearchAction, canonical host, and official BikriKoro positioning
+- [x] Harden robots.txt and dynamic sitemap.xml for canonical www URLs, escaped XML, deduplicated URLs, and updated public content timestamps
+- [x] Complete public trust/education-page Open Graph, Twitter, canonical, and image alt metadata
+- [x] Normalize client-generated production URLs to the official www BikriKoro host
+- [x] Replace wildcard homepage redirect with a dedicated noindex 404 page for broken links
+- [ ] Validate deployed canonical, robots, sitemap, social previews, and Google Search Console coverage after production release
