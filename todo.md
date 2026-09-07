@@ -231,3 +231,7 @@
 - [x] Normalize client-generated production URLs to the official www BikriKoro host
 - [x] Replace wildcard homepage redirect with a dedicated noindex 404 page for broken links
 - [ ] Validate deployed canonical, robots, sitemap, social previews, and Google Search Console coverage after production release
+
+- [x] Diagnose Vercel production deployment failure for commit 9f49709 and identify the exact build error
+- [x] Apply the minimal deployment-safe correction without changing marketplace behavior
+- [ ] Re-run production validation and push the deployment fix

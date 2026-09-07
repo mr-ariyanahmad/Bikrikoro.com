@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from '@/context/AuthContext'
