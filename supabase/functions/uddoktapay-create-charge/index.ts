@@ -92,6 +92,7 @@ serve(async (req) => {
         amount: totalAmount.toString(),
         metadata: { order_id: order.id },
         redirect_url: redirectUrl,
+        return_type: "GET",
         cancel_url: cancelUrl,
         webhook_url: `${SUPABASE_URL}/functions/v1/uddoktapay-webhook`,
       }),
