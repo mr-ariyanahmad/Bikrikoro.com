@@ -118,8 +118,9 @@ serve(async (req) => {
     return new Response("ok", { status: 200 });
   }
 
-  // Idempotent: only flips orders that are still actually awaiting payment,
-  // so a duplicate COMPLETED webhook delivery is a no-op.
+  // Idempotent: only flips orders that are still awaiting payment. The provider
+  // verification above is authoritative, so a delayed webhook is not rejected
+  // merely because the local 30-minute browser deadline has passed.
   const { data: transitionedOrder, error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
@@ -129,7 +130,6 @@ serve(async (req) => {
     })
     .eq("id", orderId)
     .eq("status", "PENDING_PAYMENT")
-    .gt("payment_expires_at", new Date().toISOString())
     .select("id")
     .maybeSingle();
 
