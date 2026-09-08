@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!orderId || !invoiceId) throw new Error('Order ID and invoice ID are required')
     const supabase = getServiceSupabase()
     const { data: order, error: orderError } = await supabase
-      .from('orders').select('id, buyer_id, status').eq('id', orderId).maybeSingle()
+      .from('orders').select('id, buyer_id, seller_id, status, order_number, product_title, subtotal, price, discount_amount, coupon_code, coupon_funding_source, escrow_fee, delivery_email').eq('id', orderId).maybeSingle()
     if (orderError) throw orderError
     if (!order || String(order.buyer_id) !== token.uid) {
       res.status(404).json({ error: 'Order not found' })
@@ -55,6 +55,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: new Date().toISOString(),
       }).eq('id', orderId).eq('buyer_id', token.uid).eq('status', 'PENDING_PAYMENT')
       if (updateError) throw updateError
+      const email = process.env.RESEND_API_KEY
+      const from = process.env.RESEND_FROM_EMAIL
+      const recipient = order.delivery_email
+      if (email && from && recipient) {
+        const discount = Number(order.discount_amount ?? 0)
+        const couponLine = discount > 0 ? `<p><strong>Coupon (${order.coupon_code ?? ''}):</strong> -৳${discount.toFixed(2)} (${order.coupon_funding_source === 'SELLER' ? 'seller-funded' : 'BikriKoro-funded'})</p>` : ''
+        await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${email}`, 'Content-Type': 'application/json', 'Idempotency-Key': `bikrikoro-invoice-${order.id}` }, body: JSON.stringify({ from, to: [recipient], subject: `Payment invoice — BKCOM${order.order_number ?? order.id.slice(0, 6)}`, html: `<h2>BikriKoro payment invoice</h2><p>Product: ${order.product_title}</p><p>Subtotal: ৳${Number(order.subtotal ?? order.price).toFixed(2)}</p>${couponLine}<p>Product price: ৳${Number(order.price).toFixed(2)}</p><p>Escrow fee: ৳${Number(order.escrow_fee).toFixed(2)}</p><p><strong>Total paid: ৳${(Number(order.price) + Number(order.escrow_fee)).toFixed(2)}</strong></p>` }) })
+      }
     }
     res.status(200).json({ status: paymentStatus === 'COMPLETED' ? 'ESCROW_HELD' : order.status })
   } catch (error) {

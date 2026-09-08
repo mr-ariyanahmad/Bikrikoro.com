@@ -20,6 +20,10 @@ export interface Order {
   product_image: string
   price: number
   quantity: number
+  subtotal?: number | null
+  discount_amount?: number | null
+  coupon_code?: string | null
+  coupon_funding_source?: 'PLATFORM' | 'SELLER' | null
   seller_id: string
   buyer_id: string
   delivery_address: string | null

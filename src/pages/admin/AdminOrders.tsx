@@ -8,7 +8,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { adminRpc } from '@/lib/adminRpc'
 import { supabase } from '@/lib/supabase'
 
-type AdminOrder = { id: string; order_number: number | null; product_title: string; product_image: string; price: number; quantity: number; buyer_id: string; seller_id: string; buyer_name: string; seller_name: string; delivery_address: string; payment_method: string | null; status: string; escrow_fee: number; coupon_code: string | null; discount_amount: number; created_at: string; updated_at?: string }
+type AdminOrder = { id: string; order_number: number | null; product_title: string; product_image: string; price: number; subtotal?: number | null; quantity: number; buyer_id: string; seller_id: string; buyer_name: string; seller_name: string; delivery_address: string; payment_method: string | null; status: string; escrow_fee: number; coupon_code: string | null; discount_amount: number; coupon_funding_source?: 'PLATFORM' | 'SELLER' | null; created_at: string; updated_at?: string }
 const statuses = ['', 'PENDING_PAYMENT', 'ESCROW_HELD', 'DIGITAL_DELIVERED', 'DISPUTED', 'COMPLETED', 'CANCELLED', 'REFUNDED']
 const labels: Record<string, string> = { PENDING_PAYMENT: 'পেমেন্ট বাকি', ESCROW_HELD: 'এসক্রোতে', DIGITAL_DELIVERED: 'ডিজিটাল ডেলিভারি প্রস্তুত', DISPUTED: 'ডিসপিউট পর্যালোচনাধীন', COMPLETED: 'সম্পন্ন', CANCELLED: 'বাতিল', REFUNDED: 'রিফান্ড সম্পন্ন' }
 const displayName = (name?: string | null) => name?.trim() || 'নাম পাওয়া যায়নি'
