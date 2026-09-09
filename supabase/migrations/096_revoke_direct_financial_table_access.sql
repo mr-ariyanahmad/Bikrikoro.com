@@ -22,10 +22,10 @@ alter table public.coupon_redemptions force row level security;
 
 -- Remove any accidental direct execute path for the high-impact wallet functions.
 revoke all on function public.user_wallet_balance(text) from public, anon, authenticated;
-revoke all on function public.user_wallet_ledger(text) from public, anon, authenticated;
+revoke all on function public.user_wallet_ledger(text, integer) from public, anon, authenticated;
 revoke all on function public.request_wallet_withdrawal(text, numeric, text, text) from public, anon, authenticated;
 revoke all on function public.admin_adjust_customer_wallet(text, text, numeric, text) from public, anon, authenticated;
 grant execute on function public.user_wallet_balance(text) to service_role;
-grant execute on function public.user_wallet_ledger(text) to service_role;
+grant execute on function public.user_wallet_ledger(text, integer) to service_role;
 grant execute on function public.request_wallet_withdrawal(text, numeric, text, text) to service_role;
 grant execute on function public.admin_adjust_customer_wallet(text, text, numeric, text) to service_role;
