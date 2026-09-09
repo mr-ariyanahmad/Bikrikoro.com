@@ -21,6 +21,7 @@ type Withdrawal = {
 }
 
 type WithdrawalStatus = 'APPROVED' | 'REJECTED' | 'PAID'
+type LedgerRow = { id: string; user_id: string; user_name: string | null; type: string; amount: number; order_id: string | null; description: string; created_at: string }
 
 const labels: Record<string, string> = {
   PENDING: 'অপেক্ষায়',
@@ -36,12 +37,15 @@ export default function AdminFinance() {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [finance, setFinance] = useState<{ total_wallet_balance: number; wallet_users: number; ledger_entries: number; by_type: Array<{ type: string; entries: number; net_amount: number }>; transactions: LedgerRow[] }>({ total_wallet_balance: 0, wallet_users: 0, ledger_entries: 0, by_type: [], transactions: [] })
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     const { data, error: loadError } = await adminRpc('admin_list_withdrawals_reconciled', { p_admin_id: user?.uid })
+    const { data: financeData } = await adminRpc('admin_get_finance_overview', { p_admin_id: user?.uid })
     setRows((data ?? []) as Withdrawal[])
+    if (financeData) setFinance(financeData as typeof finance)
     if (loadError) setError(formatAdminRpcError(loadError, 'উইথড্রয়াল data', '055 safe withdrawal reservation migration'))
     setLoading(false)
   }, [user?.uid])
@@ -98,6 +102,8 @@ export default function AdminFinance() {
   return (
     <AdminShell>
       <AdminPageHeader title="পেআউট ও উইথড্রয়াল" description="Seller wallet-এর payout request review ও process করুন।" />
+      <div className="mb-5 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-outline bg-surface p-5"><p className="text-sm text-ink-500">সব user wallet balance</p><p className="mt-2 text-2xl font-extrabold text-ink-900">{formatTaka(finance.total_wallet_balance)}</p><p className="mt-1 text-xs text-ink-500">{finance.wallet_users.toLocaleString('bn-BD')}টি wallet</p></div><div className="rounded-2xl border border-outline bg-surface p-5"><p className="text-sm text-ink-500">মোট ledger transaction</p><p className="mt-2 text-2xl font-extrabold text-ink-900">{finance.ledger_entries.toLocaleString('bn-BD')}</p></div><div className="rounded-2xl border border-outline bg-surface p-5"><p className="text-sm text-ink-500">Transaction type</p><p className="mt-2 text-sm font-semibold text-ink-800">{finance.by_type.map((item) => `${item.type}: ${formatTaka(Number(item.net_amount))}`).join(' · ') || '—'}</p></div></div>
+      <AdminTableCard className="mb-5"><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-semibold text-slate-900">সব wallet transaction</h2><p className="mt-1 text-xs text-slate-500">কার wallet-এ কত যোগ/কাটা হয়েছে এবং কোন কারণে হয়েছে।</p></div>{finance.transactions.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">কোনো ledger transaction নেই।</p> : <div className="divide-y divide-slate-100">{finance.transactions.map((item) => <div key={item.id} className="flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold text-slate-800">{item.user_name || item.user_id}</p><p className="text-xs text-slate-500">{item.type} · {item.description || '—'} · {formatDateTime(item.created_at)}</p></div><span className={`font-bold ${Number(item.amount) >= 0 ? 'text-brand-700' : 'text-red-600'}`}>{Number(item.amount) >= 0 ? '+' : ''}{formatTaka(Number(item.amount))}</span></div>)}</div>}</AdminTableCard>
       <AdminTableCard>
         {loading ? <p className="p-10 text-center text-sm text-slate-500">লোড হচ্ছে...</p> : rows.length === 0 ? <p className="p-10 text-center text-sm text-slate-500">কোনো payout request নেই।</p> : (
           <div className="divide-y divide-slate-100">

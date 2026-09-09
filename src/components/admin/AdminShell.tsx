@@ -1,10 +1,11 @@
-import { useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { Activity, AlertTriangle, Bell, BookOpen, CircleHelp, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, Link2, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { permissionForAdminPath } from '@/lib/adminPermissions'
 import { BackButton } from '@/components/BackButton'
+import { adminRpc } from '@/lib/adminRpc'
 
 type AdminIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 type AdminLink = { to: string; label: string; icon: AdminIcon; badge?: string }
@@ -64,6 +65,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const { isAdmin, can, roleLabel } = useIsAdmin()
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [counts, setCounts] = useState({ pending: 0, disputes: 0, sellers: 0, chats: 0, notifications: 0 })
+  useEffect(() => { let active = true; void adminRpc('admin_get_dashboard_overview').then(({ data }) => { if (!active || !data) return; const overview = data as Record<string, unknown>; setCounts({ pending: Number(overview.pending ?? 0), disputes: Number(overview.disputes ?? 0), sellers: Number(overview.sellers ?? 0), chats: Number(overview.unread_chats ?? 0), notifications: Number(overview.unread_notifications ?? 0) }) }); return () => { active = false } }, [])
+  const badgeFor = (path: string) => path === '/admin/orders' ? counts.pending : path === '/admin/disputes' ? counts.disputes : path === '/admin/sellers' ? counts.sellers : path === '/admin/support' ? counts.chats : path === '/admin/notifications' ? counts.notifications : 0
 
   return (
     <div className="admin-theme min-h-screen bg-bg text-ink-900">
@@ -83,8 +88,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
               if (visibleLinks.length === 0) return null
               return (
               <div key={group.label} className="mb-6">
-                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-white/45">{group.label}</p>
-                <div className="space-y-1">
+                <button type="button" onClick={() => setCollapsed((current) => ({ ...current, [group.label]: !current[group.label] }))} className="mb-2 flex w-full items-center justify-between px-3 text-left text-[10px] font-bold uppercase tracking-[0.22em] text-white/45"><span>{group.label}</span><span>{collapsed[group.label] ? '+' : '−'}</span></button>
+                {!collapsed[group.label] && <div className="space-y-1">
                   {visibleLinks.map((link) => (
                     <NavLink
                       key={link.to}
@@ -95,10 +100,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
                     >
                       <span className="flex h-6 w-6 items-center justify-center"><link.icon size={17} strokeWidth={1.8} /></span>
                       <span className="flex-1">{link.label}</span>
-                      {link.badge && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px]">{link.badge}</span>}
+                      {badgeFor(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">{badgeFor(link.to) > 99 ? '99+' : badgeFor(link.to)}</span>}
                     </NavLink>
                   ))}
-                </div>
+                </div>}
               </div>
               )
             })}

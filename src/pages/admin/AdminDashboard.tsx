@@ -19,7 +19,7 @@ const statusLabel: Record<string, string> = {
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ orders: 0, customers: 0, products: 0, pending: 0, disputes: 0, sellers: 0, revenue: 0 })
+  const [stats, setStats] = useState({ orders: 0, customers: 0, products: 0, pending: 0, disputes: 0, sellers: 0, revenue: 0, total_wallet_balance: 0, wallet_users: 0, unread_chats: 0, unread_notifications: 0, ledger_entries: 0 })
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -30,8 +30,8 @@ export default function AdminDashboard() {
         const { data, error: loadError } = await adminRpc('admin_get_dashboard_overview')
         if (loadError) throw loadError
         if (!active) return
-        const overview = (data ?? {}) as { orders?: number; customers?: number; products?: number; pending?: number; disputes?: number; sellers?: number; revenue?: number; recent_orders?: RecentOrder[] }
-        setStats({ orders: Number(overview.orders ?? 0), customers: Number(overview.customers ?? 0), products: Number(overview.products ?? 0), pending: Number(overview.pending ?? 0), disputes: Number(overview.disputes ?? 0), sellers: Number(overview.sellers ?? 0), revenue: Number(overview.revenue ?? 0) })
+        const overview = (data ?? {}) as { orders?: number; customers?: number; products?: number; pending?: number; disputes?: number; sellers?: number; revenue?: number; total_wallet_balance?: number; wallet_users?: number; unread_chats?: number; unread_notifications?: number; ledger_entries?: number; recent_orders?: RecentOrder[] }
+        setStats({ orders: Number(overview.orders ?? 0), customers: Number(overview.customers ?? 0), products: Number(overview.products ?? 0), pending: Number(overview.pending ?? 0), disputes: Number(overview.disputes ?? 0), sellers: Number(overview.sellers ?? 0), revenue: Number(overview.revenue ?? 0), total_wallet_balance: Number(overview.total_wallet_balance ?? 0), wallet_users: Number(overview.wallet_users ?? 0), unread_chats: Number(overview.unread_chats ?? 0), unread_notifications: Number(overview.unread_notifications ?? 0), ledger_entries: Number(overview.ledger_entries ?? 0) })
         setRecentOrders(overview.recent_orders ?? [])
       } catch (loadError) {
         console.error('Admin dashboard load failed:', loadError)
@@ -54,6 +54,8 @@ export default function AdminDashboard() {
         <AdminStatCard label="মোট রেভিনিউ" value={loading ? '—' : formatTaka(stats.revenue)} helper="পেমেন্টেড অর্ডার" tone="green" />
         <AdminStatCard label="কাস্টমার" value={loading ? '—' : stats.customers.toLocaleString('bn-BD')} helper="রেজিস্টার্ড প্রোফাইল" tone="amber" />
         <AdminStatCard label="প্রোডাক্ট" value={loading ? '—' : stats.products.toLocaleString('bn-BD')} helper="ক্যাটালগে প্রকাশিত" tone="green" />
+        <AdminStatCard label="সব user wallet" value={loading ? '—' : formatTaka(stats.total_wallet_balance)} helper={`${stats.wallet_users.toLocaleString('bn-BD')}টি wallet`} tone="blue" />
+        <AdminStatCard label="অপঠিত চ্যাট" value={loading ? '—' : stats.unread_chats.toLocaleString('bn-BD')} helper="সব thread মিলিয়ে" tone="amber" />
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
