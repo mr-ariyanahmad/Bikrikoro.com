@@ -1,6 +1,7 @@
 import type { Product } from '@/types/product'
 
 const STORAGE_KEY = 'bikrikoro:category-interest:v1'
+const PROFILE_CATEGORY_KEY = 'bikrikoro:profile-category:v1'
 const MAX_CATEGORIES = 12
 const MAX_SCORE = 40
 const INTEREST_HALF_LIFE_MS = 21 * 24 * 60 * 60 * 1000
@@ -72,7 +73,13 @@ export function getCategoryInterestScores() {
 }
 
 export function getPreferredCategoryIds() {
-  return Object.keys(getCategoryInterestScores())
+  const ids = Object.keys(getCategoryInterestScores())
+  try {
+    const preferred = window.localStorage.getItem(PROFILE_CATEGORY_KEY)
+    return preferred ? [preferred, ...ids.filter((id) => id !== preferred)] : ids
+  } catch {
+    return ids
+  }
 }
 
 export function isTestDemoProduct(product: Pick<Product, 'title'>) {

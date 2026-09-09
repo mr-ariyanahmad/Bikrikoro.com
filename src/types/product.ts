@@ -81,6 +81,11 @@ export interface Profile {
   phone: string | null
   email: string | null
   photo_url: string | null
+  username?: string | null
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' | null
+  date_of_birth?: string | null
+  bio?: string | null
+  preferred_category_id?: string | null
   shop_name?: string | null
   shop_description?: string | null
   shop_username?: string | null
