@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider } from '@/context/AuthContext'
@@ -75,6 +75,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/preview/startup-recovery" element={<StartupAnimationPreview />} />
       <Route path="/" element={<Home />} />
+      <Route path="/becom-seller" element={<Navigate to="/become-seller" replace />} />
       <Route path="/products" element={<Products />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/products/:id" element={<ProductDetail />} />
