@@ -7,6 +7,7 @@ import { useIsSeller } from '@/hooks/useIsSeller'
 import { SearchBar } from '@/components/SearchBar'
 import { BackButton } from '@/components/BackButton'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
+import { chatRequest } from '@/lib/chat'
 import { supabase } from '@/lib/supabase'
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
@@ -42,6 +43,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const [cityOpen, setCityOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [chatUnreadCount, setChatUnreadCount] = useState(0)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
   const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading
     ? { to: '/become-seller', label: '...', icon: Store, prominent: true }
@@ -65,6 +67,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
+  const badgeForPath = (path: string) => path === '/chat' ? chatUnreadCount : path === '/notifications' ? unreadCount : 0
 
   useEffect(() => {
     if (!user) {
@@ -101,6 +104,22 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     }
   }, [fullScreen])
 
+  useEffect(() => {
+    if (!user) { setChatUnreadCount(0); return }
+    let active = true
+    const loadChatUnread = async () => {
+      try {
+        const result = await chatRequest<{ threads?: Array<{ buyer_id: string; seller_id: string; buyer_unread_count: number; seller_unread_count: number }> }>({ action: 'list' })
+        const total = (result.threads ?? []).reduce((sum, thread) => sum + Number(thread.buyer_id === user.uid ? thread.buyer_unread_count : thread.seller_unread_count), 0)
+        if (active) setChatUnreadCount(total)
+      } catch { /* keep the last known badge value */ }
+    }
+    void loadChatUnread()
+    const poller = window.setInterval(() => { void loadChatUnread() }, 12000)
+    const channel = supabase.channel(`header-chat-${user.uid}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => { void loadChatUnread() }).subscribe()
+    return () => { active = false; window.clearInterval(poller); void supabase.removeChannel(channel) }
+  }, [user])
+
   return (
     <div className={`site-minimal bg-bg text-ink-900 ${fullScreen ? 'flex h-[100dvh] min-h-0 flex-col overflow-hidden' : 'min-h-screen'}`}>
       <header className={`sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur ${fullScreen ? 'shrink-0' : ''}`}>
@@ -124,7 +143,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
               </div>
               {user ? <div className="relative hidden md:block">
                 <button type="button" onClick={toggleAccountMenu} className="inline-flex items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={accountOpen} aria-haspopup="menu"><UserRound size={16} />অ্যাকাউন্ট<ChevronDown size={14} className={accountOpen ? 'rotate-180 transition' : 'transition'} /></button>
-                {accountOpen && <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{ACCOUNT_LINKS.map((link) => <Link key={link.to} to={link.to} role="menuitem" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"><link.icon size={16} /><span className="min-w-0 flex-1">{link.label}</span>{link.to === '/notifications' && unreadCount > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link>)}<div className="my-1 h-px bg-outline" /><button type="button" onClick={() => { setAccountOpen(false); void logout() }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" role="menuitem"><LogOut size={16} />লগআউট</button></div>}
+                {accountOpen && <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{ACCOUNT_LINKS.map((link) => <Link key={link.to} to={link.to} role="menuitem" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"><link.icon size={16} /><span className="min-w-0 flex-1">{link.label}</span>{badgeForPath(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</Link>)}<div className="my-1 h-px bg-outline" /><button type="button" onClick={() => { setAccountOpen(false); void logout() }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" role="menuitem"><LogOut size={16} />লগআউট</button></div>}
               </div> : <Link to="/login" className="rounded-xl bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 sm:px-4">লগইন</Link>}
               <button type="button" onClick={toggleMobileMenu} className="rounded-xl border border-outline p-2 text-ink-700 hover:border-brand-300 hover:text-brand-700 md:hidden" aria-label={menuOpen ? 'মেনু বন্ধ করুন' : 'মেনু খুলুন'} aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
             </div>
@@ -135,7 +154,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
             <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />সেটিংস ও সহায়তা</Link><div className="relative"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} /></button></div><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div>
           </nav>
 
-          {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={closeMobileMenu} />)}</div><div className="relative mt-3"><button type="button" onClick={() => setCityOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border border-outline bg-bg px-3 py-2.5 text-sm font-semibold text-ink-700"><span className="inline-flex items-center gap-2"><MapPin size={16} className="text-brand-600" />এলাকা: খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl border border-outline bg-bg p-1">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={closeMobileMenu} className="rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700">{city}</Link>)}</div>}</div><div className="my-3 h-px bg-outline" />{user ? <div className="grid grid-cols-2 gap-1.5">{ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} badge={link.to === '/notifications' ? unreadCount : undefined} onClose={closeMobileMenu} />)}<button type="button" onClick={() => { closeMobileMenu(); void logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button></div> : <Link to="/login" onClick={closeMobileMenu} className="rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}</nav>}
+          {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={closeMobileMenu} />)}</div><div className="relative mt-3"><button type="button" onClick={() => setCityOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border border-outline bg-bg px-3 py-2.5 text-sm font-semibold text-ink-700"><span className="inline-flex items-center gap-2"><MapPin size={16} className="text-brand-600" />এলাকা: খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl border border-outline bg-bg p-1">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={closeMobileMenu} className="rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700">{city}</Link>)}</div>}</div><div className="my-3 h-px bg-outline" />{user ? <div className="grid grid-cols-2 gap-1.5">{ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} badge={badgeForPath(link.to)} onClose={closeMobileMenu} />)}<button type="button" onClick={() => { closeMobileMenu(); void logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button></div> : <Link to="/login" onClick={closeMobileMenu} className="rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}</nav>}
         </div>
       </header>
       <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 pb-28 pt-7 sm:px-5 sm:pt-8 md:py-8`}>{children}</main>
@@ -145,7 +164,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
           <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">সেটিংস ও সহায়তা</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
         </div>
       </footer>}
-      {!fullScreen && !hideMobileQuickNav && <nav aria-label="মোবাইল কুইক নেভিগেশন" className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.7rem)] z-50 rounded-[1.45rem] border border-slate-200 bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] md:hidden"><div className="mx-auto grid max-w-xl grid-cols-5 items-end px-1.5 py-2">{mobileQuickLinks.map((link) => <NavLink key={link.label} to={link.to} end={link.to === '/'} onClick={closeMobileMenu}>{({ isActive }) => <span className={`relative flex min-h-[3.65rem] min-w-0 flex-col items-center justify-end gap-1 rounded-2xl px-1 pb-1 text-[10px] font-bold tracking-[-0.01em] transition duration-200 active:scale-[0.97] ${link.prominent ? isActive ? 'text-[#0b694f]' : 'text-[#147a5b]' : isActive ? 'text-[#0b694f]' : 'text-slate-600'}`}><span className={`flex items-center justify-center transition duration-200 ${link.prominent ? `-mt-8 h-14 w-14 rounded-[1.1rem] border-[3px] border-white text-white shadow-[0_9px_18px_rgba(11,105,79,0.30)] ${isActive ? 'bg-[#0b694f] ring-2 ring-[#c5eadc] ring-offset-2 ring-offset-white' : 'bg-[#179D72]'}` : isActive ? '-mt-1 h-10 w-10 rounded-[0.9rem] bg-[#0b694f] text-white shadow-[0_7px_15px_rgba(11,105,79,0.22)] ring-2 ring-white' : 'h-9 w-9 rounded-[0.75rem] text-slate-700'}`}><link.icon size={link.prominent ? 24 : 21} strokeWidth={link.prominent ? 2.25 : 1.9} /></span><span className={`max-w-full truncate leading-4 ${isActive ? 'font-extrabold' : ''}`}>{link.label}</span></span>}</NavLink>)}</div></nav>}
+      {!fullScreen && !hideMobileQuickNav && <nav aria-label="মোবাইল কুইক নেভিগেশন" className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.7rem)] z-50 rounded-[1.45rem] border border-slate-200 bg-white shadow-[0_12px_28px_rgba(15,23,42,0.16)] md:hidden"><div className="mx-auto grid max-w-xl grid-cols-5 items-end px-1.5 py-2">{mobileQuickLinks.map((link) => <NavLink key={link.label} to={link.to} end={link.to === '/'} onClick={closeMobileMenu}>{({ isActive }) => <span className={`relative flex min-h-[3.65rem] min-w-0 flex-col items-center justify-end gap-1 rounded-2xl px-1 pb-1 text-[10px] font-bold tracking-[-0.01em] transition duration-200 active:scale-[0.97] ${link.prominent ? isActive ? 'text-[#0b694f]' : 'text-[#147a5b]' : isActive ? 'text-[#0b694f]' : 'text-slate-600'}`}><span className={`flex items-center justify-center transition duration-200 ${link.prominent ? `-mt-8 h-14 w-14 rounded-[1.1rem] border-[3px] border-white text-white shadow-[0_9px_18px_rgba(11,105,79,0.30)] ${isActive ? 'bg-[#0b694f] ring-2 ring-[#c5eadc] ring-offset-2 ring-offset-white' : 'bg-[#179D72]'}` : isActive ? '-mt-1 h-10 w-10 rounded-[0.9rem] bg-[#0b694f] text-white shadow-[0_7px_15px_rgba(11,105,79,0.22)] ring-2 ring-white' : 'h-9 w-9 rounded-[0.75rem] text-slate-700'}`}><link.icon size={link.prominent ? 24 : 21} strokeWidth={link.prominent ? 2.25 : 1.9} /></span><span className={`max-w-full truncate leading-4 ${isActive ? 'font-extrabold' : ''}`}>{link.label}</span>{badgeForPath(link.to) > 0 && <span className="absolute right-1/4 top-0 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</span>}</NavLink>)}</div></nav>}
     </div>
   )
 }

@@ -52,8 +52,9 @@ export default function ChatList() {
             isSellerConversation,
           }
         })
-      setThreads(nextThreads)
-      writeCachedValue(cacheKey, nextThreads)
+      const sortedThreads = nextThreads.sort((left, right) => new Date(right.last_message_at || right.created_at).getTime() - new Date(left.last_message_at || left.created_at).getTime())
+      setThreads(sortedThreads)
+      writeCachedValue(cacheKey, sortedThreads)
     } catch {
       if (!hasCachedThreads.current) setThreads([])
     } finally {
