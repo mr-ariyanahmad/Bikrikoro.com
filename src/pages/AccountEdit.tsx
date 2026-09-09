@@ -76,7 +76,7 @@ export default function AccountEdit() {
     if (normalized.length < 3) { setUsernameStatus('taken'); return }
     setUsernameStatus('checking')
     const timer = window.setTimeout(async () => {
-      const { data, error } = await supabase.from('profiles').select('id').eq('username', normalized).maybeSingle()
+      const { data, error } = await supabase.from('profiles').select('id').ilike('username', normalized).maybeSingle()
       if (error) { setUsernameStatus('idle'); return }
       setUsernameStatus(data && data.id !== uid ? 'taken' : 'available')
     }, 350)
