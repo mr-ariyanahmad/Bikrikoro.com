@@ -104,7 +104,18 @@ serve(async (req) => {
       return json({ error: "UddoktaPay charge creation failed", details: chargeData }, 502);
     }
 
-    return json({ payment_url: chargeData.payment_url });
+    const invoiceId = typeof chargeData.invoice_id === "string" ? chargeData.invoice_id : null;
+    if (invoiceId) {
+      await supabaseAdmin.from("payments").upsert({
+        order_id: order.id,
+        invoice_id: invoiceId,
+        amount: totalAmount,
+        payment_method: "BKASH",
+        status: "PENDING",
+        raw_payload: { source: "checkout-v2", invoice_id: invoiceId, order_id: order.id },
+      }, { onConflict: "invoice_id" });
+    }
+    return json({ payment_url: chargeData.payment_url, invoice_id: invoiceId });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }
