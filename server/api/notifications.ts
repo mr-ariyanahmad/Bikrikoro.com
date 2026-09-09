@@ -50,7 +50,7 @@ function writeError(res: VercelResponse, error: unknown) {
     res.status(403).json({ error: message })
     return
   }
-  if (normalized.includes('required') || normalized.includes('invalid') || normalized.includes('too long')) {
+  if (normalized.includes('required') || normalized.includes('invalid') || normalized.includes('too long') || normalized.includes('internal app path') || normalized.includes('campaign link')) {
     res.status(400).json({ error: message })
     return
   }
@@ -58,8 +58,18 @@ function writeError(res: VercelResponse, error: unknown) {
 }
 
 function normalizeInternalLink(value: string | null | undefined) {
-  const link = value?.trim() || null
-  if (link && (!link.startsWith('/') || link.startsWith('//'))) throw new Error('Campaign link must be an internal app path')
+  const raw = value?.trim() || ''
+  if (!raw) return null
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw)
+      const allowedHost = process.env.VERCEL_URL || process.env.PUBLIC_APP_HOST || ''
+      if (allowedHost && parsed.host === allowedHost) return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    } catch { /* invalid external URL */ }
+    throw new Error('Campaign link must be an internal app path')
+  }
+  const link = raw.startsWith('/') ? raw : `/${raw}`
+  if (link.startsWith('//') || /[\r\n]/.test(link)) throw new Error('Campaign link must be an internal app path')
   return link
 }
 
