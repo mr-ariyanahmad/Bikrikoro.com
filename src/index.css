@@ -5,21 +5,21 @@
   --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* BikriKoro brand — sampled directly from the logo (RGB 1,124,80 / #017C50) */
-  --color-brand-50: #E6F5EE;
-  --color-brand-100: #C3E8D6;
-  --color-brand-400: #059863;
-  --color-brand-500: #017C50;
-  --color-brand-600: #016640;
-  --color-brand-700: #014D30;
+  /* BikriKoro marketplace system: restrained green with neutral surfaces. */
+  --color-brand-50: #EAF7F1;
+  --color-brand-100: #CDEBDD;
+  --color-brand-400: #20AE80;
+  --color-brand-500: #179D72;
+  --color-brand-600: #12845F;
+  --color-brand-700: #0D684B;
 
-  --color-ink-900: #12211C;
-  --color-ink-600: #5C6D67;
-  --color-ink-300: #A9B7B1;
+  --color-ink-900: #17211D;
+  --color-ink-600: #6B756F;
+  --color-ink-300: #A9B3AE;
 
   --color-surface: #FFFFFF;
-  --color-bg: #F7F9FA;
-  --color-outline: #E1E6E5;
+  --color-bg: #F8FAF9;
+  --color-outline: #E5EAE7;
 
   --color-warning: #F5A524;
   --color-error: #E0433D;
