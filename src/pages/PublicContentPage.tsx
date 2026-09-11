@@ -10,7 +10,7 @@ import { EducationHub } from '@/components/EducationHub'
 import { CommunityLinks } from '@/components/CommunityLinks'
 import { FaqAccordion } from '@/components/FaqAccordion'
 
-type ContentType = 'ABOUT' | 'PRIVACY' | 'CONTACT' | 'HELP' | 'FAQ' | 'USER_EDU' | 'SELLER_EDU' | 'RETURN_POLICY' | 'TERMS'
+type ContentType = 'ABOUT' | 'PRIVACY' | 'CONTACT' | 'HELP' | 'FAQ' | 'USER_EDU' | 'SELLER_EDU' | 'RETURN_POLICY' | 'SELLER_PRIVACY' | 'TERMS'
 type ContentRow = { id: string; title: string; slug: string; excerpt: string; body: string; cover_image_url: string | null; seo_title: string | null; seo_description: string | null; sort_order?: number; updated_at: string }
 type PageMeta = { title: string; subtitle: string; icon: typeof BookOpen }
 
@@ -23,6 +23,7 @@ const COPY: Record<ContentType, PageMeta> = {
   USER_EDU: { title: 'ক্রেতা শিক্ষা', subtitle: 'নিরাপদে কেনাকাটা ও অ্যাকাউন্ট ব্যবহারের গাইড।', icon: BookOpen },
   SELLER_EDU: { title: 'বিক্রেতা শিক্ষা', subtitle: 'ভালো তালিকা তৈরি, দ্রুত ডেলিভারি ও বিশ্বস্ত বিক্রেতার প্রোফাইল তৈরির গাইড।', icon: BookOpen },
   RETURN_POLICY: { title: 'ফেরত ও অর্থ ফেরত নীতি', subtitle: 'পণ্য না মিললে কীভাবে সহায়তা পাবেন।', icon: FileText },
+  SELLER_PRIVACY: { title: 'Seller Privacy Policy', subtitle: 'Seller ও shop application-এর তথ্য কীভাবে সংগ্রহ, ব্যবহার ও সুরক্ষিত করা হয়।', icon: ShieldCheck },
   TERMS: { title: 'ব্যবহারের শর্ত', subtitle: 'BikriKoro ব্যবহার করার আগে গুরুত্বপূর্ণ নিয়মগুলো জানুন।', icon: FileText },
 }
 
@@ -58,7 +59,7 @@ export default function PublicContentPage({ type }: { type: ContentType }) {
   const primaryRow = rows[0]
   const pageTitle = primaryRow?.seo_title || primaryRow?.title || meta.title
   const pageDescription = primaryRow?.seo_description || primaryRow?.excerpt || meta.subtitle
-  const pagePathMap: Record<ContentType, string> = { ABOUT: 'about', PRIVACY: 'privacy', CONTACT: 'contact', HELP: 'help', FAQ: 'faq', USER_EDU: 'user-education', SELLER_EDU: 'seller-education', RETURN_POLICY: 'return-policy', TERMS: 'terms' }
+  const pagePathMap: Record<ContentType, string> = { ABOUT: 'about', PRIVACY: 'privacy', CONTACT: 'contact', HELP: 'help', FAQ: 'faq', USER_EDU: 'user-education', SELLER_EDU: 'seller-education', RETURN_POLICY: 'return-policy', SELLER_PRIVACY: 'seller-privacy-policy', TERMS: 'terms' }
   const pagePath = pagePathMap[type]
   const isEducation = type === 'USER_EDU' || type === 'SELLER_EDU'
 

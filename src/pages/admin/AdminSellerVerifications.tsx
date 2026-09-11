@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Check, CheckCircle2, ChevronDown, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, Search, X, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, Copy, Eye, FileCheck2, FileText, Image as ImageIcon, Link as LinkIcon, MessageCircle, Search, X, XCircle } from 'lucide-react'
 import { auth } from '@/lib/firebase'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { useAuth } from '@/context/AuthContext'
@@ -35,6 +35,7 @@ export default function AdminSellerVerifications() {
   const [searchTerm, setSearchTerm] = useState('')
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'NEEDS_REVIEW' | 'READY'>('ALL')
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING')
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -137,6 +138,10 @@ export default function AdminSellerVerifications() {
                 </button>
 
                 {expanded && <div className="border-t border-slate-200">
+                  <div className="flex flex-col gap-3 border-b border-slate-200 bg-emerald-50/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div><p className="text-sm font-semibold text-emerald-900">WhatsApp update</p><p className="mt-1 text-xs leading-5 text-emerald-800">এই seller-এর status, shop name ও review note দিয়ে ready message তৈরি করুন।</p></div>
+                    <WhatsAppSellerUpdate registration={registration} adminName={user?.displayName || 'Ariyan'} copied={copiedMessageId === registration.id} onCopied={() => { setCopiedMessageId(registration.id); window.setTimeout(() => setCopiedMessageId((current) => current === registration.id ? null : current), 1800) }} />
+                  </div>
                   <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
                     <Info label="ফোন" value={registration.phone} />
                     <Info label="NID/Business no." value={registration.nid_or_business_number} />
@@ -302,6 +307,16 @@ function groupReviewHistory(entries: SellerReviewHistory[]): HistoryGroup[] {
 function formatDocumentType(value: string) { return value.replace(/_/g, ' ') }
 
 function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-800">{value}</p></div> }
+
+function WhatsAppSellerUpdate({ registration, adminName, copied, onCopied }: { registration: RegistrationWithDocuments; adminName: string; copied: boolean; onCopied: () => void }) {
+  const statusText = registration.status === 'APPROVED' ? 'অনুমোদিত হয়েছে' : registration.status === 'REJECTED' ? 'বর্তমানে ক্যানসেল করা হয়েছে' : 'এখনও রিভিউতে আছে'
+  const message = `আসসালামু আলাইকুম,\n\nBikrikoro.com থেকে ${adminName} বলছি।\n\nআপনার সাবমিট করা শপ “${registration.business_name || 'আপনার শপ'}” যাচাই করে দেখা হয়েছে। আপনার আবেদনটি ${statusText}.${registration.status === 'REJECTED' ? '\n\nআপনি চাইলে প্রয়োজনীয় অরিজিনাল/ভেরিফায়েড ডকুমেন্টস সংযুক্ত করে পুনরায় আবেদন করতে পারেন।' : ''}${registration.admin_note ? `\n\nরিভিউ নোট: ${registration.admin_note}` : ''}\n\n🔒 Bikrikoro কেন আপনার তথ্য সংগ্রহ করে এবং আপনার তথ্য কী কী কাজে ব্যবহার করা হয়?\nবিস্তারিত জানতে আমাদের Seller Privacy Policy দেখুন:\n\n🌐 bikrikoro.com/seller-privacy-policy\n\nধন্যবাদ।\nBikrikoro.com Team`
+  const phone = registration.phone.replace(/[^\d+]/g, '').replace(/^00/, '+')
+  const whatsappPhone = phone.startsWith('+') ? phone.slice(1) : phone.startsWith('0') ? `88${phone}` : phone
+  const openWhatsApp = () => window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+  const copyMessage = async () => { await navigator.clipboard?.writeText(message); onCopied() }
+  return <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void copyMessage()} className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100"><Copy size={14} />{copied ? 'কপি হয়েছে' : 'মেসেজ কপি'}</button><button type="button" onClick={openWhatsApp} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"><MessageCircle size={14} />WhatsApp খুলুন</button></div>
+}
 
 function QueueStat({ label, value, tone }: { label: string; value: number; tone: 'neutral' | 'warning' | 'success' }) {
   const toneClass = tone === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : tone === 'success' ? 'border-brand-200 bg-brand-50 text-brand-800' : 'border-slate-200 bg-white text-slate-800'

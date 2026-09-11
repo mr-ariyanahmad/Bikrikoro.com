@@ -201,6 +201,7 @@ function AppRoutes() {
       <Route path="/user-education" element={<PublicContentPage type="USER_EDU" />} />
       <Route path="/seller-education" element={<PublicContentPage type="SELLER_EDU" />} />
       <Route path="/return-policy" element={<PublicContentPage type="RETURN_POLICY" />} />
+      <Route path="/seller-privacy-policy" element={<PublicContentPage type="SELLER_PRIVACY" />} />
       <Route path="/terms" element={<PublicContentPage type="TERMS" />} />
       <Route path="/privacy" element={<PublicContentPage type="PRIVACY" />} />
       <Route path="/about" element={<PublicContentPage type="ABOUT" />} />
