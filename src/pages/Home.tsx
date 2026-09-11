@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Coins, Loader2, Plus, ShieldCheck, Store, WalletCards } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -13,7 +13,7 @@ import { useIsSeller } from '@/hooks/useIsSeller'
 import { formatTaka } from '@/lib/format'
 import type { Product, Category, Profile, PromoBanner } from '@/types/product'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
-import { trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { rankHomepageProductsByCategoryInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 
 const HOMEPAGE_PRODUCT_PAGE_SIZE = 24
@@ -69,6 +69,13 @@ export default function Home() {
   const [checkInLoading, setCheckInLoading] = useState(false)
   const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
+  const rankedHomeProducts = useMemo(() => {
+    const ranked = rankHomepageProductsByCategoryInterest(products)
+    if (ranked.length < 2) return ranked
+    const daySeed = Math.floor(Date.now() / (24 * 60 * 60 * 1000))
+    const offset = daySeed % ranked.length
+    return [...ranked.slice(offset), ...ranked.slice(0, offset)]
+  }, [products])
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')
@@ -249,7 +256,7 @@ export default function Home() {
     }
   }
 
-  const productGrid = <><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : null}</div>}</>
+  const productGrid = <><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : rankedHomeProducts.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : null}</div>}</>
 
   return <Layout wide>
     <Helmet><title>BikriKoro.Com — বাংলাদেশের নিরাপদ ডিজিটাল মার্কেটপ্লেস</title><meta name="description" content="এসক্রো-সুরক্ষিত ডিজিটাল মার্কেটপ্লেস — নিরাপদে ডিজিটাল কী, ফাইল, প্রবেশাধিকার, কোর্স ও সেবা কিনুন এবং বিক্রি করুন।" /></Helmet>

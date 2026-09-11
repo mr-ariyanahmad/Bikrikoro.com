@@ -34,12 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const { data: registrations, error: registrationError } = await supabase
-      .from('seller_registrations')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('submitted_at', { ascending: true })
-      .range(0, 49)
+    const requestedStatus = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : 'PENDING'
+    const statusFilter = ['PENDING', 'APPROVED', 'REJECTED'].includes(requestedStatus) ? requestedStatus : null
+    let registrationsQuery = supabase.from('seller_registrations').select('*').order('submitted_at', { ascending: true }).range(0, 99)
+    if (statusFilter) registrationsQuery = registrationsQuery.eq('status', statusFilter)
+    const { data: registrations, error: registrationError } = await registrationsQuery
     if (registrationError) throw registrationError
 
     const registrationRows = registrations ?? []

@@ -3,6 +3,7 @@ import { Bell, Flag, MessageCircle, MessageCircleQuestion, Play, Share2, ShieldC
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
 import { BuyModal } from '@/components/BuyModal'
@@ -95,6 +96,11 @@ export default function ProductDetail() {
         if (!active) return
         setProduct(productData as Product | null)
         setLoading(false)
+        if (productData && !isTestDemoProduct(productData as Product)) {
+          trackCategoryInterest(productData.category_id, 'view')
+          void recordPublicProductView(productData.id)
+          if (user) void auth.currentUser?.getIdToken().then(async (token) => { if (!token) return; await fetch('/api/product-interest', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ categoryId: productData.category_id, weight: 1 }) }) }).catch(() => undefined)
+        }
 
         if (productData?.is_digital) {
           const [specsResult, sellerResult, sellerPublicResult, badgeResult] = await Promise.all([
@@ -123,10 +129,6 @@ export default function ProductDetail() {
           setSellerBadges(nextBadges)
           writeCachedValue(cacheKey, { product: productData as Product, digitalSpecs: nextSpecs, seller: sellerData, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
           void trackProductView(productData.id)
-          if (!isTestDemoProduct(productData as Product)) {
-            trackCategoryInterest(productData.category_id, 'view')
-            void recordPublicProductView(productData.id)
-          }
         }
       } catch (error) {
         console.error('Product detail load failed:', error)

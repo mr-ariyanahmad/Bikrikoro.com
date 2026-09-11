@@ -164,3 +164,20 @@ export async function sendChatMessageEmail(input: ChatMessageEmailInput) {
   if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
   return { skipped: false, id: payload.id ?? null }
 }
+
+export type SimilarProductEmailInput = { to: string; recipientName: string; productTitle: string; price: number | string; productLink: string }
+export async function sendSimilarProductEmail(input: SimilarProductEmailInput) {
+  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const from = process.env.RESEND_FROM_EMAIL?.trim()
+  if (!apiKey || !from || !input.to.trim()) return { skipped: true, reason: 'RESEND_NOT_CONFIGURED' as const }
+  const recipient = escapeHtml(input.recipientName || 'প্রিয় ব্যবহারকারী')
+  const title = escapeHtml(input.productTitle || 'নতুন পণ্য')
+  const link = escapeHtml(input.productLink)
+  const amount = escapeHtml(amountLabel(input.price))
+  const subject = `আপনার পছন্দের category-তে নতুন পণ্য এসেছে — ${input.productTitle || 'BikriKoro'}`
+  const html = `<!doctype html><html lang="bn"><body style="margin:0;background:#f5faf7;padding:24px;font-family:Arial,sans-serif;color:#17231f"><div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #dce8e2;border-radius:20px;padding:28px"><h1 style="margin:0;color:#087f5b">আপনার জন্য নতুন পণ্য</h1><p>হ্যালো ${recipient}, আপনি যে ধরনের পণ্য দেখেছেন সেই category-তে নতুন একটি listing এসেছে।</p><div style="margin:20px 0;padding:16px;border-radius:12px;background:#f0faf5"><p style="margin:0 0 8px"><strong>পণ্য:</strong> ${title}</p><p style="margin:0"><strong>দাম:</strong> ${amount}</p></div><a href="${link}" style="display:inline-block;background:#087f5b;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px">পণ্যটি দেখুন</a><p style="margin-top:28px;color:#66756e;font-size:12px">এই emailটি BikriKoro.Com থেকে পাঠানো হয়েছে। Account settings থেকে category alert বন্ধ করা যাবে।</p></div></body></html>`
+  const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `bikrikoro-similar-product-${input.productLink}` }, body: JSON.stringify({ from, to: [input.to.trim().toLowerCase()], subject, html, text: `হ্যালো ${input.recipientName}, আপনার পছন্দের category-তে নতুন পণ্য এসেছে: ${input.productTitle} (${amountLabel(input.price)})\n\nদেখুন: ${input.productLink}` }) })
+  const payload = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string }
+  if (!response.ok) throw new Error(payload.message || payload.name || `Resend request failed (${response.status})`)
+  return { skipped: false, id: payload.id ?? null }
+}

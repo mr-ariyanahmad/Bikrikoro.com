@@ -34,6 +34,7 @@ export default function AdminSellerVerifications() {
   const [expandedHistoryAccount, setExpandedHistoryAccount] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'NEEDS_REVIEW' | 'READY'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -41,7 +42,7 @@ export default function AdminSellerVerifications() {
     try {
       const idToken = await auth.currentUser?.getIdToken()
       if (!idToken) throw new Error('Admin Firebase session পাওয়া যায়নি।')
-      const response = await fetch('/api/admin-seller-verifications', { headers: { Authorization: `Bearer ${idToken}` } })
+      const response = await fetch(`/api/admin-seller-verifications?status=${statusFilter}`, { headers: { Authorization: `Bearer ${idToken}` } })
       const payload = await response.json().catch(() => ({})) as { error?: string; registrations?: RegistrationWithDocuments[]; history?: SellerReviewHistory[] }
       if (!response.ok) throw new Error(payload.error || `Seller verification load failed (HTTP ${response.status})`)
       const rows = payload.registrations ?? []
@@ -59,7 +60,7 @@ export default function AdminSellerVerifications() {
       setHistoryLoading(false)
       setLoading(false)
     }
-  }, [])
+  }, [statusFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -106,12 +107,14 @@ export default function AdminSellerVerifications() {
       </div>
       <div className="mb-5 grid gap-3 sm:grid-cols-3"><QueueStat label="মোট আবেদন" value={queueStats.total} tone="neutral" /><QueueStat label="Review দরকার" value={queueStats.needsReview} tone="warning" /><QueueStat label="Final decision-ready" value={queueStats.ready} tone="success" /></div>
       <AdminTableCard className="mb-5"><div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="নাম, ব্যবসা বা সেক্টর খুঁজুন" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500" /></label><div className="flex gap-2 overflow-x-auto"><FilterChip active={queueFilter === 'ALL'} onClick={() => setQueueFilter('ALL')}>সব আবেদন</FilterChip><FilterChip active={queueFilter === 'NEEDS_REVIEW'} onClick={() => setQueueFilter('NEEDS_REVIEW')}>Review দরকার</FilterChip><FilterChip active={queueFilter === 'READY'} onClick={() => setQueueFilter('READY')}>Approve-ready</FilterChip></div></div></AdminTableCard>
-      {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : filteredRegistrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">অনুমোদনের অপেক্ষায় কোনো আবেদন নেই।</p></AdminTableCard> : (
+      <AdminTableCard className="mb-5"><div className="flex flex-wrap gap-2 p-4"><FilterChip active={statusFilter === 'PENDING'} onClick={() => { setStatusFilter('PENDING'); setQueueFilter('ALL') }}>Pending</FilterChip><FilterChip active={statusFilter === 'APPROVED'} onClick={() => { setStatusFilter('APPROVED'); setQueueFilter('ALL') }}>Approved</FilterChip><FilterChip active={statusFilter === 'REJECTED'} onClick={() => { setStatusFilter('REJECTED'); setQueueFilter('ALL') }}>Rejected</FilterChip><FilterChip active={statusFilter === 'ALL'} onClick={() => { setStatusFilter('ALL'); setQueueFilter('ALL') }}>সব status</FilterChip></div></AdminTableCard>
+      {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : filteredRegistrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">এই status-এ কোনো আবেদন নেই।</p></AdminTableCard> : (
         <div className="space-y-3">
           {filteredRegistrations.map((registration) => {
             const approvedCount = registration.documents.filter((document) => document.status === 'APPROVED').length
             const pendingCount = registration.documents.filter((document) => document.status === 'PENDING').length
             const allDocumentsApproved = registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED')
+            const isPending = registration.status === 'PENDING'
             const expanded = expandedId === registration.id
             return (
               <AdminTableCard key={registration.id} className="transition-shadow hover:shadow-md">
@@ -154,7 +157,7 @@ export default function AdminSellerVerifications() {
                       <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">{approvedCount}/{registration.documents.length} approved</span>
                     </div>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {registration.documents.map((document) => <DocumentReviewCard key={document.id} document={document} documentUrl={docUrls[document.id]} note={noteById[document.id] ?? ''} processing={processingId === document.id} onNoteChange={(value) => setNoteById((current) => ({ ...current, [document.id]: value }))} onPreview={() => setPreviewDocument(document)} onReview={(status) => reviewDocument(document.id, status)} />)}
+                      {registration.documents.map((document) => <DocumentReviewCard key={document.id} document={document} documentUrl={docUrls[document.id]} note={noteById[document.id] ?? ''} processing={processingId === document.id || !isPending} onNoteChange={(value) => setNoteById((current) => ({ ...current, [document.id]: value }))} onPreview={() => setPreviewDocument(document)} onReview={(status) => reviewDocument(document.id, status)} />)}
                     </div>
                   </div>
 
@@ -164,8 +167,8 @@ export default function AdminSellerVerifications() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                       <textarea value={noteById[registration.id] ?? ''} onChange={(e) => setNoteById((current) => ({ ...current, [registration.id]: e.target.value }))} rows={2} placeholder="Final review note" className="min-h-20 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500" />
                       <div className="flex gap-2 sm:pb-0.5">
-                        <button type="button" onClick={() => finalize(registration.id, 'APPROVED')} disabled={processingId === registration.id || !allDocumentsApproved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Check size={15} />Final approve</button>
-                        <button type="button" onClick={() => finalize(registration.id, 'REJECTED')} disabled={processingId === registration.id} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 disabled:opacity-50"><X size={15} />Reject</button>
+                        <button type="button" onClick={() => finalize(registration.id, 'APPROVED')} disabled={!isPending || processingId === registration.id || !allDocumentsApproved} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Check size={15} />Final approve</button>
+                        <button type="button" onClick={() => finalize(registration.id, 'REJECTED')} disabled={!isPending || processingId === registration.id} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 disabled:opacity-50"><X size={15} />Reject</button>
                       </div>
                     </div>
                   </div>

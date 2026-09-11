@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { notifySimilarProductInterest } from '../lib/similarProductAlerts.js'
 
 type Action = 'create' | 'update'
 type Body = {
@@ -72,6 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'create') {
       const { data, error } = await supabase.rpc('seller_create_product', rpcArgs)
       if (error) throw error
+      void notifySimilarProductInterest(supabase, String(data)).catch((alertError) => console.error('Similar product alert delivery failed:', alertError))
       res.status(200).json({ productId: data })
       return
     }
