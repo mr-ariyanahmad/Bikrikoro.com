@@ -19,7 +19,11 @@ export class AppErrorBoundary extends Component<Props, State> {
     const retryKey = 'bikrikoro:startup-module-retry'
     if (isStaleDeploymentModule && typeof window !== 'undefined' && !window.sessionStorage.getItem(retryKey)) {
       window.sessionStorage.setItem(retryKey, '1')
-      window.location.reload()
+      void window.caches?.keys().then((keys) => Promise.all(keys.map((key) => window.caches.delete(key)))).finally(() => {
+        const url = new URL(window.location.href)
+        url.searchParams.set('_app_refresh', String(Date.now()))
+        window.location.replace(url.toString())
+      })
     }
   }
 
@@ -32,7 +36,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           <h1 className="mt-5 text-xl font-bold text-ink-900">পেজটি প্রস্তুত করা হচ্ছে</h1>
           <p className="mt-2 text-sm leading-6 text-ink-600">সাময়িক সংযোগ বা আপডেটের সমস্যা হয়েছে। আমরা পেজটি আবার চালু করার চেষ্টা করছি; না হলে নিচের বোতাম ব্যবহার করুন।</p>
           <div className="mt-6 grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white hover:bg-brand-600"><RefreshCw size={16} />আবার চেষ্টা করুন</button>
+            <button type="button" onClick={() => { const url = new URL(window.location.href); url.searchParams.set('_app_refresh', String(Date.now())); window.location.replace(url.toString()) }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white hover:bg-brand-600"><RefreshCw size={16} />আবার চেষ্টা করুন</button>
             <a href="/" className="inline-flex items-center justify-center gap-2 rounded-xl border border-outline px-4 py-3 text-sm font-bold text-ink-700 hover:border-brand-500 hover:text-brand-700"><Home size={16} />হোমে ফিরুন</a>
           </div>
         </section>
