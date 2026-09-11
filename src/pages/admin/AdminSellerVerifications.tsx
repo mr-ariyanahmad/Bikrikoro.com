@@ -10,12 +10,13 @@ import type { SellerRegistration, SellerVerificationDocument } from '@/types/cha
 import { adminRpc } from '@/lib/adminRpc'
 
 type RegistrationDocument = SellerVerificationDocument & { document_url?: string | null }
-type SellerProfileSummary = { id: string; name: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
+type SellerProfileSummary = { id: string; name: string | null; email: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
 type RegistrationWithDocuments = SellerRegistration & { documents: RegistrationDocument[]; seller_profile?: SellerProfileSummary | null }
 type SellerReviewHistory = { registration_id: string; applicant_name: string; applicant_user_id: string; admin_uid: string; admin_email: string; admin_name: string; action: string; document_type: string | null; note: string; created_at: string }
 
 type ReviewStatus = SellerVerificationDocument['status']
-type ReviewAction = 'APPROVED' | 'REJECTED'
+type ReviewAction = 'APPROVED' | 'REJECTED' | 'REUPLOAD_REQUIRED'
+const rejectionReasons = ['Document blurry', 'Document expired', 'Information mismatch', 'Wrong document', 'Document incomplete', 'Suspected fake document', 'Not an original document', 'Wrong document type', 'Other']
 
 export default function AdminSellerVerifications() {
   const { user } = useAuth()
@@ -36,6 +37,9 @@ export default function AdminSellerVerifications() {
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'NEEDS_REVIEW' | 'READY'>('ALL')
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING')
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [reasonById, setReasonById] = useState<Record<string, string>>({})
+  const [documentFilter, setDocumentFilter] = useState('ALL')
+  const [dateFilter, setDateFilter] = useState('ALL')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -74,17 +78,22 @@ export default function AdminSellerVerifications() {
   const filteredRegistrations = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     return registrations.filter((registration) => {
-      const matchesSearch = !query || [registration.full_name, registration.business_name, registration.sector, registration.business_type].filter(Boolean).some((value) => String(value).toLowerCase().includes(query))
-      const matchesFilter = queueFilter === 'ALL' || (queueFilter === 'NEEDS_REVIEW' ? registration.documents.some((document) => document.status === 'PENDING') : registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED'))
-      return matchesSearch && matchesFilter
+      const matchesSearch = !query || [registration.full_name, registration.business_name, registration.sector, registration.business_type, registration.user_id, registration.seller_profile?.email].filter(Boolean).some((value) => String(value).toLowerCase().includes(query))
+      const matchesFilter = queueFilter === 'ALL' || (queueFilter === 'NEEDS_REVIEW' ? registration.documents.some((document) => document.status === 'PENDING' || document.status === 'REUPLOAD_REQUIRED') : registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED'))
+      const matchesDocument = documentFilter === 'ALL' || registration.documents.some((document) => document.document_type.toLowerCase().includes(documentFilter.toLowerCase()))
+      const age = Date.now() - new Date(registration.submitted_at).getTime()
+      const matchesDate = dateFilter === 'ALL' || (dateFilter === 'TODAY' ? age <= 86400000 : dateFilter === '7D' ? age <= 7 * 86400000 : age <= 30 * 86400000)
+      return matchesSearch && matchesFilter && matchesDocument && matchesDate
     })
   }, [queueFilter, registrations, searchTerm])
 
   const reviewDocument = async (documentId: string, status: ReviewAction) => {
     setProcessingId(documentId)
-    const { error } = await adminRpc('admin_review_verification_document', { p_admin_id: adminId, p_document_id: documentId, p_status: status, p_admin_note: noteById[documentId]?.trim() || '' })
+    const reason = reasonById[documentId]?.trim() || ''
+    const note = [reason, noteById[documentId]?.trim()].filter(Boolean).join(' — ')
+    const { error } = await adminRpc('admin_review_verification_document', { p_admin_id: adminId, p_document_id: documentId, p_status: status, p_admin_note: note })
     if (error) setNotice(formatAdminRpcError(error, 'Verification document review', '031 admin approval migration'))
-    else setRegistrations((current) => current.map((registration) => ({ ...registration, documents: registration.documents.map((document) => document.id === documentId ? { ...document, status, admin_note: noteById[documentId]?.trim() || '', reviewed_by: adminId, reviewed_at: new Date().toISOString() } : document) })))
+    else setRegistrations((current) => current.map((registration) => ({ ...registration, documents: registration.documents.map((document) => document.id === documentId ? { ...document, status, admin_note: note, reviewed_by: adminId, reviewed_at: new Date().toISOString() } : document) })))
     setProcessingId(null)
   }
 
@@ -107,7 +116,7 @@ export default function AdminSellerVerifications() {
         Approved seller-এর profile-এ mode ও sector অনুযায়ী trust badge তৈরি হবে। Sensitive documents public করা হয় না।
       </div>
       <div className="mb-5 grid gap-3 sm:grid-cols-3"><QueueStat label="মোট আবেদন" value={queueStats.total} tone="neutral" /><QueueStat label="Review দরকার" value={queueStats.needsReview} tone="warning" /><QueueStat label="Final decision-ready" value={queueStats.ready} tone="success" /></div>
-      <AdminTableCard className="mb-5"><div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="নাম, ব্যবসা বা সেক্টর খুঁজুন" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500" /></label><div className="flex gap-2 overflow-x-auto"><FilterChip active={queueFilter === 'ALL'} onClick={() => setQueueFilter('ALL')}>সব আবেদন</FilterChip><FilterChip active={queueFilter === 'NEEDS_REVIEW'} onClick={() => setQueueFilter('NEEDS_REVIEW')}>Review দরকার</FilterChip><FilterChip active={queueFilter === 'READY'} onClick={() => setQueueFilter('READY')}>Approve-ready</FilterChip></div></div></AdminTableCard>
+      <AdminTableCard className="mb-5"><div className="flex flex-col gap-3 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Seller name, shop, email বা user ID খুঁজুন" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500" /></label><div className="flex flex-wrap gap-2"><FilterChip active={queueFilter === 'ALL'} onClick={() => setQueueFilter('ALL')}>সব আবেদন</FilterChip><FilterChip active={queueFilter === 'NEEDS_REVIEW'} onClick={() => setQueueFilter('NEEDS_REVIEW')}>Review দরকার</FilterChip><FilterChip active={queueFilter === 'READY'} onClick={() => setQueueFilter('READY')}>Approve-ready</FilterChip><select value={documentFilter} onChange={(event) => setDocumentFilter(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600"><option value="ALL">সব document</option><option value="NID">NID</option><option value="PASSPORT">Passport</option><option value="BUSINESS">Business</option><option value="OWNERSHIP">Ownership</option><option value="SELFIE">Selfie</option></select><select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600"><option value="ALL">সব তারিখ</option><option value="TODAY">আজ</option><option value="7D">শেষ ৭ দিন</option><option value="30D">শেষ ৩০ দিন</option></select></div></div></AdminTableCard>
       <AdminTableCard className="mb-5"><div className="flex flex-wrap gap-2 p-4"><FilterChip active={statusFilter === 'PENDING'} onClick={() => { setStatusFilter('PENDING'); setQueueFilter('ALL') }}>Pending</FilterChip><FilterChip active={statusFilter === 'APPROVED'} onClick={() => { setStatusFilter('APPROVED'); setQueueFilter('ALL') }}>Approved</FilterChip><FilterChip active={statusFilter === 'REJECTED'} onClick={() => { setStatusFilter('REJECTED'); setQueueFilter('ALL') }}>Rejected</FilterChip><FilterChip active={statusFilter === 'ALL'} onClick={() => { setStatusFilter('ALL'); setQueueFilter('ALL') }}>সব status</FilterChip></div></AdminTableCard>
       {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">আবেদন লোড হচ্ছে...</p></AdminTableCard> : filteredRegistrations.length === 0 ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">এই status-এ কোনো আবেদন নেই।</p></AdminTableCard> : (
         <div className="space-y-3">
@@ -162,7 +171,7 @@ export default function AdminSellerVerifications() {
                       <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">{approvedCount}/{registration.documents.length} approved</span>
                     </div>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {registration.documents.map((document) => <DocumentReviewCard key={document.id} document={document} documentUrl={docUrls[document.id]} note={noteById[document.id] ?? ''} processing={processingId === document.id || !isPending} onNoteChange={(value) => setNoteById((current) => ({ ...current, [document.id]: value }))} onPreview={() => setPreviewDocument(document)} onReview={(status) => reviewDocument(document.id, status)} />)}
+                      {registration.documents.map((document) => <DocumentReviewCard key={document.id} document={document} documentUrl={docUrls[document.id]} note={noteById[document.id] ?? ''} reason={reasonById[document.id] ?? ''} processing={processingId === document.id || !isPending} onNoteChange={(value) => setNoteById((current) => ({ ...current, [document.id]: value }))} onReasonChange={(value) => setReasonById((current) => ({ ...current, [document.id]: value }))} onPreview={() => setPreviewDocument(document)} onReview={(status) => reviewDocument(document.id, status)} />)}
                     </div>
                   </div>
 
@@ -218,7 +227,7 @@ function SellerShopImageCard({ profile, onPreview }: { profile?: SellerProfileSu
   </div>
 }
 
-function DocumentReviewCard({ document, documentUrl, note, processing, onNoteChange, onPreview, onReview }: { document: RegistrationDocument; documentUrl?: string; note: string; processing: boolean; onNoteChange: (value: string) => void; onPreview: () => void; onReview: (status: ReviewAction) => void }) {
+function DocumentReviewCard({ document, documentUrl, note, reason, processing, onNoteChange, onReasonChange, onPreview, onReview }: { document: RegistrationDocument; documentUrl?: string; note: string; reason: string; processing: boolean; onNoteChange: (value: string) => void; onReasonChange: (value: string) => void; onPreview: () => void; onReview: (status: ReviewAction) => void }) {
   return <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -227,17 +236,19 @@ function DocumentReviewCard({ document, documentUrl, note, processing, onNoteCha
       </div>
       {documentUrl ? <button type="button" onClick={onPreview} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100"><Eye size={13} />দেখুন</button> : <span className="inline-flex items-center gap-1 text-[11px] text-slate-400"><LinkIcon size={12} />লিংক নেই</span>}
     </div>
-    <textarea value={note} onChange={(event) => onNoteChange(event.target.value)} rows={1} placeholder="Document review note" className="mt-3 min-h-9 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-500" />
+    <select value={reason} onChange={(event) => onReasonChange(event.target.value)} className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-brand-500"><option value="">Rejection reason নির্বাচন করুন</option>{rejectionReasons.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    <textarea value={note} onChange={(event) => onNoteChange(event.target.value)} rows={1} placeholder="Optional admin note" className="mt-2 min-h-9 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand-500" />
     <div className="mt-2 flex gap-2">
       {document.status !== 'APPROVED' && <button type="button" onClick={() => onReview('APPROVED')} disabled={processing} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"><Check size={13} />Approve</button>}
       {document.status === 'APPROVED' && <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700"><CheckCircle2 size={13} />Approved</span>}
-      <button type="button" onClick={() => onReview('REJECTED')} disabled={processing} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-50"><X size={13} />Reject</button>
+      <button type="button" onClick={() => onReview('REUPLOAD_REQUIRED')} disabled={processing || !reason} className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-700 disabled:opacity-50"><FileCheck2 size={13} />Request re-upload</button>
+      <button type="button" onClick={() => onReview('REJECTED')} disabled={processing || !reason} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 disabled:opacity-50"><X size={13} />Reject</button>
     </div>
   </div>
 }
 
 function StatusPill({ status }: { status: ReviewStatus }) {
-  const style = status === 'APPROVED' ? 'bg-brand-50 text-brand-700' : status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+  const style = status === 'APPROVED' ? 'bg-brand-50 text-brand-700' : status === 'REJECTED' ? 'bg-red-50 text-red-700' : status === 'REUPLOAD_REQUIRED' ? 'bg-orange-50 text-orange-700' : 'bg-amber-50 text-amber-700'
   const Icon = status === 'APPROVED' ? CheckCircle2 : status === 'REJECTED' ? XCircle : FileCheck2
   return <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold ${style}`}><Icon size={12} />{status}</span>
 }

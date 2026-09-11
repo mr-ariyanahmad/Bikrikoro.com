@@ -24,7 +24,7 @@ export type SellerType = 'INDIVIDUAL' | 'BUSINESS'
 export type ListingMode = 'DIGITAL' | 'PHYSICAL'
 export type BusinessType = 'PERSONAL' | 'BUSINESS' | 'COMPANY'
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
-export type DocumentReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type DocumentReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'REUPLOAD_REQUIRED'
 
 export interface SellerRegistration {
   id: string

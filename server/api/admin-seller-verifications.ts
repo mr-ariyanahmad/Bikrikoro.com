@@ -14,7 +14,7 @@ type DocumentRow = {
   reviewed_at: string | null
 }
 
-type ProfileRow = { id: string; name: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
+type ProfileRow = { id: string; name: string | null; email: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -46,9 +46,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const profileIds = registrationRows.map((registration) => registration.user_id)
     let profiles: ProfileRow[] = []
     if (profileIds.length) {
-      const profileResult = await supabase.from('profiles').select('id, name, photo_url, shop_name, shop_description').in('id', profileIds)
+      const profileResult = await supabase.from('profiles').select('id, name, email, photo_url, shop_name, shop_description').in('id', profileIds)
       if (profileResult.error && isMissingShopProfileColumns(profileResult.error)) {
-        const legacyProfileResult = await supabase.from('profiles').select('id, name, photo_url').in('id', profileIds)
+        const legacyProfileResult = await supabase.from('profiles').select('id, name, email, photo_url').in('id', profileIds)
         if (legacyProfileResult.error) throw legacyProfileResult.error
         profiles = ((legacyProfileResult.data ?? []) as Array<{ id: string; name: string | null; photo_url: string | null }>).map((profile) => ({ ...profile, shop_name: null, shop_description: null }))
       } else {
