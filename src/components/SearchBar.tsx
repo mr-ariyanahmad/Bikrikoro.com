@@ -4,9 +4,9 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { PUBLIC_PRODUCT_FIELDS, PUBLIC_PRODUCT_TABLE } from '@/lib/publicProductFields'
 import { formatTaka } from '@/lib/format'
-import { getTrendingSearches, loadPublicSettings } from '@/lib/publicSettings'
 import { getRecentlyViewedIds } from '@/lib/recentlyViewed'
 import { rankSearchProductsByInterest, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { loadPopularSearches, recordSearchEvent } from '@/lib/searchAnalytics'
 import { searchPublicShops, type SearchShop } from '@/lib/shopSearch'
 import { shopUrl } from '@/lib/shopProfile'
 import type { Category, Product } from '@/types/product'
@@ -43,7 +43,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     try { setRecentSearches(JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')) } catch { setRecentSearches([]) }
-    void loadPublicSettings().then((settings) => setTrendingSearches(getTrendingSearches(settings)))
+    void loadPopularSearches().then(setTrendingSearches)
   }, [])
 
   useEffect(() => {
@@ -126,7 +126,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   }
   const goToResults = (term = query.trim(), categoryId?: string) => {
     if (!term && !categoryId) return
-    if (term) remember(term)
+    if (term) { remember(term); recordSearchEvent(term) }
     setOpen(false)
     const params = new URLSearchParams()
     if (term) params.set('q', term)
