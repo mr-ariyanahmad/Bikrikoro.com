@@ -98,6 +98,7 @@ export default function AdminSellerVerifications() {
   }
 
   const finalize = async (registrationId: string, status: ReviewAction) => {
+    if (status === 'APPROVED' && !window.confirm('এই seller-কে approve করতে নিশ্চিত তো?')) return
     setProcessingId(registrationId)
     const { error } = await adminRpc('admin_finalize_seller_verification', { p_admin_id: adminId, p_registration_id: registrationId, p_status: status, p_admin_note: noteById[registrationId]?.trim() || '' })
     if (error) setNotice(error.message.includes('required documents') ? 'সব required document আগে approve করুন।' : formatAdminRpcError(error, 'Seller application review', '031 admin approval migration'))
@@ -125,6 +126,7 @@ export default function AdminSellerVerifications() {
             const pendingCount = registration.documents.filter((document) => document.status === 'PENDING').length
             const allDocumentsApproved = registration.documents.length > 0 && registration.documents.every((document) => document.status === 'APPROVED')
             const isPending = registration.status === 'PENDING'
+            const risk = registration.documents.some((document) => document.status === 'REJECTED') ? 'High Risk' : registration.documents.some((document) => document.status === 'REUPLOAD_REQUIRED') ? 'Medium Risk' : 'Low Risk'
             const expanded = expandedId === registration.id
             return (
               <AdminTableCard key={registration.id} className="transition-shadow hover:shadow-md">
@@ -137,7 +139,7 @@ export default function AdminSellerVerifications() {
                         <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">{pendingCount}টি pending</span>
                       </span>
                       <span className="mt-1 block truncate text-xs text-slate-500">{registration.listing_mode === 'DIGITAL' ? 'ডিজিটাল' : 'ফিজিক্যাল'} · {registration.business_type ?? 'PERSONAL'} · {registration.sector ?? 'OTHER'}</span>
-                      <span className="mt-1 block text-[11px] text-slate-400">জমা: {formatDateTime(registration.submitted_at)}</span>
+                      <span className="mt-1 block text-[11px] text-slate-400">জমা: {formatDateTime(registration.submitted_at)} · <span className={risk === 'High Risk' ? 'text-red-600' : risk === 'Medium Risk' ? 'text-amber-600' : 'text-brand-700'}>{risk}</span></span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="hidden rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex">{approvedCount}/{registration.documents.length} approved</span>
