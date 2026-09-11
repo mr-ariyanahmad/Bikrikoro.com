@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
-type Body = { orderId?: string; invoiceId?: string }
+type Body = { orderId?: string; invoiceId?: string; transactionId?: string }
 
 function bodyOf(req: VercelRequest): Body {
   return typeof req.body === 'string' ? JSON.parse(req.body) as Body : (req.body ?? {}) as Body
@@ -15,8 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   try {
     const token = await getVerifiedFirebaseToken(req)
-    const { orderId, invoiceId } = bodyOf(req)
-    if (!orderId || !invoiceId) throw new Error('Order ID and invoice ID are required')
+    const { orderId, invoiceId: requestedInvoiceId, transactionId } = bodyOf(req)
+    if (!orderId) throw new Error('Order ID is required')
     const supabase = getServiceSupabase()
     const { data: order, error: orderError } = await supabase
       .from('orders').select('id, buyer_id, seller_id, status, order_number, product_title, subtotal, price, discount_amount, coupon_code, coupon_funding_source, escrow_fee, delivery_email').eq('id', orderId).maybeSingle()
@@ -25,6 +25,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(404).json({ error: 'Order not found' })
       return
     }
+    // The provider normally returns invoice_id on redirect, but some mobile
+    // return flows only expose transaction_id. The webhook may already have
+    // stored the matching invoice, so recover it by the authenticated order.
+    let invoiceId = requestedInvoiceId?.trim() || ''
+    if (!invoiceId) {
+      const paymentQuery = supabase.from('payments').select('invoice_id, transaction_id, status').eq('order_id', orderId).order('created_at', { ascending: false }).limit(5)
+      const { data: storedPayments, error: storedPaymentError } = transactionId
+        ? await paymentQuery.eq('transaction_id', transactionId.trim())
+        : await paymentQuery
+      if (storedPaymentError) throw storedPaymentError
+      const storedPayment = storedPayments?.find((payment) => payment.invoice_id)
+      invoiceId = storedPayment?.invoice_id ?? ''
+      if (!invoiceId) {
+        res.status(202).json({ status: order.status, message: 'পেমেন্টের invoice এখনও পাওয়া যায়নি।' })
+        return
+      }
+    }
+
     const apiKey = process.env.UDDOKTAPAY_API_KEY
     const baseUrl = (process.env.UDDOKTAPAY_BASE_URL ?? 'https://sandbox.uddoktapay.com').replace(/\/+$/, '').replace(/\/api$/, '')
     if (!apiKey) throw new Error('Payment service configuration is missing')

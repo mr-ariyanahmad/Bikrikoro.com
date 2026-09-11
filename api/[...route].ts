@@ -9,6 +9,7 @@ import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
 import orderAction from '../server/api/order-action.js'
 import orderRead from '../server/api/order-read.js'
+import paymentReconcile from '../server/api/payment-reconcile.js'
 import pendingOrder from '../server/api/pending-order.js'
 import productPreview from '../server/api/product-preview.js'
 import productOgImage from '../server/api/product-og-image.js'
@@ -56,6 +57,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   notifications,
   'order-action': orderAction,
   'order-read': orderRead,
+  'payment-reconcile': paymentReconcile,
   'pending-order': pendingOrder,
   'product-preview': productPreview,
   'product-og-image': productOgImage,

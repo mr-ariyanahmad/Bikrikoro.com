@@ -10,7 +10,8 @@ type ViewState = 'checking' | 'confirmed' | 'still_pending' | 'cancelled'
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams()
   const orderId = searchParams.get('order_id')
-  const invoiceId = searchParams.get('invoice_id')
+  const invoiceId = searchParams.get('invoice_id') || searchParams.get('invoice')
+  const transactionId = searchParams.get('transaction_id') || searchParams.get('transaction') || searchParams.get('trx_id')
   const wasCancelled = searchParams.get('cancelled') === '1'
 
   const [view, setView] = useState<ViewState>(wasCancelled ? 'cancelled' : 'checking')
@@ -26,8 +27,8 @@ export default function PaymentCallback() {
       try {
         const idToken = await auth.currentUser?.getIdToken()
         if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি।')
-        if (invoiceId) {
-          const reconcileResponse = await fetch('/api/payment-reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ orderId, invoiceId }) })
+        {
+          const reconcileResponse = await fetch('/api/payment-reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ orderId, invoiceId: invoiceId || undefined, transactionId: transactionId || undefined }) })
           const reconcilePayload = await reconcileResponse.json().catch(() => ({})) as { error?: string; status?: OrderStatus }
           if (reconcileResponse.ok && reconcilePayload.status === 'ESCROW_HELD') {
             if (!cancelled) setView('confirmed')
@@ -70,7 +71,7 @@ export default function PaymentCallback() {
     return () => {
       cancelled = true
     }
-  }, [orderId, invoiceId, wasCancelled])
+  }, [orderId, invoiceId, transactionId, wasCancelled])
 
   return (
     <Layout hideFooter fullScreen>
