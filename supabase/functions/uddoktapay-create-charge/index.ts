@@ -74,7 +74,9 @@ serve(async (req) => {
 
     const totalAmount = Number(order.price) + Number(order.escrow_fee);
 
-    const fallbackReturnUrl = `${SITE_URL}/orders/payment-callback?order_id=${order.id}`;
+    // UddoktaPay appends invoice_id to this GET URL. Verify it server-side
+    // before sending the buyer back to the React callback screen.
+    const fallbackReturnUrl = `${SITE_URL}/api/payment-return?order_id=${order.id}`;
     const fallbackCancelUrl = `${SITE_URL}/orders/payment-callback?order_id=${order.id}&cancelled=1`;
     const mobileReturn = typeof returnUrl === "string" ? safeMobileReturnUrl(returnUrl, order.id) : null;
     const redirectUrl = mobileReturn ?? fallbackReturnUrl;
