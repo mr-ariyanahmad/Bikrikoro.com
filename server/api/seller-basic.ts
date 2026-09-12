@@ -3,6 +3,16 @@ import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_se
 
 type Body = { name?: string; shopName?: string; shopDescription?: string }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message
+  if (error && typeof error === 'object') {
+    const value = error as { message?: unknown; details?: unknown; hint?: unknown }
+    const parts = [value.message, value.details, value.hint].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  return 'Basic Seller setup failed'
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); res.status(405).json({ error: 'Method not allowed' }); return }
   try {
@@ -29,6 +39,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     if (isAuthError(error)) { res.status(401).json({ error: 'Firebase authentication is required' }); return }
     console.error('Basic seller onboarding failed:', error)
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Basic seller setup failed' })
+    res.status(400).json({ error: errorMessage(error) })
   }
 }

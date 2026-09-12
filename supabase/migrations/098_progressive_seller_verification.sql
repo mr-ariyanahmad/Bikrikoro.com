@@ -114,3 +114,16 @@ revoke all on function public.seller_create_product(text,text,text,numeric,numer
 grant execute on function public.seller_create_product(text,text,text,numeric,numeric,text,text,text,text[],boolean,boolean,boolean,boolean,boolean,text) to service_role;
 revoke all on function public.seller_update_product(text,uuid,text,text,numeric,numeric,text,text,text,text[],boolean,boolean,boolean,boolean,boolean,text) from public, anon, authenticated;
 grant execute on function public.seller_update_product(text,uuid,text,text,numeric,numeric,text,text,text[],boolean,boolean,boolean,boolean,boolean,text) to service_role;
+
+-- profiles in the current schema has no updated_at column.
+create or replace function public.start_basic_seller(p_user_id text,p_name text,p_shop_name text default null,p_shop_description text default null) returns public.profiles as $$
+declare v_profile public.profiles%rowtype;
+begin
+  select * into v_profile from public.profiles where id=p_user_id for update;
+  if not found then raise exception 'Profile not found'; end if;
+  if length(trim(coalesce(p_name,'')))<2 then raise exception 'Name is required'; end if;
+  if v_profile.seller_email_verified_at is null then raise exception 'Email verification is required before selling'; end if;
+  update public.profiles set name=trim(p_name), shop_name=nullif(trim(coalesce(p_shop_name,'')),''), shop_description=nullif(trim(coalesce(p_shop_description,'')),''), seller_level=case when seller_level in ('VERIFIED','TRUSTED') then seller_level else 'BASIC' end, seller_basic_completed_at=coalesce(seller_basic_completed_at,now()) where id=p_user_id returning * into v_profile;
+  return v_profile;
+end;
+$$ language plpgsql security definer set search_path=public,pg_temp;
