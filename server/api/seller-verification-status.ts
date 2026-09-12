@@ -19,12 +19,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .limit(1)
       .maybeSingle()
     if (error) throw error
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('seller_level, seller_basic_completed_at, seller_email_verified_at, name, shop_name, shop_description')
+      .eq('id', token.uid)
+      .maybeSingle()
+    if (profileError) throw profileError
+    const sellerLevel = profile?.seller_level || (registration?.status === 'APPROVED' ? 'VERIFIED' : 'NONE')
+    const basicSeller = ['BASIC', 'VERIFIED', 'TRUSTED'].includes(sellerLevel) && Boolean(profile?.seller_email_verified_at)
 
     res.setHeader('Cache-Control', 'private, no-store')
     res.status(200).json({
       registration: registration ?? null,
-      isSeller: registration?.status === 'APPROVED',
-      digitalVerified: registration?.status === 'APPROVED' && registration.listing_mode === 'DIGITAL',
+      isSeller: basicSeller || registration?.status === 'APPROVED',
+      digitalVerified: sellerLevel === 'VERIFIED' || sellerLevel === 'TRUSTED' || registration?.status === 'APPROVED',
+      sellerLevel,
+      profile: profile ?? null,
     })
   } catch (error) {
     if (isAuthError(error)) {

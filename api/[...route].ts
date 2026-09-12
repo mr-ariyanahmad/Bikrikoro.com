@@ -6,6 +6,7 @@ import agentRouter from '../server/api/agent-router.js'
 import chat from '../server/api/chat.js'
 import cronExpire from '../server/api/cron-expire.js'
 import health from '../server/api/health.js'
+import sellerBasic from '../server/api/seller-basic.js'
 import notificationEvents from '../server/api/notification-events.js'
 import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
@@ -57,6 +58,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   chat,
   'cron-expire': cronExpire,
   health,
+  'seller-basic': sellerBasic,
   'notification-events': notificationEvents,
   'notification-push': notificationPush,
   notifications,

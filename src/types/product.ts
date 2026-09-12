@@ -90,6 +90,10 @@ export interface Profile {
   shop_description?: string | null
   shop_username?: string | null
   shop_cover_url?: string | null
+  seller_level?: 'NONE' | 'BASIC' | 'VERIFIED' | 'TRUSTED' | null
+  seller_basic_completed_at?: string | null
+  seller_email_verified_at?: string | null
+  seller_trusted_at?: string | null
   is_verified: boolean
   rating: number
   review_count: number

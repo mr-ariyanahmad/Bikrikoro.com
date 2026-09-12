@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = getServiceSupabase()
     const { data: existing, error: readError } = await supabase
       .from('profiles')
-      .select('id, email, name, phone, photo_url, welcome_email_status, welcome_email_sent_at')
+      .select('id, email, name, phone, photo_url, welcome_email_status, welcome_email_sent_at, seller_email_verified_at')
       .eq('id', token.uid)
       .maybeSingle()
     if (readError) throw readError
@@ -41,6 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email: token.email ?? null,
         photo_url: token.picture ?? null,
         welcome_email_status: welcomeStatus,
+        seller_email_verified_at: token.email_verified ? new Date().toISOString() : null,
       })
       if (insertError) throw insertError
     } else {
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!existing.phone && token.phone_number) profilePatch.phone = token.phone_number
       if (!existing.photo_url && token.picture) profilePatch.photo_url = token.picture
       if (!existing.welcome_email_status && profileEmail) profilePatch.welcome_email_status = 'PENDING'
+      if (token.email_verified && !existing.seller_email_verified_at) profilePatch.seller_email_verified_at = new Date().toISOString()
       if (Object.keys(profilePatch).length > 0) {
         const { error: updateError } = await supabase
           .from('profiles')
