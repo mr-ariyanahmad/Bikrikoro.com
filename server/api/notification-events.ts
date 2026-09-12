@@ -70,7 +70,7 @@ function oneProfile(value: ProfileEmail | ProfileEmail[] | null | undefined) {
 }
 
 async function sendOrderEmailIfNeeded(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, 'public'>>,
   notification: NotificationRecord,
 ) {
   const metadata = notification.metadata ?? {}

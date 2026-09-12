@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (disputesError) throw disputesError
       if (deliveriesError) throw deliveriesError
       if (digitalOptionsError) throw digitalOptionsError
-      const autoDeliveryByProduct = new Map((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false]))
+      const autoDeliveryByProduct = new Map<string, boolean>((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false] as const))
       const ordersWithDeliveryMode = (orders ?? []).map((order) => ({
         ...order,
         auto_delivery_enabled: order.product_id ? (autoDeliveryByProduct.get(order.product_id) ?? true) : true,
@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? await supabase.from('product_digital_specs').select('product_id, auto_delivery_enabled').in('product_id', productIds)
         : { data: [], error: null }
       if (digitalOptionsError) throw digitalOptionsError
-      const autoDeliveryByProduct = new Map((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false]))
+      const autoDeliveryByProduct = new Map<string, boolean>((digitalOptions ?? []).map((option) => [option.product_id, option.auto_delivery_enabled !== false] as const))
       const libraryWithDeliveryMode = library.map((item) => ({
         ...item,
         auto_delivery_enabled: item.product_id ? (autoDeliveryByProduct.get(item.product_id) ?? true) : true,

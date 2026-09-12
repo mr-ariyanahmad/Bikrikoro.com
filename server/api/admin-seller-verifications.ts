@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (profileResult.error && isMissingShopProfileColumns(profileResult.error)) {
         const legacyProfileResult = await supabase.from('profiles').select('id, name, email, photo_url').in('id', profileIds)
         if (legacyProfileResult.error) throw legacyProfileResult.error
-        profiles = ((legacyProfileResult.data ?? []) as Array<{ id: string; name: string | null; photo_url: string | null }>).map((profile) => ({ ...profile, shop_name: null, shop_description: null }))
+        profiles = ((legacyProfileResult.data ?? []) as Array<{ id: string; name: string | null; email: string | null; photo_url: string | null }>).map((profile) => ({ ...profile, shop_name: null, shop_description: null }))
       } else {
         if (profileResult.error) throw profileResult.error
         profiles = (profileResult.data ?? []) as ProfileRow[]

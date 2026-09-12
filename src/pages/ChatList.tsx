@@ -21,7 +21,7 @@ const CHAT_LIST_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 export default function ChatList() {
   const { user } = useAuth()
-  const uid = user!.uid
+  const uid = user?.uid ?? ''
   const [threads, setThreads] = useState<ThreadWithName[]>([])
   const [query, setQuery] = useState('')
   const [view, setView] = useState<'all' | 'unread'>('all')
@@ -30,6 +30,7 @@ export default function ChatList() {
   const cacheKey = userCacheKey(uid, 'chat-list')
 
   const load = useCallback(async () => {
+    if (!uid) return
     try {
       const result = await chatRequest<{ threads?: ChatThread[] }>({ action: 'list' })
       const rows = result.threads ?? []
@@ -63,6 +64,10 @@ export default function ChatList() {
   }, [cacheKey, uid])
 
   useEffect(() => {
+    if (!uid) {
+      setLoading(false)
+      return
+    }
     const cachedThreads = readCachedValue<ThreadWithName[]>(cacheKey, CHAT_LIST_CACHE_MAX_AGE_MS)
     if (cachedThreads) {
       hasCachedThreads.current = true
@@ -77,7 +82,7 @@ export default function ChatList() {
       void load()
     }, 12000)
     return () => window.clearInterval(poller)
-  }, [cacheKey, load])
+  }, [cacheKey, load, uid])
 
   const visibleThreads = useMemo(() => threads.filter((thread) => { const unread = thread.buyer_id === uid ? thread.buyer_unread_count : thread.seller_unread_count; return (view === 'all' || unread > 0) && (!query.trim() || thread.otherName.toLowerCase().includes(query.trim().toLowerCase()) || (thread.last_message ?? '').toLowerCase().includes(query.trim().toLowerCase())) }), [query, threads, uid, view])
   const unreadMessageCount = useMemo(() => threads.reduce((total, thread) => total + Number(thread.buyer_id === uid ? thread.buyer_unread_count : thread.seller_unread_count), 0), [threads, uid])

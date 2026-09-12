@@ -90,18 +90,36 @@ serve(async (req) => {
     },
     body: JSON.stringify({ invoice_id: invoiceId }),
   });
+  if (!verifyResponse.ok) {
+    return new Response("Payment verification failed", { status: 502 });
+  }
   const verified = await verifyResponse.json();
 
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from("orders")
+    .select("id, price, escrow_fee, buyer_id, seller_id, delivery_email, order_number, product_title")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (orderError || !order) return new Response("Order not found", { status: 404 });
+  const verifiedMetadata = verified.metadata as { order_id?: string } | undefined;
+  if (verifiedMetadata?.order_id !== orderId) {
+    return new Response("Invoice is not linked to this order", { status: 409 });
+  }
+  const providerAmount = Number(verified.charged_amount ?? verified.amount ?? 0);
+  const expectedAmount = Number(order.price ?? 0) + Number(order.escrow_fee ?? 0);
+  if (verified.status === "COMPLETED" && Math.round(providerAmount * 100) !== Math.round(expectedAmount * 100)) {
+    return new Response("Payment amount mismatch", { status: 409 });
+  }
 
   // Record the attempt regardless of outcome — upsert on invoice_id so a
   // retried webhook delivery (UddoktaPay retries on non-2xx) doesn't
   // create duplicate rows.
-  await supabaseAdmin.from("payments").upsert(
+  const { error: paymentError } = await supabaseAdmin.from("payments").upsert(
     {
       order_id: orderId,
       invoice_id: invoiceId,
-      amount: Number(verified.amount ?? 0),
+      amount: providerAmount,
       fee: Number(verified.fee ?? 0),
       payment_method: (verified.payment_method as string | undefined)?.toUpperCase() ?? null,
       sender_number: verified.sender_number ?? null,
@@ -111,6 +129,9 @@ serve(async (req) => {
     },
     { onConflict: "invoice_id" }
   );
+  if (paymentError) {
+    return new Response(JSON.stringify({ error: paymentError.message }), { status: 500 });
+  }
 
   if (verified.status !== "COMPLETED") {
     // PENDING or INVALID — nothing more to do; the order stays at
@@ -139,7 +160,6 @@ serve(async (req) => {
   }
 
   if (transitionedOrder?.id) {
-    const { data: order } = await supabaseAdmin.from("orders").select("id, order_number, product_title, buyer_id, seller_id, delivery_email").eq("id", orderId).maybeSingle();
     if (order) {
       const participantIds = [order.buyer_id, order.seller_id].filter(Boolean);
       const { data: profiles } = participantIds.length ? await supabaseAdmin.from("profiles").select("id, name, email").in("id", participantIds) : { data: [] };

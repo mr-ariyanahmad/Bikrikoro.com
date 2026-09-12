@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 import { sendNewOrderEmail, sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
 
-type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
+type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'resume_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
 
 function supabaseErrorMessage(error: unknown) {
@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const seller = (profiles ?? []).find((profile) => profile.id === createdOrder.seller_id)
         const amount = Number(createdOrder.price) + Number(createdOrder.escrow_fee)
         const orderLink = `https://www.bikrikoro.com/orders/${orderId}`
-        const emailTasks = []
+        const emailTasks: Array<Promise<unknown>> = []
         if (!onlinePayment && seller?.email) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'SELLER', to: seller.email, productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller.name ?? 'Seller', orderLink }))
         if (!onlinePayment && (createdOrder.delivery_email || buyer?.email)) emailTasks.push(sendNewOrderEmail({ orderId, orderNumber: createdOrder.order_number, role: 'CUSTOMER', to: createdOrder.delivery_email || buyer?.email || '', productTitle: createdOrder.product_title, price: amount, status: createdOrder.status, customerName: buyer?.name ?? 'Customer', sellerName: seller?.name ?? 'Seller', orderLink }))
         if (emailTasks.length > 0) void Promise.all(emailTasks).catch((emailError) => console.error('New order email delivery failed:', emailError))
@@ -89,6 +89,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return
       }
       res.status(200).json({ orderId, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
+      return
+    }
+    if (input.action === 'resume_online') {
+      if (!input.orderId) throw new Error('Order ID is required')
+      const { data: order, error: orderError } = await supabase.from('orders').select('id, buyer_id, status').eq('id', input.orderId).maybeSingle()
+      if (orderError) throw orderError
+      if (!order || order.buyer_id !== token.uid) throw new Error('Order not found')
+      if (order.status !== 'PENDING_PAYMENT') throw new Error('Order is not awaiting payment')
+      const { data: charge, error: chargeError } = await supabase.functions.invoke<{ payment_url?: string; invoice_id?: string; error?: string }>('uddoktapay-create-charge', { body: { orderId: order.id } })
+      if (chargeError || !charge?.payment_url) throw new Error(charge?.error || chargeError?.message || 'Payment could not be started')
+      res.status(200).json({ orderId: order.id, paymentUrl: charge.payment_url, invoiceId: charge.invoice_id ?? null, paymentMethod: 'ONLINE' })
       return
     }
     if (input.action === 'cancel') {

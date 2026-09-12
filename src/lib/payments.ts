@@ -1,4 +1,3 @@
-import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 
 /** Backed by create_order_pending_payment() (010_uddoktapay_payments.sql) — website-only order path. */
@@ -65,14 +64,16 @@ export async function createOnlineCheckout(params: {
 
 /** Resumes payment for an existing pending order. */
 export async function startUddoktaPayCheckout(orderId: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke<{ payment_url?: string; error?: string }>(
-    'uddoktapay-create-charge',
-    { body: { orderId } }
-  )
-  if (error || !data?.payment_url) {
-    throw new Error(data?.error || error?.message || 'Payment could not be started')
-  }
-  return data.payment_url
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
+  const response = await fetch('/api/pending-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ action: 'resume_online', orderId }),
+  })
+  const data = await response.json().catch(() => ({})) as { paymentUrl?: string; error?: string }
+  if (!response.ok || !data.paymentUrl) throw new Error(data.error || `Payment could not be started (HTTP ${response.status})`)
+  return data.paymentUrl
 }
 
 export async function cancelPendingOrder(orderId: string, buyerId: string) {

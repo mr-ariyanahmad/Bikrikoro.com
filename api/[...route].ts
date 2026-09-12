@@ -4,6 +4,8 @@ import adminHealth from '../server/api/admin-health.js'
 import adminSellerVerifications from '../server/api/admin-seller-verifications.js'
 import agentRouter from '../server/api/agent-router.js'
 import chat from '../server/api/chat.js'
+import cronExpire from '../server/api/cron-expire.js'
+import health from '../server/api/health.js'
 import notificationEvents from '../server/api/notification-events.js'
 import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
@@ -53,6 +55,8 @@ const HANDLERS: Record<string, ApiHandler> = {
   'admin-seller-verifications': adminSellerVerifications,
   'agent-router': agentRouter,
   chat,
+  'cron-expire': cronExpire,
+  health,
   'notification-events': notificationEvents,
   'notification-push': notificationPush,
   notifications,
