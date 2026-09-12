@@ -31,7 +31,7 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron-expire", "schedule": "0 * * * *" }
+    { "path": "/api/cron-expire", "schedule": "0 3 * * *" }
   ],
   "rewrites": [
     { "source": "/__/auth/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/auth/:path*" },
