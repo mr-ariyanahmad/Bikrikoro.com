@@ -25,8 +25,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('id', token.uid)
       .maybeSingle()
     if (profileError) throw profileError
-    const sellerLevel = profile?.seller_level || (registration?.status === 'APPROVED' ? 'VERIFIED' : 'NONE')
-    const basicSeller = ['BASIC', 'VERIFIED', 'TRUSTED'].includes(sellerLevel) && Boolean(profile?.seller_email_verified_at)
+    const { data: performance, error: performanceError } = await supabase.rpc('refresh_trusted_seller_level', { p_user_id: token.uid })
+    if (performanceError) console.error('Trusted seller evaluation failed:', performanceError)
+    const evaluatedProfile = performance?.[0] ? { ...profile, seller_level: performance[0].seller_level } : profile
+    const sellerLevel = evaluatedProfile?.seller_level || (registration?.status === 'APPROVED' ? 'VERIFIED' : 'NONE')
+    const basicSeller = ['BASIC', 'VERIFIED', 'TRUSTED'].includes(sellerLevel) && Boolean(evaluatedProfile?.seller_email_verified_at)
 
     res.setHeader('Cache-Control', 'private, no-store')
     res.status(200).json({
@@ -34,7 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       isSeller: basicSeller || registration?.status === 'APPROVED',
       digitalVerified: basicSeller || registration?.status === 'APPROVED',
       sellerLevel,
-      profile: profile ?? null,
+      profile: evaluatedProfile ?? null,
+      performance: performance?.[0] ?? null,
     })
   } catch (error) {
     if (isAuthError(error)) {
