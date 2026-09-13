@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({
       registration: registration ?? null,
       isSeller: basicSeller || registration?.status === 'APPROVED',
-      digitalVerified: sellerLevel === 'VERIFIED' || sellerLevel === 'TRUSTED' || registration?.status === 'APPROVED',
+      digitalVerified: basicSeller || registration?.status === 'APPROVED',
       sellerLevel,
       profile: profile ?? null,
     })

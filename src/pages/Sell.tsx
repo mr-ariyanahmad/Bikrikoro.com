@@ -359,7 +359,7 @@ export default function Sell() {
     setSubmitting(true)
     setError(null)
     try {
-      if (!digitalVerified) throw new Error('ডিজিটাল পণ্য বিক্রি করতে Seller Verification ও Admin approval প্রয়োজন।')
+      if (!digitalVerified) throw new Error('পণ্য প্রকাশের আগে email verification ও Basic Seller setup সম্পন্ন করুন।')
       if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) throw new Error('শুধু valid YouTube video link দেওয়া যাবে।')
 
       const payload = {
@@ -441,7 +441,7 @@ export default function Sell() {
         <div className="mx-auto max-w-xl border border-brand-200 bg-brand-50 p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={34} />
           <h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল বিক্রেতার যাচাই প্রয়োজন</h1>
-          <p className="mt-2 text-sm leading-6 text-ink-700">পণ্য প্রকাশের আগে আপনার বিক্রেতার পরিচয় ও ব্যবসায়িক তথ্য যাচাই করা প্রয়োজন।</p>
+          <p className="mt-2 text-sm leading-6 text-ink-700">পণ্য প্রকাশের আগে email verify করে Basic Seller setup সম্পন্ন করুন। NID ও selfie এখনই প্রয়োজন নেই।</p>
           <button type="button" onClick={() => navigate('/become-seller')} className="mt-5 bg-brand-500 px-4 py-3 text-base font-semibold text-white">যাচাই শুরু করুন</button>
         </div>
       </Layout>
