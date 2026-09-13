@@ -8,6 +8,7 @@ import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { BrandSelect } from '@/components/BrandSelect'
 import { adminRpc } from '@/lib/adminRpc'
+import { uploadProductImages } from '@/lib/storage'
 
 type Mode = 'gallery' | 'downloads' | 'blog' | 'pages' | 'faq'
 type PageType = 'ABOUT' | 'PRIVACY' | 'CONTACT' | 'HELP' | 'USER_EDU' | 'SELLER_EDU' | 'RETURN_POLICY' | 'TERMS'
@@ -43,6 +44,8 @@ export default function AdminContent({ mode }: { mode: Mode }) {
   const [pageType, setPageType] = useState<PageType>('HELP')
   const [bannerToDelete, setBannerToDelete] = useState<Banner | null>(null)
   const [deletingBanner, setDeletingBanner] = useState(false)
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null)
+  const [postCoverFile, setPostCoverFile] = useState<File | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -78,10 +81,16 @@ export default function AdminContent({ mode }: { mode: Mode }) {
   useEffect(() => { load() }, [load])
 
   const saveBanner = async () => {
-    if (!bannerForm.image_url.trim()) return
-    const { error: saveError } = await adminRpc('admin_upsert_banner', { p_admin_id: user?.uid, p_id: `banner_${Date.now().toString(36)}`, p_image_url: bannerForm.image_url.trim(), p_target_product_id: bannerForm.target_product_id.trim() || null, p_sort_order: Number(bannerForm.sort_order || 0) })
+    if (!user?.uid || (!bannerForm.image_url.trim() && !bannerImageFile)) return
+    let imageUrl = bannerForm.image_url.trim()
+    if (bannerImageFile) {
+      const [uploadedUrl] = await uploadProductImages([bannerImageFile], `admin-banners/${user.uid}`)
+      if (!uploadedUrl) { setError('Banner image আপলোড করা যায়নি।'); return }
+      imageUrl = uploadedUrl
+    }
+    const { error: saveError } = await adminRpc('admin_upsert_banner', { p_admin_id: user.uid, p_id: `banner_${Date.now().toString(36)}`, p_image_url: imageUrl, p_target_product_id: bannerForm.target_product_id.trim() || null, p_sort_order: Number(bannerForm.sort_order || 0) })
     if (saveError) setError(formatAdminRpcError(saveError, 'Banner save', '014 admin workspace migration'))
-    else { setShowForm(false); setBannerForm({ image_url: '', target_product_id: '', sort_order: '0' }); load() }
+    else { setShowForm(false); setBannerForm({ image_url: '', target_product_id: '', sort_order: '0' }); setBannerImageFile(null); load() }
   }
 
   const savePost = async () => {
@@ -92,6 +101,13 @@ export default function AdminContent({ mode }: { mode: Mode }) {
     const postBeingSaved = currentPost || pagePost
     const contentType = mode === 'pages' ? pageType : mode === 'faq' ? 'FAQ' : 'BLOG'
     const pageSlug = mode === 'pages' ? postBeingSaved?.slug || PAGE_SLUG_BY_TYPE[pageType] : slug
+    let coverImageUrl = postForm.cover_image_url.trim() || null
+    if (postCoverFile) {
+      if (!user?.uid) return
+      const [uploadedUrl] = await uploadProductImages([postCoverFile], `admin-content/${user.uid}`)
+      if (!uploadedUrl) { setError('Cover image আপলোড করা যায়নি।'); return }
+      coverImageUrl = uploadedUrl
+    }
     const { error: saveError } = await adminRpc('admin_upsert_content', {
       p_admin_id: user?.uid,
       p_id: postBeingSaved?.id ?? null,
@@ -101,18 +117,19 @@ export default function AdminContent({ mode }: { mode: Mode }) {
       p_excerpt: postForm.excerpt.trim(),
       p_body: postForm.body.trim(),
       p_status: postBeingSaved?.status ?? 'DRAFT',
-      p_cover_image_url: (mode === 'blog' || (mode === 'pages' && (pageType === 'USER_EDU' || pageType === 'SELLER_EDU'))) ? postForm.cover_image_url.trim() || null : null,
+      p_cover_image_url: (mode === 'blog' || (mode === 'pages' && (pageType === 'USER_EDU' || pageType === 'SELLER_EDU'))) ? coverImageUrl : null,
       p_seo_title: postForm.seo_title.trim() || null,
       p_seo_description: postForm.seo_description.trim() || null,
       p_sort_order: mode === 'faq' ? Number(postForm.sort_order || 0) : 0,
     })
     if (saveError) setError(formatAdminRpcError(saveError, mode === 'pages' ? 'Public page save' : mode === 'faq' ? 'FAQ save' : 'Blog post save', mode === 'faq' ? '036 FAQ migration' : '035 content/SEO migration'))
-    else { resetPostForm(); load() }
+    else { resetPostForm(); setPostCoverFile(null); load() }
   }
 
   const startEdit = (post: Post) => {
     setEditingPostId(post.id)
     if (mode === 'pages' && PAGE_TYPE_OPTIONS.some((option) => option.value === post.content_type)) setPageType(post.content_type as PageType)
+    setPostCoverFile(null)
     setPostForm({ title: post.title, slug: post.slug, excerpt: post.excerpt, body: post.body, cover_image_url: post.cover_image_url ?? '', seo_title: post.seo_title ?? '', seo_description: post.seo_description ?? '', sort_order: String(post.sort_order ?? 0) })
     setShowForm(true)
   }
@@ -121,6 +138,7 @@ export default function AdminContent({ mode }: { mode: Mode }) {
     setShowForm(false)
     setEditingPostId(null)
     setPostForm(EMPTY_POST)
+    setPostCoverFile(null)
   }
 
   const deleteBanner = async () => {
@@ -143,8 +161,8 @@ export default function AdminContent({ mode }: { mode: Mode }) {
     <AdminShell>
       <AdminPageHeader title={title} description={mode === 'gallery' ? 'Homepage banner ও promotional creative ম্যানেজ করুন।' : mode === 'downloads' ? 'Digital order delivery readiness দেখুন।' : mode === 'pages' ? 'Website-এর Settings, Help, policy ও education content এখান থেকে publish করুন।' : mode === 'faq' ? 'Buyer, seller, payment, order, delivery, dispute ও account-এর প্রশ্ন-উত্তর ম্যানেজ করুন।' : 'BikriKoro-এর Bengali blog draft, SEO fields, cover image এবং publication পরিচালনা করুন।'} actions={mode !== 'downloads' && <button type="button" onClick={() => { setEditingPostId(null); setPostForm(EMPTY_POST); setShowForm((value) => !value) }} className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white"><Upload size={16} />নতুন {mode === 'gallery' ? 'banner' : mode === 'pages' ? 'পেজ' : mode === 'faq' ? 'প্রশ্ন' : 'post'}</button>} />
       {error && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-      {showForm && mode === 'gallery' && <AdminTableCard className="mb-5"><div className="grid gap-3 p-5 sm:grid-cols-3"><Field label="Image URL" value={bannerForm.image_url} onChange={(value) => setBannerForm({ ...bannerForm, image_url: value })} placeholder="https://..." /><Field label="Target product ID" value={bannerForm.target_product_id} onChange={(value) => setBannerForm({ ...bannerForm, target_product_id: value })} placeholder="ঐচ্ছিক" /><Field label="Sort order" value={bannerForm.sort_order} onChange={(value) => setBannerForm({ ...bannerForm, sort_order: value })} placeholder="0" /><button type="button" onClick={saveBanner} className="w-fit rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">Banner সেভ করুন</button></div></AdminTableCard>}
-      {showForm && (mode === 'blog' || mode === 'pages' || mode === 'faq') && <AdminTableCard className="mb-5"><div className="space-y-3 p-5">{mode === 'pages' && <BrandSelect label="পেজের ধরন" value={pageType} options={PAGE_TYPE_OPTIONS} onChange={(value) => setPageType(value as PageType)} />}<Field label="শিরোনাম" value={postForm.title} onChange={(value) => setPostForm({ ...postForm, title: value })} placeholder="কনটেন্টের শিরোনাম" />{(mode === 'blog' || mode === 'faq') && <Field label="Slug" value={postForm.slug} onChange={(value) => setPostForm({ ...postForm, slug: value })} placeholder="english-url-slug" />}<Field label="সংক্ষিপ্ত বিবরণ" value={postForm.excerpt} onChange={(value) => setPostForm({ ...postForm, excerpt: value })} placeholder="কিছু কথায়..." />{(mode === 'blog' || (mode === 'pages' && (pageType === 'USER_EDU' || pageType === 'SELLER_EDU'))) && <Field label="Cover image URL" value={postForm.cover_image_url} onChange={(value) => setPostForm({ ...postForm, cover_image_url: value })} placeholder="Supabase public URL বা admin-upload করা image URL" />}{mode === 'faq' && <Field label="প্রদর্শনের ক্রম" value={postForm.sort_order} onChange={(value) => setPostForm({ ...postForm, sort_order: value })} placeholder="10" />}<Field label="SEO title" value={postForm.seo_title} onChange={(value) => setPostForm({ ...postForm, seo_title: value })} placeholder="Google result title" /><Field label="SEO description" value={postForm.seo_description} onChange={(value) => setPostForm({ ...postForm, seo_description: value })} placeholder="Google result description" /><label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">মূল লেখা</span><textarea value={postForm.body} onChange={(e) => setPostForm({ ...postForm, body: e.target.value })} rows={10} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label><div className="flex flex-wrap gap-2"><button type="button" onClick={savePost} className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">{editingPostId ? 'পরিবর্তন সেভ করুন' : 'Draft সেভ করুন'}</button><button type="button" onClick={resetPostForm} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">বাতিল</button></div></div></AdminTableCard>}
+      {showForm && mode === 'gallery' && <AdminTableCard className="mb-5"><div className="grid gap-3 p-5 sm:grid-cols-3"><FileField label="Banner image" file={bannerImageFile} existingUrl={bannerForm.image_url} onChange={setBannerImageFile} /><Field label="Target product ID" value={bannerForm.target_product_id} onChange={(value) => setBannerForm({ ...bannerForm, target_product_id: value })} placeholder="ঐচ্ছিক" /><Field label="Sort order" value={bannerForm.sort_order} onChange={(value) => setBannerForm({ ...bannerForm, sort_order: value })} placeholder="0" /><button type="button" onClick={() => void saveBanner()} className="w-fit rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">Banner সেভ করুন</button></div></AdminTableCard>}
+      {showForm && (mode === 'blog' || mode === 'pages' || mode === 'faq') && <AdminTableCard className="mb-5"><div className="space-y-3 p-5">{mode === 'pages' && <BrandSelect label="পেজের ধরন" value={pageType} options={PAGE_TYPE_OPTIONS} onChange={(value) => setPageType(value as PageType)} />}<Field label="শিরোনাম" value={postForm.title} onChange={(value) => setPostForm({ ...postForm, title: value })} placeholder="কনটেন্টের শিরোনাম" />{(mode === 'blog' || mode === 'faq') && <Field label="Slug" value={postForm.slug} onChange={(value) => setPostForm({ ...postForm, slug: value })} placeholder="english-url-slug" />}<Field label="সংক্ষিপ্ত বিবরণ" value={postForm.excerpt} onChange={(value) => setPostForm({ ...postForm, excerpt: value })} placeholder="কিছু কথায়..." />{(mode === 'blog' || (mode === 'pages' && (pageType === 'USER_EDU' || pageType === 'SELLER_EDU'))) && <FileField label="Cover image" file={postCoverFile} existingUrl={postForm.cover_image_url} onChange={setPostCoverFile} />}{mode === 'faq' && <Field label="প্রদর্শনের ক্রম" value={postForm.sort_order} onChange={(value) => setPostForm({ ...postForm, sort_order: value })} placeholder="10" />}<Field label="SEO title" value={postForm.seo_title} onChange={(value) => setPostForm({ ...postForm, seo_title: value })} placeholder="Google result title" /><Field label="SEO description" value={postForm.seo_description} onChange={(value) => setPostForm({ ...postForm, seo_description: value })} placeholder="Google result description" /><label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">মূল লেখা</span><textarea value={postForm.body} onChange={(e) => setPostForm({ ...postForm, body: e.target.value })} rows={10} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void savePost()} className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white">{editingPostId ? 'পরিবর্তন সেভ করুন' : 'Draft সেভ করুন'}</button><button type="button" onClick={resetPostForm} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">বাতিল</button></div></div></AdminTableCard>}
       {loading ? <AdminTableCard><p className="p-10 text-center text-sm text-slate-500">লোড হচ্ছে...</p></AdminTableCard> : mode === 'gallery' ? <Gallery banners={banners} onDelete={setBannerToDelete} /> : mode === 'downloads' ? <Downloads downloads={downloads} /> : <Blog posts={posts} onEdit={startEdit} onStatus={updatePostStatus} showType={mode === 'pages'} isFaq={mode === 'faq'} />}
       <BrandedDialog open={Boolean(bannerToDelete)} title="Banner মুছে ফেলবেন?" tone="danger" onClose={() => setBannerToDelete(null)} actions={<><DialogButton onClick={() => setBannerToDelete(null)} variant="outline">বাতিল</DialogButton><DialogButton onClick={deleteBanner} tone="danger" disabled={deletingBanner}>{deletingBanner ? 'মুছছে...' : 'হ্যাঁ, মুছুন'}</DialogButton></>}><p>এই banner homepage থেকে সরিয়ে দেওয়া হবে। কাজটি admin audit log-এ সংরক্ষিত থাকবে।</p></BrandedDialog>
     </AdminShell>
@@ -155,3 +173,5 @@ function Gallery({ banners, onDelete }: { banners: Banner[]; onDelete: (banner: 
 function Downloads({ downloads }: { downloads: Download[] }) { return <AdminTableCard>{downloads.length === 0 ? <p className="p-10 text-center text-sm text-slate-500">কোনো digital delivery record নেই।</p> : <div className="divide-y divide-slate-100">{downloads.map((download) => <div key={download.order_id} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-slate-800">ডিজিটাল ডেলিভারি</p><p className="mt-1 text-xs text-slate-400">ডেলিভারির ধরন: {download.delivery_type}</p></div><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${download.status === 'READY' ? 'bg-brand-50 text-brand-700' : 'bg-amber-50 text-amber-700'}`}>{download.status}</span></div>)}</div>}</AdminTableCard> }
 function Blog({ posts, onEdit, onStatus, showType = false, isFaq = false }: { posts: Post[]; onEdit: (post: Post) => void; onStatus: (post: Post, status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED') => void; showType?: boolean; isFaq?: boolean }) { return <AdminTableCard>{posts.length === 0 ? <p className="p-10 text-center text-sm text-slate-500">কোনো content নেই। নতুন draft তৈরি করুন।</p> : <div className="divide-y divide-slate-100">{posts.map((post) => <div key={post.id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex min-w-0 items-center gap-3">{post.cover_image_url ? <img src={post.cover_image_url} alt="" className="h-12 w-20 shrink-0 object-cover" /> : <div className="h-12 w-20 shrink-0 bg-brand-50" />}<div className="min-w-0"><p className="truncate font-semibold text-slate-800">{post.title}</p><p className="mt-1 text-xs text-slate-400">{isFaq && `ক্রম ${post.sort_order ?? 0} · `}{showType && `${post.content_type ?? ''} · `}/{post.slug} · {formatDateTime(post.created_at)}</p></div></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{post.status}</span><button type="button" onClick={() => onEdit(post)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600"><Edit3 size={13} />সম্পাদনা</button>{post.status !== 'PUBLISHED' && <button type="button" onClick={() => onStatus(post, 'PUBLISHED')} className="inline-flex items-center gap-1 rounded-lg border border-brand-200 px-2.5 py-1.5 text-xs font-semibold text-brand-700"><Send size={13} />প্রকাশ করুন</button>}{post.status === 'PUBLISHED' && <button type="button" onClick={() => onStatus(post, 'DRAFT')} className="inline-flex items-center gap-1 rounded-lg border border-amber-200 px-2.5 py-1.5 text-xs font-semibold text-amber-700"><Eye size={13} />আনপাবলিশ</button>}{post.status !== 'ARCHIVED' && <button type="button" onClick={() => onStatus(post, 'ARCHIVED')} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-700"><Archive size={13} />আর্কাইভ</button>}</div></div>)}</div>}</AdminTableCard> }
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) { return <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label> }
+
+function FileField({ label, file, existingUrl, onChange }: { label: string; file: File | null; existingUrl?: string; onChange: (file: File | null) => void }) { return <label className="block text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">{label}</span><span className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-brand-300 bg-brand-50/50 px-3 py-3"><Upload size={17} className="text-brand-700" /><span className="min-w-0 flex-1 truncate">{file?.name || (existingUrl ? 'বর্তমান ছবি আছে — পরিবর্তন করতে file বাছুন' : 'ছবি নির্বাচন করুন')}</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={(event) => { onChange(event.target.files?.[0] ?? null); event.target.value = '' }} /></span>{(file || existingUrl) && <span className="mt-1 block text-xs text-brand-700">Direct upload করা ছবি save হবে।</span>}</label> }
