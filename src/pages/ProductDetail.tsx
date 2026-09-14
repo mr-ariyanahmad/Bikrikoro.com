@@ -61,6 +61,7 @@ export default function ProductDetail() {
   const [replySavingId, setReplySavingId] = useState<string | null>(null)
   const [featureMessage, setFeatureMessage] = useState<string | null>(null)
   const [showReport, setShowReport] = useState(false)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [reportReason, setReportReason] = useState('ভুল বা বিভ্রান্তিকর তথ্য')
   const [reportDetails, setReportDetails] = useState('')
   const touchStartX = useRef<number | null>(null)
@@ -465,9 +466,14 @@ export default function ProductDetail() {
           {shareMessage && <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{shareMessage}</p>}
 
           <h2 className="mt-5 text-sm font-semibold text-ink-900">বিবরণ</h2>
-          <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">
-            {product.description || 'কোনো বিবরণ দেওয়া হয়নি।'}
-          </p>
+          <div className="mt-1.5">
+            <p className={`whitespace-pre-line text-sm leading-relaxed text-ink-600 ${descriptionExpanded ? '' : 'line-clamp-5'}`}>
+              {product.description || 'কোনো বিবরণ দেওয়া হয়নি।'}
+            </p>
+            {(product.description?.length ?? 0) > 280 && <button type="button" onClick={() => setDescriptionExpanded((current) => !current)} className="mt-2 text-sm font-bold text-brand-700 hover:text-brand-800">
+              {descriptionExpanded ? 'কম দেখুন' : 'আরও দেখুন'}
+            </button>}
+          </div>
 
           {product.is_digital && digitalSpecs && Object.keys(digitalSpecs.specifications ?? {}).length > 0 && <section className="mt-4 border border-outline bg-surface p-4"><h2 className="text-sm font-semibold text-ink-900">পণ্যের গুরুত্বপূর্ণ তথ্য</h2><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(digitalSpecs.specifications).map(([key, value]) => <div key={key} className="border-b border-outline/70 pb-2"><p className="text-xs text-ink-400">{key.replaceAll('_', ' ')}</p><p className="mt-0.5 break-words text-sm font-medium text-ink-800">{typeof value === 'boolean' ? value ? 'হ্যাঁ' : 'না' : Array.isArray(value) ? value.join(', ') : String(value)}</p></div>)}</div><div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-600"><span className="border border-outline px-2 py-1">অঞ্চল: {digitalSpecs.region_code}</span>{digitalSpecs.subscription_period && <span className="border border-outline px-2 py-1">মেয়াদ: {digitalSpecs.subscription_period}</span>}{digitalSpecs.warranty_period && <span className="border border-outline px-2 py-1">ওয়ারেন্টি: {digitalSpecs.warranty_period}</span>}{digitalSpecs.auto_delivery_enabled && <span className="border border-brand-200 bg-brand-50 px-2 py-1 text-brand-700">স্বয়ংক্রিয় ডেলিভারি</span>}</div>{digitalSpecs.delivery_note && <p className="mt-3 border-l-2 border-brand-500 pl-3 text-xs leading-5 text-ink-600">{digitalSpecs.delivery_note}</p>}</section>}
 
