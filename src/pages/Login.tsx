@@ -162,12 +162,12 @@ export default function Login() {
         </Link>
       </div>
 
-      <main className="w-full max-w-md rounded-2xl border border-outline bg-surface p-6 shadow-sm sm:p-8">
-        <div className="mb-6 text-center">
+      <main className="w-full max-w-sm rounded-2xl border border-outline bg-surface p-5 shadow-sm sm:p-6">
+        <div className="mb-4 text-center">
           <img
             src="/icon-512.png"
             alt="BikriKoro"
-            className="mx-auto mb-3 h-14 w-14 rounded-2xl"
+            className="mx-auto mb-2 h-11 w-11 rounded-xl"
           />
           <h1 className="text-2xl font-bold text-ink-900">
             {isRegistering
@@ -206,35 +206,6 @@ export default function Login() {
           >
             নতুন account
           </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => void handleSocial("google")}
-            disabled={Boolean(socialBusy) || busy}
-            className="flex items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-800 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <GoogleMark />
-            {socialBusy === "google" ? "অপেক্ষা করুন…" : "Google"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSocial("facebook")}
-            disabled={Boolean(socialBusy) || busy}
-            className="flex items-center justify-center gap-2 rounded-xl border border-outline bg-surface py-3 text-sm font-semibold text-ink-800 transition hover:bg-bg disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#1877F2] text-sm font-bold leading-none text-white">
-              f
-            </span>
-            {socialBusy === "facebook" ? "অপেক্ষা করুন…" : "Facebook"}
-          </button>
-        </div>
-
-        <div className="my-5 flex items-center gap-3 text-xs text-ink-400">
-          <div className="h-px flex-1 bg-outline" />
-          অথবা
-          <div className="h-px flex-1 bg-outline" />
         </div>
 
         {isRegistering && (
@@ -306,7 +277,7 @@ export default function Login() {
           type="button"
           onClick={() => void handleSubmit()}
           disabled={busy || Boolean(socialBusy)}
-          className="mt-4 w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-4 w-full rounded-xl bg-brand-500 py-3 text-sm font-bold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy
             ? "অপেক্ষা করুন…"
@@ -322,7 +293,7 @@ export default function Login() {
             পাসওয়ার্ড ভুলে গেছেন?
           </Link>
         )}
-        <p className="mt-5 text-center text-sm text-ink-600">
+        <p className="mt-4 text-center text-sm text-ink-600">
           {isRegistering ? "আগে account আছে?" : "নতুন account দরকার?"}{" "}
           <button
             type="button"
@@ -335,6 +306,40 @@ export default function Login() {
             {isRegistering ? "Login করুন" : "Register করুন"}
           </button>
         </p>
+        <div className="mt-4 flex items-center gap-3 text-xs text-ink-400">
+          <div className="h-px flex-1 bg-outline" />
+          অথবা
+          <div className="h-px flex-1 bg-outline" />
+        </div>
+        <div className="mt-3 flex justify-center gap-3">
+          <button
+            type="button"
+            title="Google দিয়ে চালিয়ে যান"
+            aria-label="Google দিয়ে চালিয়ে যান"
+            onClick={() => void handleSocial("google")}
+            disabled={Boolean(socialBusy) || busy}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-outline bg-surface shadow-sm transition hover:border-brand-500 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <GoogleMark />
+          </button>
+          <button
+            type="button"
+            title="Facebook দিয়ে চালিয়ে যান"
+            aria-label="Facebook দিয়ে চালিয়ে যান"
+            onClick={() => void handleSocial("facebook")}
+            disabled={Boolean(socialBusy) || busy}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-outline bg-surface shadow-sm transition hover:border-brand-500 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1877F2] text-base font-bold leading-none text-white">
+              f
+            </span>
+          </button>
+        </div>
+        {socialBusy && (
+          <p className="mt-2 text-center text-xs text-ink-500">
+            {socialBusy === "google" ? "Google" : "Facebook"} login হচ্ছে…
+          </p>
+        )}
         {error && (
           <p className="mt-4 rounded-xl border border-error/20 bg-error/5 p-3 text-center text-sm font-medium text-error">
             {error}
