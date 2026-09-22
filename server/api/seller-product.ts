@@ -88,7 +88,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(401).json({ error: 'Firebase authentication is required' })
       return
     }
+    const message = error instanceof Error ? error.message : 'Seller product could not be saved'
+    if (message.includes('DUPLICATE_PENDING_PRODUCT')) {
+      res.status(409).json({ code: 'DUPLICATE_PENDING_PRODUCT', error: 'এই শিরোনাম ও বিবরণসহ একটি প্রোডাক্ট ইতিমধ্যে যাচাইয়ের জন্য জমা হয়েছে। যাচাই শেষ হলে সেটি ওয়েবসাইটে লাইভ দেখাবে।' })
+      return
+    }
     console.error('Seller product action failed:', error)
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Seller product could not be saved' })
+    res.status(400).json({ error: message })
   }
 }

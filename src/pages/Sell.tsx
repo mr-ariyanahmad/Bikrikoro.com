@@ -52,8 +52,8 @@ async function sellerProductRequest(body: Record<string, unknown>) {
     headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  const payload = await response.json().catch(() => ({})) as { error?: string; productId?: string }
-  if (!response.ok) throw new Error(payload.error || 'পণ্য সেভ করা যায়নি।')
+  const payload = await response.json().catch(() => ({})) as { error?: string; code?: string; productId?: string }
+  if (!response.ok) throw new Error(payload.code === 'DUPLICATE_PENDING_PRODUCT' ? 'DUPLICATE_PENDING_PRODUCT' : (payload.error || 'পণ্য সেভ করা যায়নি।'))
   return payload
 }
 
@@ -110,6 +110,7 @@ export default function Sell() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [draftMessage, setDraftMessage] = useState<string | null>(null)
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [digitalVerified, setDigitalVerified] = useState(false)
   const [digitalVerificationLoading, setDigitalVerificationLoading] = useState(true)
   const [archivedPhysical, setArchivedPhysical] = useState(false)
@@ -358,6 +359,7 @@ export default function Sell() {
     if (!user || !isValid || digitalVerificationLoading) return
     setSubmitting(true)
     setError(null)
+    setPendingMessage(null)
     try {
       if (!digitalVerified) throw new Error('পণ্য প্রকাশের আগে email verification ও Basic Seller setup সম্পন্ন করুন।')
       if (videoUrl.trim() && !isYouTubeUrl(videoUrl)) throw new Error('শুধু valid YouTube video link দেওয়া যাবে।')
@@ -413,7 +415,12 @@ export default function Sell() {
       navigate('/my-listings')
     } catch (submitError) {
       console.error('Product save failed:', submitError)
-      setError(submitError instanceof Error ? `সেভ করা যায়নি — ${submitError.message}` : 'পণ্য সেভ করা যায়নি।')
+      const message = submitError instanceof Error ? submitError.message : ''
+      if (message === 'DUPLICATE_PENDING_PRODUCT') {
+        setPendingMessage('এই শিরোনাম ও বিবরণসহ একটি প্রোডাক্ট ইতিমধ্যে যাচাইয়ের জন্য জমা হয়েছে। অনুগ্রহ করে অপেক্ষা করুন—যাচাই সম্পন্ন হলে আপনার প্রোডাক্টটি ওয়েবসাইটে লাইভ দেখাবে।')
+      } else {
+        setError(message ? `সেভ করা যায়নি — ${message}` : 'পণ্য সেভ করা যায়নি।')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -458,6 +465,7 @@ export default function Sell() {
         {!isEditing && <div className="flex gap-2"><button type="button" onClick={handleSaveDraft} className="border border-outline px-3 py-2 text-base font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700">ড্রাফট সেভ</button><button type="button" onClick={handleClearDraft} className="border border-error/30 px-3 py-2 text-base font-semibold text-error hover:bg-error/5">ড্রাফট মুছুন</button></div>}
       </div>
       {draftMessage && <p className="mt-2 text-sm text-brand-700">{draftMessage}</p>}
+      {pendingMessage && <div className="mt-4 flex items-start gap-3 border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-amber-600" /><p><strong>প্রোডাক্টটি আগে থেকেই জমা আছে।</strong><br />{pendingMessage}</p></div>}
 
       <div className="mt-6 space-y-5">
         <section className="border border-brand-200 bg-brand-50 p-4">
