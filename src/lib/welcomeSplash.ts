@@ -1,4 +1,4 @@
-export const WELCOME_SPLASH_STORAGE_KEY = 'bikrikoro:welcome-splash-seen-v1'
+export const WELCOME_SPLASH_STORAGE_KEY = 'bikrikoro:welcome-splash-seen-v2'
 export const WELCOME_SPLASH_REPLAY_EVENT = 'bikrikoro-replay-welcome-splash'
 
 export function replayWelcomeSplash() {
