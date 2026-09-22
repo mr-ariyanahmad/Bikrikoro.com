@@ -12,6 +12,7 @@ import notificationEvents from '../server/api/notification-events.js'
 import notificationPush from '../server/api/notification-push.js'
 import notifications from '../server/api/notifications.js'
 import orderAction from '../server/api/order-action.js'
+import orderReview from '../server/api/order-review.js'
 import orderRead from '../server/api/order-read.js'
 import paymentReconcile from '../server/api/payment-reconcile.js'
 import paymentReturn from '../server/api/payment-return.js'
@@ -69,6 +70,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'notification-push': notificationPush,
   notifications,
   'order-action': orderAction,
+  'order-review': orderReview,
   'order-read': orderRead,
   'payment-reconcile': paymentReconcile,
   'payment-return': paymentReturn,
