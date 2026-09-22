@@ -89,9 +89,10 @@ export default function ChatList() {
 
   return (
     <Layout wide hideFooter>
-      <div className="flex flex-col">
-      <div className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b border-outline pb-4"><div><h1 className="text-2xl font-bold tracking-tight text-ink-900">চ্যাট</h1><p className="mt-1 text-sm text-ink-500">শপ ও ক্রেতার সঙ্গে আপনার সব কথোপকথন।</p></div>{threads.length > 0 && <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">{threads.length}টি চ্যাট{unreadMessageCount > 0 ? ` · ${unreadMessageCount}টি অপঠিত` : ''}</span>}</div>
-      <div className="mt-4 flex shrink-0 flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা মেসেজ খুঁজুন" className="w-full rounded-xl border border-outline bg-surface py-3 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" /></label><div className="flex rounded-xl border border-outline bg-surface p-1"><button type="button" aria-pressed={view === 'all'} onClick={() => setView('all')} className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${view === 'all' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-600'}`}>সব</button><button type="button" aria-pressed={view === 'unread'} onClick={() => setView('unread')} className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${view === 'unread' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-600'}`}>অপঠিত ({unreadMessageCount})</button></div></div>
+      <div className="mx-auto w-full max-w-3xl">
+      <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-600">BikriKoro inbox</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-ink-900">চ্যাট</h1></div>{threads.length > 0 && <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">{threads.length}টি চ্যাট</span>}</div>
+      <div className="mt-5 rounded-[1.35rem] border border-accent-100 bg-accent-100/70 p-4"><div className="flex items-center gap-3"><div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-white text-accent-500 shadow-sm"><MessageCircle size={27} /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><p className="font-bold text-ink-900">BikriKoro Support</p><BadgeCheck size={17} className="text-brand-500" /></div><p className="mt-0.5 text-sm font-semibold text-accent-600">নিরাপদ কেনাকাটায় আমরা পাশে আছি</p></div><Link to="/help" className="rounded-full bg-accent-500 px-3 py-2 text-xs font-bold text-white">সহায়তা</Link></div></div>
+      <div className="mt-5 flex shrink-0 flex-col gap-2 sm:flex-row"><label className="relative flex-1"><Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-300" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="নাম বা মেসেজ খুঁজুন" className="w-full rounded-2xl border border-outline bg-surface py-3.5 pl-10 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" /></label><div className="flex rounded-2xl border border-outline bg-surface p-1"><button type="button" aria-pressed={view === 'all'} onClick={() => setView('all')} className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${view === 'all' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-600'}`}>সব</button><button type="button" aria-pressed={view === 'unread'} onClick={() => setView('unread')} className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${view === 'unread' ? 'bg-brand-500 text-white shadow-sm' : 'text-ink-600'}`}>অপঠিত ({unreadMessageCount})</button></div></div>
 
       <div className="mt-5 space-y-2 pb-1">
         {loading ? (
@@ -99,10 +100,10 @@ export default function ChatList() {
             <div key={i} className="h-16 animate-pulse rounded-xl bg-outline/40" />
           ))
         ) : visibleThreads.length === 0 ? (
-          <div className="rounded-2xl border border-outline bg-surface p-8 text-center text-ink-600">
-            <MessageCircle size={30} className="mx-auto text-brand-500" />
-            <p className="mt-3 font-semibold text-ink-900">এখনো কোনো চ্যাট নেই</p>
-            <p className="mt-1 text-sm">পণ্যের পেজ থেকে বিক্রেতাকে মেসেজ করুন।</p>
+          <div className="rounded-[1.35rem] border border-outline bg-surface px-5 py-16 text-center text-ink-600 shadow-sm">
+            <MessageCircle size={52} strokeWidth={1.5} className="mx-auto text-ink-300" />
+            <p className="mt-4 text-lg font-semibold text-ink-900">এখনো কোনো কথোপকথন নেই</p>
+            <p className="mt-1 text-sm">পণ্যের পেজ থেকে বিক্রেতাকে মেসেজ করলে এখানেই দেখা যাবে।</p>
           </div>
         ) : (
           visibleThreads.map((thread) => {
@@ -111,7 +112,7 @@ export default function ChatList() {
               <Link
                 key={thread.id}
                 to={`/chat/${thread.id}`}
-                className={`flex items-center gap-3 border-b border-outline bg-surface p-3.5 transition last:border-b-0 hover:bg-brand-50/50 active:scale-[0.995] ${unread > 0 ? 'bg-brand-50/40' : ''}`}
+                className={`flex items-center gap-3 rounded-2xl border border-outline bg-surface p-3.5 transition hover:border-brand-200 hover:bg-brand-50/50 active:scale-[0.995] ${unread > 0 ? 'border-brand-100 bg-brand-50/50' : ''}`}
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">
                   {thread.otherPhotoUrl ? <img src={thread.otherPhotoUrl} alt="" className="h-full w-full object-cover" /> : (thread.otherName.charAt(0) || '?')}

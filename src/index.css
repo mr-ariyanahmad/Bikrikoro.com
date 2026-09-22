@@ -5,21 +5,24 @@
   --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* BikriKoro marketplace system: restrained green with neutral surfaces. */
-  --color-brand-50: #EAF7F1;
-  --color-brand-100: #CDEBDD;
-  --color-brand-400: #20AE80;
-  --color-brand-500: #179D72;
-  --color-brand-600: #12845F;
-  --color-brand-700: #0D684B;
+  /* BikriKoro marketplace system: calm teal surfaces with a warm deal accent. */
+  --color-brand-50: #E7F3F5;
+  --color-brand-100: #C8E5E9;
+  --color-brand-400: #1597A6;
+  --color-brand-500: #087F8C;
+  --color-brand-600: #066875;
+  --color-brand-700: #064F5A;
+  --color-accent-100: #FFF0E6;
+  --color-accent-500: #F0782C;
+  --color-accent-600: #D85F1A;
 
   --color-ink-900: #17211D;
   --color-ink-600: #6B756F;
   --color-ink-300: #A9B3AE;
 
   --color-surface: #FFFFFF;
-  --color-bg: #F8FAF9;
-  --color-outline: #E5EAE7;
+  --color-bg: #F6F8FC;
+  --color-outline: #E4E8F0;
 
   --color-warning: #F5A524;
   --color-error: #E0433D;
@@ -76,13 +79,13 @@ body {
 }
 
 /* Non-semantic decorative accents use one brand family instead of rainbow utility colors. */
-.site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) {
+.site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-emerald-"]) {
   background-color: var(--color-brand-50) !important;
 }
-.site-minimal :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-orange-"], [class*="text-emerald-"]) {
+.site-minimal :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-emerald-"]) {
   color: var(--color-brand-700) !important;
 }
-.site-minimal :where([class*="border-violet-"], [class*="border-purple-"], [class*="border-sky-"], [class*="border-orange-"], [class*="border-emerald-"]) {
+.site-minimal :where([class*="border-violet-"], [class*="border-purple-"], [class*="border-sky-"], [class*="border-emerald-"]) {
   border-color: var(--color-brand-100) !important;
 }
 

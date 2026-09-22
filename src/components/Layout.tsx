@@ -1,5 +1,5 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
-import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Plus, Settings2, ShoppingBag, Store, UserRound, WalletCards, X } from 'lucide-react'
+import { Bell, BookOpen, BookmarkPlus, ChevronDown, Heart, Home, LogOut, MapPin, Menu, MessageCircle, Package, Plus, Settings2, ShoppingBag, Store, UserRound, WalletCards, X, ShieldCheck, CreditCard, BarChart3, CircleHelp, LockKeyhole } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
@@ -23,14 +23,22 @@ const NAV_LINKS: NavItem[] = [
   { to: '/blog', label: 'গাইড', icon: BookOpen },
 ]
 const ACCOUNT_LINKS: NavItem[] = [
-  { to: '/favorites', label: 'পছন্দের তালিকা', icon: Heart },
-  { to: '/library', label: 'ডিজিটাল লাইব্রেরি', icon: Package },
+  { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
+  { to: '/wallet', label: 'ওয়ালেট ও পেমেন্ট', icon: WalletCards },
   { to: '/notifications', label: 'নোটিফিকেশন', icon: Bell },
   { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
-  { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
+  { to: '/favorites', label: 'পছন্দের তালিকা', icon: Heart },
+  { to: '/library', label: 'ডিজিটাল লাইব্রেরি', icon: Package },
   { to: '/saved-searches', label: 'সেভড সার্চ', icon: BookmarkPlus },
-  { to: '/settings', label: 'সেটিংস ও সহায়তা', icon: Settings2 },
-  { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
+  { to: '/settings', label: 'সেটিংস', icon: Settings2 },
+]
+const DRAWER_LINKS: NavItem[] = [
+  { to: '/wallet', label: 'ওয়ালেট ও পেমেন্ট', icon: CreditCard },
+  { to: '/become-seller', label: 'সেলার সেন্টার', icon: Store },
+  { to: '/seller/dashboard', label: 'লিস্টিং বিশ্লেষণ', icon: BarChart3 },
+  { to: '/help', label: 'সাহায্য ও সাপোর্ট', icon: CircleHelp },
+  { to: '/privacy', label: 'গোপনীয়তা ও নিরাপত্তা', icon: LockKeyhole },
+  { to: '/settings', label: 'সেটিংস', icon: Settings2 },
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
@@ -45,63 +53,39 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const [unreadCount, setUnreadCount] = useState(0)
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
-  const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading
-    ? { to: '/become-seller', label: '...', icon: Store, prominent: true }
-    : isSeller
-      ? { to: '/sell', label: 'পোস্ট', icon: Plus, prominent: true }
-      : { to: '/become-seller', label: 'সেলার হোন', icon: Store, prominent: true }
-  const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS)
-    .filter((item) => !(item.to === '/become-seller' && sellerStatusLoading))
-    .map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
+  const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading ? { to: '/become-seller', label: '...', icon: Store, prominent: true } : isSeller ? { to: '/sell', label: 'বিক্রি', icon: Plus, prominent: true } : { to: '/become-seller', label: 'বিক্রি', icon: Plus, prominent: true }
+  const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS).filter((item) => !(item.to === '/become-seller' && sellerStatusLoading)).map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const mobileQuickLinks: MobileQuickNavItem[] = [
     { to: '/', label: 'হোম', icon: Home },
-    { to: '/orders', label: 'অর্ডার', icon: Package },
-    mobileSellerAction,
     { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
-    { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
+    mobileSellerAction,
+    { to: '/orders', label: 'অর্ডার', icon: Package },
+    { to: '/account', label: 'প্রোফাইল', icon: UserRound },
   ]
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
-  // Every mobile page uses the compact home-style search in the primary header.
-  // The dedicated /search route already owns its full-screen search input.
   const showPrimaryMobileSearch = location.pathname !== '/search'
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
   const badgeForPath = (path: string) => path === '/chat' ? chatUnreadCount : path === '/notifications' ? unreadCount : 0
+  const displayName = user?.displayName?.trim() || 'BikriKoro সদস্য'
 
   useEffect(() => {
-    if (!user) {
-      setUnreadCount(0)
-      return
-    }
+    if (!user) { setUnreadCount(0); return }
     let active = true
     void loadUnreadNotificationCount(user.uid).then((count) => { if (active) setUnreadCount(count) }).catch(() => undefined)
-    const onChanged = (event: Event) => {
-      const count = (event as CustomEvent<{ unreadCount?: number }>).detail?.unreadCount
-      if (typeof count === 'number') setUnreadCount(count)
-    }
-    const channel = supabase
-      .channel(`header-notifications-${user.uid}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, () => setUnreadCount((count) => count + 1))
-      .subscribe()
+    const onChanged = (event: Event) => { const count = (event as CustomEvent<{ unreadCount?: number }>).detail?.unreadCount; if (typeof count === 'number') setUnreadCount(count) }
+    const channel = supabase.channel(`header-notifications-${user.uid}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, () => setUnreadCount((count) => count + 1)).subscribe()
     window.addEventListener('bikrikoro-notifications-changed', onChanged)
-    return () => {
-      active = false
-      window.removeEventListener('bikrikoro-notifications-changed', onChanged)
-      void supabase.removeChannel(channel)
-    }
+    return () => { active = false; window.removeEventListener('bikrikoro-notifications-changed', onChanged); void supabase.removeChannel(channel) }
   }, [user])
 
   useEffect(() => {
     if (!fullScreen) return
     const previousBodyOverflow = document.body.style.overflow
     const previousDocumentOverflow = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousBodyOverflow
-      document.documentElement.style.overflow = previousDocumentOverflow
-    }
+    document.body.style.overflow = 'hidden'; document.documentElement.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousBodyOverflow; document.documentElement.style.overflow = previousDocumentOverflow }
   }, [fullScreen])
 
   useEffect(() => {
@@ -112,7 +96,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
         const result = await chatRequest<{ threads?: Array<{ buyer_id: string; seller_id: string; buyer_unread_count: number; seller_unread_count: number }> }>({ action: 'list' })
         const total = (result.threads ?? []).reduce((sum, thread) => sum + Number(thread.buyer_id === user.uid ? thread.buyer_unread_count : thread.seller_unread_count), 0)
         if (active) setChatUnreadCount(total)
-      } catch { /* keep the last known badge value */ }
+      } catch { /* keep last known badge */ }
     }
     void loadChatUnread()
     const poller = window.setInterval(() => { void loadChatUnread() }, 12000)
@@ -125,48 +109,27 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
       <header className={`sticky top-0 z-40 border-b border-outline/80 bg-surface/95 shadow-[0_2px_16px_rgba(15,23,42,0.04)] backdrop-blur ${fullScreen ? 'shrink-0' : ''}`}>
         <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
           <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
-            <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
-              <img src="/icon-512.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" />
-              <span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span>
-            </Link>
-
+            <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={closeMobileMenu}><img src="/icon-512.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" /><span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span></Link>
             <div className="hidden shrink-0 sm:block"><BackButton fallbackTo={backFallback} label={backLabel} /></div>
             <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
             {showPrimaryMobileSearch && <div className="min-w-0 flex-1 sm:hidden"><SearchBar compact /></div>}
-
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-              <div className="relative hidden md:block">
-                <button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl border border-outline bg-bg px-3 py-2 text-sm font-medium text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={cityOpen}>
-                  <MapPin size={16} className="text-brand-600" /><span>খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} />
-                </button>
-                {cityOpen && <div className="absolute right-0 top-12 z-50 w-44 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={() => setCityOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700"><MapPin size={14} />{city}</Link>)}</div>}
-              </div>
-              {user ? <div className="relative hidden md:block">
-                <button type="button" onClick={toggleAccountMenu} className="inline-flex items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={accountOpen} aria-haspopup="menu"><UserRound size={16} />অ্যাকাউন্ট<ChevronDown size={14} className={accountOpen ? 'rotate-180 transition' : 'transition'} /></button>
-                {accountOpen && <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{ACCOUNT_LINKS.map((link) => <Link key={link.to} to={link.to} role="menuitem" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"><link.icon size={16} /><span className="min-w-0 flex-1">{link.label}</span>{badgeForPath(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</Link>)}<div className="my-1 h-px bg-outline" /><button type="button" onClick={() => { setAccountOpen(false); void logout() }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" role="menuitem"><LogOut size={16} />লগআউট</button></div>}
-              </div> : <Link to="/login" className="rounded-xl bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 sm:px-4">লগইন</Link>}
+              <div className="relative hidden md:block"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl border border-outline bg-bg px-3 py-2 text-sm font-medium text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={cityOpen}><MapPin size={16} className="text-brand-600" /><span>খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="absolute right-0 top-12 z-50 w-44 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={() => setCityOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700"><MapPin size={14} />{city}</Link>)}</div>}</div>
+              {user ? <div className="relative hidden md:block"><button type="button" onClick={toggleAccountMenu} className="inline-flex items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={accountOpen} aria-haspopup="menu"><UserRound size={16} />অ্যাকাউন্ট<ChevronDown size={14} className={accountOpen ? 'rotate-180 transition' : 'transition'} /></button>{accountOpen && <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{ACCOUNT_LINKS.map((link) => <Link key={link.to} to={link.to} role="menuitem" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"><link.icon size={16} /><span className="min-w-0 flex-1">{link.label}</span>{badgeForPath(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</Link>)}<div className="my-1 h-px bg-outline" /><button type="button" onClick={() => { setAccountOpen(false); void logout() }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" role="menuitem"><LogOut size={16} />লগআউট</button></div>}</div> : <Link to="/login" className="rounded-xl bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 sm:px-4">লগইন</Link>}
               <button type="button" onClick={toggleMobileMenu} className="rounded-xl border border-outline p-2 text-ink-700 hover:border-brand-300 hover:text-brand-700 md:hidden" aria-label={menuOpen ? 'মেনু বন্ধ করুন' : 'মেনু খুলুন'} aria-expanded={menuOpen}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
             </div>
           </div>
-
-          <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex">
-            <div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div>
-            <div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />সেটিংস ও সহায়তা</Link><div className="relative"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700" aria-expanded={cityOpen}><MapPin size={15} className="text-brand-600" />খুলনা<ChevronDown size={13} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="absolute right-0 top-11 z-50 grid w-44 grid-cols-2 gap-1 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={() => setCityOpen(false)} className="rounded-xl px-2 py-2 text-center text-xs text-ink-700 hover:bg-brand-50 hover:text-brand-700">{city}</Link>)}</div>}</div><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div>
-          </nav>
-
-          {menuOpen && <nav className="border-t border-outline bg-surface py-3 md:hidden"><div className="grid grid-cols-2 gap-1.5">{navLinks.map((link) => <MobileNavLink key={link.to} item={link} onClose={closeMobileMenu} />)}</div><div className="relative mt-3"><button type="button" onClick={() => setCityOpen((open) => !open)} className="flex w-full items-center justify-between rounded-xl border border-outline bg-bg px-3 py-2.5 text-sm font-semibold text-ink-700"><span className="inline-flex items-center gap-2"><MapPin size={16} className="text-brand-600" />এলাকা: খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl border border-outline bg-bg p-1">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={closeMobileMenu} className="rounded-lg px-2.5 py-2 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700">{city}</Link>)}</div>}</div><div className="my-3 h-px bg-outline" />{user ? <div className="grid grid-cols-2 gap-1.5">{ACCOUNT_LINKS.map((link) => <MobileNavLink key={link.to} item={link} badge={badgeForPath(link.to)} onClose={closeMobileMenu} />)}<button type="button" onClick={() => { closeMobileMenu(); void logout() }} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-600"><LogOut size={16} />লগআউট</button></div> : <Link to="/login" onClick={closeMobileMenu} className="rounded-xl bg-brand-50 px-3 py-2.5 text-center text-sm font-semibold text-brand-700">লগইন করে সব সুবিধা ব্যবহার করুন</Link>}</nav>}
+          <nav className="hidden items-center justify-between border-t border-outline/70 py-2 md:flex"><div className="flex items-center gap-1">{navLinks.map((link) => <NavLink key={link.to} to={link.to} end={link.to === '/'} className={({ isActive }) => `group inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-600 hover:bg-bg hover:text-ink-900'}`}><link.icon size={15} strokeWidth={1.8} /><span>{link.label}</span></NavLink>)}</div><div className="flex items-center gap-1.5"><Link to="/settings" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink-600 hover:bg-bg hover:text-brand-700"><Settings2 size={15} className="text-brand-600" />সেটিংস ও সহায়তা</Link><Link to="/notifications" className="relative rounded-xl p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="নোটিফিকেশন"><Bell size={17} />{user && unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}</Link></div></nav>
         </div>
       </header>
-      <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 pb-28 pt-7 sm:px-5 sm:pt-8 md:py-8`}>{children}</main>
-      {!hideFooter && <footer className="border-t border-outline bg-surface pb-24 md:pb-0">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9">
-          <section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section>
-          <div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">সেটিংস ও সহায়তা</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div>
-        </div>
-      </footer>}
-      {!fullScreen && !hideMobileQuickNav && <nav aria-label="মোবাইল কুইক নেভিগেশন" className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.7rem)] z-50 border border-outline bg-surface shadow-[0_8px_24px_rgba(23,33,29,0.12)] md:hidden"><div className="mx-auto grid max-w-xl grid-cols-5 items-end px-1 py-1.5">{mobileQuickLinks.map((link) => <NavLink key={link.label} to={link.to} end={link.to === '/'} onClick={closeMobileMenu}>{({ isActive }) => <span className={`relative flex min-h-[3.2rem] min-w-0 flex-col items-center justify-end gap-1 px-1 pb-1 text-[10px] font-semibold ${isActive ? 'text-brand-600' : 'text-ink-600'}`}><span className={`flex items-center justify-center ${link.prominent ? `h-9 w-9 rounded-lg text-white ${isActive ? 'bg-brand-600' : 'bg-brand-500'}` : isActive ? 'text-brand-600' : 'text-ink-600'}`}><link.icon size={link.prominent ? 19 : 20} strokeWidth={isActive ? 2.2 : 1.8} /></span><span className={`max-w-full truncate leading-4 ${isActive ? 'font-bold' : ''}`}>{link.label}</span>{badgeForPath(link.to) > 0 && <span className="absolute right-1/4 top-0 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</span>}</NavLink>)}</div></nav>}
+      {menuOpen && <MobileAccountDrawer user={user} displayName={displayName} links={DRAWER_LINKS} badgeForPath={badgeForPath} onClose={closeMobileMenu} onLogout={() => { closeMobileMenu(); void logout() }} />}
+      <main className={fullScreen ? `mx-auto ${maxWidth} flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 py-4 sm:px-5 sm:py-5` : `mx-auto ${maxWidth} px-4 pb-28 pt-5 sm:px-5 sm:pt-8 md:py-8`}>{children}</main>
+      {!hideFooter && <footer className="border-t border-outline bg-surface pb-24 md:pb-0"><div className="mx-auto max-w-7xl px-4 py-7 sm:px-5 sm:py-9"><section className="border border-outline bg-bg p-3 sm:p-4" aria-label="পেমেন্ট পদ্ধতি"><img src="/payment-logos/payment-options.png" alt="BikriKoro payment options" className="mx-auto h-auto w-full max-w-5xl object-contain" loading="lazy" /></section><div className="flex flex-col items-center gap-3 pt-6 text-sm text-ink-400 sm:flex-row sm:justify-between"><span>© {new Date().getFullYear()} Bikrikoro.Com</span><div className="flex gap-4"><Link to="/settings" className="hover:text-ink-700">সেটিংস ও সহায়তা</Link><Link to="/help" className="hover:text-ink-700">সাহায্য</Link></div></div></div></footer>}
+      {!fullScreen && !hideMobileQuickNav && <nav aria-label="মোবাইল কুইক নেভিগেশন" className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.7rem)] z-50 rounded-[1.35rem] border border-white/70 bg-surface/95 shadow-[0_14px_34px_rgba(15,23,42,0.16)] backdrop-blur md:hidden"><div className="mx-auto grid max-w-xl grid-cols-5 items-end px-1 py-1.5">{mobileQuickLinks.map((link) => <NavLink key={link.label} to={link.to} end={link.to === '/'} onClick={closeMobileMenu}>{({ isActive }) => <span className={`relative flex min-h-[3.4rem] min-w-0 flex-col items-center justify-end gap-1 px-1 pb-1 text-[10px] font-semibold ${isActive ? 'text-brand-700' : 'text-ink-600'}`}><span className={`flex items-center justify-center ${link.prominent ? `-mt-7 h-14 w-14 rounded-full border-4 border-bg text-white shadow-[0_8px_20px_rgba(23,157,114,0.32)] ${isActive ? 'bg-brand-700' : 'bg-brand-500'}` : isActive ? 'h-8 w-12 rounded-full bg-brand-100 text-brand-700' : 'h-8 w-12 text-ink-600'}`}><link.icon size={link.prominent ? 25 : 20} strokeWidth={isActive ? 2.3 : 1.8} /></span><span className={`max-w-full truncate leading-4 ${isActive ? 'font-bold' : ''}`}>{link.label}</span>{badgeForPath(link.to) > 0 && <span className="absolute right-1/4 top-0 min-w-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-bold leading-4 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</span>}</NavLink>)}</div></nav>}
     </div>
   )
 }
 
-function MobileNavLink({ item, badge = 0, onClose }: { item: NavItem; badge?: number; onClose: () => void }) { return <NavLink to={item.to} end={item.to === '/'} onClick={onClose} className={({ isActive }) => `flex min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold ${isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-bg'}`}><item.icon size={17} strokeWidth={1.8} /><span className="min-w-0 flex-1 truncate">{item.label}</span>{badge > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badge > 99 ? '99+' : badge}</span>}</NavLink> }
+function MobileAccountDrawer({ user, displayName, links, badgeForPath, onClose, onLogout }: { user: { photoURL?: string | null } | null; displayName: string; links: NavItem[]; badgeForPath: (path: string) => number; onClose: () => void; onLogout: () => void }) {
+  return <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true" aria-label="অ্যাকাউন্ট মেনু"><button type="button" className="absolute inset-0 bg-ink-900/45" onClick={onClose} aria-label="মেনু বন্ধ করুন" /><aside className="relative flex h-full w-[min(86vw,22rem)] flex-col overflow-y-auto rounded-r-[2rem] bg-bg shadow-2xl"><div className="border-b border-outline bg-surface px-5 pb-5 pt-8"><div className="flex items-center gap-3"><div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-brand-100 text-2xl font-bold text-brand-700">{user?.photoURL ? <img src={user.photoURL} alt="" className="h-full w-full object-cover" /> : displayName.charAt(0)}</div><div className="min-w-0"><p className="truncate text-lg font-bold text-ink-900">{displayName}</p><span className="mt-1 inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700"><ShieldCheck size={14} />{user ? 'প্রোফাইল যাচাই করুন' : 'BikriKoro-তে স্বাগতম'}</span></div></div></div><div className="flex-1 px-3 py-4">{links.map((link) => <Link key={link.to} to={link.to} onClick={onClose} className="flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-ink-700 hover:bg-brand-50 hover:text-brand-700"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600"><link.icon size={19} /></span><span className="min-w-0 flex-1">{link.label}</span>{badgeForPath(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badgeForPath(link.to)}</span>}</Link>)}<div className="my-3 h-px bg-outline" /><Link to="/account" onClick={onClose} className="flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-ink-700 hover:bg-brand-50 hover:text-brand-700"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600"><UserRound size={19} /></span><span>অ্যাকাউন্ট দেখুন</span></Link></div><div className="border-t border-outline p-4">{user ? <button type="button" onClick={onLogout} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600"><LogOut size={17} />লগআউট</button> : <Link to="/login" onClick={onClose} className="flex w-full items-center justify-center rounded-2xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">লগইন করে শুরু করুন</Link>}</div></aside></div>
+}
