@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ExternalLink, Globe2, Send, X } from 'lucide-react'
+import { ExternalLink, Globe2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type Placement = 'HOME' | 'SEARCH' | 'SELLER_EDU' | 'SELLER_DASHBOARD'
@@ -44,8 +44,8 @@ export function CommunityLinks({ placement, popup = false, compact = false }: { 
 
 function PlatformLogo({ platform, size = 25 }: { platform: CommunityLink['platform']; size?: number }) {
   if (platform === 'WHATSAPP') return <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" fill="none"><path fill="currentColor" d="M16 3.5a12.3 12.3 0 0 0-10.5 19L4 28l5.7-1.5A12.5 12.5 0 1 0 16 3.5Z"/><path fill="white" d="M22.3 18.6c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2l-.8 1c-.2.3-.4.3-.7.1-1.1-.5-2-1.2-2.8-2.2-.2-.3 0-.4.2-.6l.5-.6c.1-.2.2-.3.1-.5l-.9-2.1c-.1-.3-.3-.3-.5-.3h-.5c-.2 0-.5.1-.7.3-.8.8-.8 2 0 3.1 1.7 2.5 4 3.9 6 4.5.8.2 1.4.2 1.9-.1.4-.2.8-.7.9-1.2.1-.2.1-.4-.1-.6Z"/></svg>
-  if (platform === 'FACEBOOK') return <span aria-hidden="true" className="flex h-7 w-7 items-end justify-center rounded-full bg-current text-white"><span className="text-3xl font-black leading-[0.82]">f</span></span>
-  if (platform === 'TELEGRAM') return <Send size={size} aria-hidden="true" />
+  if (platform === 'FACEBOOK') return <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="currentColor" /><path fill="white" d="M17.7 25v-7.8h2.6l.4-3h-3v-1.9c0-.9.3-1.5 1.6-1.5h1.7V8.1c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2h-2.6v3h2.6V25h2.9Z" /></svg>
+  if (platform === 'TELEGRAM') return <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="currentColor" /><path fill="white" d="m24.3 9.3-3.1 14.6c-.2 1-.8 1.2-1.6.7l-4.5-3.3-2.2 2.1c-.2.2-.4.4-.8.4l.3-4.6 8.3-7.5c.4-.3-.1-.5-.6-.2l-10.3 6.5-4.4-1.4c-1-.3-1-1 .2-1.5l17.2-6.6c.8-.3 1.5.2 1.3 1.3Z" /></svg>
   return <Globe2 size={size} aria-hidden="true" />
 }
 

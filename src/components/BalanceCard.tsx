@@ -24,7 +24,7 @@ export function BalanceCard({
       </div>
       <button
         onClick={onWithdrawClick}
-        disabled={spendable === null || spendable <= 0}
+        disabled={spendable === null}
         className="mt-6 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         উত্তোলন করুন
