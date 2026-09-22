@@ -7,7 +7,7 @@ const READ_ONLY_RPCS = new Set([
   'admin_get_settings', 'admin_get_system_status', 'admin_list_banners',   'admin_list_categories', 'admin_list_community_links', 'admin_list_chat_threads',
   'admin_list_content', 'admin_list_coupons', 'admin_list_customers', 'admin_list_digital_deliveries', 'admin_list_members',
   'admin_list_orders', 'admin_list_pending_disputes', 'admin_list_product_approval_history', 'admin_list_products', 'admin_list_reviews',
-  'admin_list_roles', 'admin_list_withdrawals', 'admin_list_withdrawals_reconciled',
+  'admin_list_roles', 'admin_list_sellers', 'admin_list_withdrawals', 'admin_list_withdrawals_reconciled',
 ])
 const ADMIN_REQUEST_TIMEOUT_MS = 20000
 

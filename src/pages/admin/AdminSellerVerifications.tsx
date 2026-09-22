@@ -8,6 +8,7 @@ import { formatDateTime } from '@/lib/format'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import type { SellerRegistration, SellerVerificationDocument } from '@/types/chat'
 import { adminRpc } from '@/lib/adminRpc'
+import AdminSellerDirectory from '@/pages/admin/AdminSellerDirectory'
 
 type RegistrationDocument = SellerVerificationDocument & { document_url?: string | null }
 type SellerProfileSummary = { id: string; name: string | null; email: string | null; photo_url: string | null; shop_name: string | null; shop_description: string | null }
@@ -112,6 +113,7 @@ export default function AdminSellerVerifications() {
   return (
     <AdminShell>
       <AdminPageHeader title="সেলার ভেরিফিকেশন রিভিউ" description="একটি আবেদন বেছে নিয়ে বিস্তারিত document review ও final decision দিন।" />
+      <AdminSellerDirectory />
             <div className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm leading-6 text-brand-800">
         <FileCheck2 className="mr-2 inline-block align-text-bottom" size={17} />
         Approved seller-এর profile-এ mode ও sector অনুযায়ী trust badge তৈরি হবে। Sensitive documents public করা হয় না।
