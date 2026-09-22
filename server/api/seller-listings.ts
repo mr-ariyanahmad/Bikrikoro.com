@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const supabase = getServiceSupabase()
     if (req.method === 'GET') {
-      const { data, error } = await supabase.rpc('seller_list_products', { p_seller_id: token.uid })
+      const { data, error } = await supabase.from('products').select('*').eq('seller_id', token.uid).order('created_at', { ascending: false }).limit(100)
       if (error) throw error
       res.status(200).json({ products: data ?? [] })
       return
@@ -27,12 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     if (input.action === 'get') {
-      const { data, error } = await supabase.rpc('seller_get_product', { p_seller_id: token.uid, p_product_id: input.productId.trim() })
+      const { data, error } = await supabase.from('products').select('*').eq('id', input.productId.trim()).eq('seller_id', token.uid).maybeSingle()
       if (error) throw error
       res.status(200).json({ product: data ?? null })
       return
     }
-    const { error } = await supabase.rpc('seller_archive_product', { p_seller_id: token.uid, p_product_id: input.productId.trim() })
+    const { error } = await supabase.from('products').update({ is_hidden: true }).eq('id', input.productId.trim()).eq('seller_id', token.uid)
     if (error) throw error
     res.status(200).json({ ok: true })
   } catch (error) {
