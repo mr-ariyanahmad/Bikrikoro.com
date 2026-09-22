@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Home, ShoppingBag } from "lucide-react";
+import { Eye, EyeOff, Home, ShoppingBag } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -62,11 +62,13 @@ export default function Login() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [socialBusy, setSocialBusy] = useState<"google" | "facebook" | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const emailIsValid = /^\S+@\S+\.\S+$/.test(email.trim());
 
   useEffect(() => {
     if (authError) setError(socialAuthMessage({ code: authError }));
@@ -80,12 +82,20 @@ export default function Login() {
 
   const handleSubmit = async () => {
     setError(null);
-    if (!email.trim() || !password) {
-      setError("ইমেইল ও পাসওয়ার্ড দিন।");
+    if (!emailIsValid) {
+      setError("সঠিক email address দিন।");
+      return;
+    }
+    if (!password) {
+      setError("পাসওয়ার্ড দিন।");
       return;
     }
     if (isRegistering && !name.trim()) {
       setError("আপনার নাম দিন।");
+      return;
+    }
+    if (isRegistering && password.length < 6) {
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।");
       return;
     }
     setBusy(true);
@@ -171,7 +181,34 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="mb-5 grid grid-cols-2 rounded-xl border border-outline bg-bg p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(false);
+              setError(null);
+              setPassword("");
+              setShowPassword(false);
+            }}
+            className={`rounded-lg py-2.5 text-sm font-bold transition ${!isRegistering ? "bg-surface text-brand-700 shadow-sm" : "text-ink-500 hover:text-ink-700"}`}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(true);
+              setError(null);
+              setPassword("");
+              setShowPassword(false);
+            }}
+            className={`rounded-lg py-2.5 text-sm font-bold transition ${isRegistering ? "bg-surface text-brand-700 shadow-sm" : "text-ink-500 hover:text-ink-700"}`}
+          >
+            নতুন account
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => void handleSocial("google")}
@@ -201,31 +238,70 @@ export default function Login() {
         </div>
 
         {isRegistering && (
-          <input
-            type="text"
-            autoComplete="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="আপনার নাম"
-            className="mb-3 w-full rounded-xl border border-outline px-3 py-3 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
-          />
+          <label className="mb-3 block">
+            <span className="mb-1.5 block text-sm font-semibold text-ink-800">
+              আপনার নাম
+            </span>
+            <input
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="যেমন: আরিয়ান আহমেদ"
+              className="w-full rounded-xl border border-outline px-3 py-3 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
+            />
+          </label>
         )}
-        <input
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="ইমেইল"
-          className="w-full rounded-xl border border-outline px-3 py-3 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
-        />
-        <input
-          type="password"
-          autoComplete={isRegistering ? "new-password" : "current-password"}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="পাসওয়ার্ড"
-          className="mt-3 w-full rounded-xl border border-outline px-3 py-3 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
-        />
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold text-ink-800">
+            ইমেইল
+          </span>
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            className={`w-full rounded-xl border px-3 py-3 text-base outline-none focus:ring-2 focus:ring-brand-500/10 ${email && !emailIsValid ? "border-error focus:border-error" : "border-outline focus:border-brand-500"}`}
+          />
+          {email && !emailIsValid && (
+            <span className="mt-1.5 block text-xs text-error">
+              একটি সঠিক email address দিন
+            </span>
+          )}
+        </label>
+        <label className="mt-3 block">
+          <span className="mb-1.5 block text-sm font-semibold text-ink-800">
+            পাসওয়ার্ড
+          </span>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete={isRegistering ? "new-password" : "current-password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="পাসওয়ার্ড"
+              className="w-full rounded-xl border border-outline px-3 py-3 pr-11 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10"
+            />
+            <button
+              type="button"
+              aria-label={
+                showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"
+              }
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-ink-400 hover:bg-bg hover:text-brand-700"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {isRegistering && (
+            <span
+              className={`mt-1.5 block text-xs ${password && password.length < 6 ? "text-error" : "text-ink-500"}`}
+            >
+              কমপক্ষে ৬ অক্ষর
+            </span>
+          )}
+        </label>
         <button
           type="button"
           onClick={() => void handleSubmit()}
@@ -246,18 +322,19 @@ export default function Login() {
             পাসওয়ার্ড ভুলে গেছেন?
           </Link>
         )}
-        <button
-          type="button"
-          onClick={() => {
-            setIsRegistering((value) => !value);
-            setError(null);
-          }}
-          className="mt-5 w-full text-center text-sm font-semibold text-ink-600 hover:text-brand-700"
-        >
-          {isRegistering
-            ? "আগে account আছে? Login করুন"
-            : "নতুন account তৈরি করুন"}
-        </button>
+        <p className="mt-5 text-center text-sm text-ink-600">
+          {isRegistering ? "আগে account আছে?" : "নতুন account দরকার?"}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering((value) => !value);
+              setError(null);
+            }}
+            className="font-bold text-brand-700 hover:underline"
+          >
+            {isRegistering ? "Login করুন" : "Register করুন"}
+          </button>
+        </p>
         {error && (
           <p className="mt-4 rounded-xl border border-error/20 bg-error/5 p-3 text-center text-sm font-medium text-error">
             {error}
