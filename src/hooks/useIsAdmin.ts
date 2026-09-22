@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { auth } from '@/lib/firebase'
 
 export type AdminAccess = { isAdmin: boolean; loading: boolean; roleKey: string | null; roleLabel: string | null; permissions: string[]; can: (permission: string) => boolean }
 
@@ -26,10 +26,14 @@ export function useIsAdmin(): AdminAccess {
     setLoading(true)
     const loadAccess = async () => {
       try {
-        const { data, error } = await supabase.rpc('admin_access', { p_user_id: user.uid }).maybeSingle()
+        const idToken = await auth.currentUser?.getIdToken()
+        if (!idToken) throw new Error('Firebase session unavailable')
+        const response = await fetch('/api/admin-access', { headers: { Authorization: `Bearer ${idToken}` } })
+        const payload = await response.json().catch(() => ({})) as { data?: unknown; error?: string }
+        if (!response.ok) throw new Error(payload.error || `Admin access failed (HTTP ${response.status})`)
         if (!active) return
-        const access = data as { is_admin?: boolean; role_key?: string; role_label?: string; permissions?: unknown } | null
-        if (!error && access?.is_admin) {
+        const access = payload.data as { is_admin?: boolean; role_key?: string; role_label?: string; permissions?: unknown } | null
+        if (access?.is_admin) {
           const raw = access.permissions
           setIsAdmin(true)
           setRoleKey(access.role_key ?? null)
@@ -38,19 +42,10 @@ export function useIsAdmin(): AdminAccess {
           return
         }
 
-        if (user.email) {
-          const legacy = await supabase.from('admin_emails').select('email').ilike('email', user.email).maybeSingle()
-          if (!active) return
-          setIsAdmin(Boolean(legacy.data))
-          setRoleKey(legacy.data ? 'SUPER_ADMIN' : null)
-          setRoleLabel(legacy.data ? 'পূর্ণ অ্যাডমিন' : null)
-          setPermissions(legacy.data ? ['*'] : [])
-        } else {
-          setIsAdmin(false)
-          setRoleKey(null)
-          setRoleLabel(null)
-          setPermissions([])
-        }
+        setIsAdmin(false)
+        setRoleKey(null)
+        setRoleLabel(null)
+        setPermissions([])
       } catch (error) {
         console.error('Admin access check failed:', error)
         if (!active) return

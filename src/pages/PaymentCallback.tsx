@@ -5,7 +5,7 @@ import { Layout } from '@/components/Layout'
 import { BrandLoader } from '@/components/BrandLoader'
 import type { OrderStatus } from '@/types/order'
 
-type ViewState = 'checking' | 'confirmed' | 'still_pending' | 'cancelled'
+type ViewState = 'checking' | 'confirmed' | 'still_pending' | 'cancelled' | 'invalid'
 
 export default function PaymentCallback() {
   const [searchParams] = useSearchParams()
@@ -14,7 +14,7 @@ export default function PaymentCallback() {
   const transactionId = searchParams.get('transaction_id') || searchParams.get('transaction') || searchParams.get('trx_id')
   const wasCancelled = searchParams.get('cancelled') === '1'
 
-  const [view, setView] = useState<ViewState>(wasCancelled ? 'cancelled' : 'checking')
+  const [view, setView] = useState<ViewState>(wasCancelled ? 'cancelled' : orderId ? 'checking' : 'invalid')
   const [pollError, setPollError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -127,6 +127,15 @@ export default function PaymentCallback() {
             >
               কেনাকাটা চালিয়ে যান
             </Link>
+          </>
+        )}
+
+        {view === 'invalid' && (
+          <>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 text-3xl text-warning">!</div>
+            <h1 className="mt-4 text-xl font-semibold text-ink-900">পেমেন্ট লিংকটি অসম্পূর্ণ</h1>
+            <p className="mt-1 max-w-sm text-sm text-ink-600">অর্ডার নম্বর পাওয়া যায়নি। আপনার অর্ডার পেজ থেকে payment status দেখুন অথবা আবার checkout শুরু করুন।</p>
+            <Link to="/orders" className="mt-6 rounded-xl bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">অর্ডার পেজে যান</Link>
           </>
         )}
       </div>

@@ -40,7 +40,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
-const GOOGLE_REDIRECT_PENDING_KEY = 'bikrikoro:google-redirect-pending'
+const SOCIAL_REDIRECT_PENDING_KEY = 'bikrikoro:social-redirect-pending'
 
 // Invisible reCAPTCHA container, created once and reused across OTP
 // requests — matches the invisible-verifier behavior Firebase Phone Auth
@@ -86,9 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(() => getRedirectResult(auth))
       .then((result) => {
         if (result?.user) {
-          window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
-        } else if (window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) && !auth.currentUser) {
-          window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY)
+          window.sessionStorage.removeItem(SOCIAL_REDIRECT_PENDING_KEY)
+        } else if (window.sessionStorage.getItem(SOCIAL_REDIRECT_PENDING_KEY) && !auth.currentUser) {
+          window.sessionStorage.removeItem(SOCIAL_REDIRECT_PENDING_KEY)
           setAuthError('auth/redirect-session-not-found')
         }
       })
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const code = (error as { code?: string }).code
       if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
-        window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1')
+        window.sessionStorage.setItem(SOCIAL_REDIRECT_PENDING_KEY, '1')
         await signInWithRedirect(auth, googleProvider)
         return
       }
@@ -176,10 +176,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ensureFirebaseConfigured()
     setAuthError(null)
     await setPersistence(auth, browserLocalPersistence)
-    // Keep Facebook consistent with the working Google interaction. The old
-    // mobile redirect path could strand users on the Firebase handler domain
-    // when Meta or Firebase OAuth had not been fully configured.
-    await signInWithPopup(auth, facebookProvider)
+    try {
+      await signInWithPopup(auth, facebookProvider)
+    } catch (error) {
+      const code = (error as { code?: string }).code
+      if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+        window.sessionStorage.setItem(SOCIAL_REDIRECT_PENDING_KEY, '1')
+        await signInWithRedirect(auth, facebookProvider)
+        return
+      }
+      throw error
+    }
   }
 
   const logout = async () => {

@@ -33,6 +33,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(403).json({ error: 'Admin permission is required' })
       return
     }
+    const { data: canReviewSellers, error: permissionError } = await supabase.rpc('admin_has_permission', { p_user_id: adminId, p_permission: 'content.sellers' })
+    if (permissionError) throw permissionError
+    if (!canReviewSellers) {
+      res.status(403).json({ error: 'Seller verification permission is required' })
+      return
+    }
 
     const requestedStatus = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : 'PENDING'
     const statusFilter = ['PENDING', 'APPROVED', 'REJECTED'].includes(requestedStatus) ? requestedStatus : null

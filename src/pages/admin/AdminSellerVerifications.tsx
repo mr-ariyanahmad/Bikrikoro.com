@@ -86,7 +86,7 @@ export default function AdminSellerVerifications() {
       const matchesDate = dateFilter === 'ALL' || (dateFilter === 'TODAY' ? age <= 86400000 : dateFilter === '7D' ? age <= 7 * 86400000 : age <= 30 * 86400000)
       return matchesSearch && matchesFilter && matchesDocument && matchesDate
     })
-  }, [queueFilter, registrations, searchTerm])
+  }, [dateFilter, documentFilter, queueFilter, registrations, searchTerm])
 
   const reviewDocument = async (documentId: string, status: ReviewAction) => {
     setProcessingId(documentId)

@@ -9,7 +9,7 @@ import { BrandSelect } from '@/components/BrandSelect'
 import { ImageUploader } from '@/components/ImageUploader'
 import { uploadProductImages } from '@/lib/storage'
 import { clearListingDraft, loadListingDraft, saveListingDraft } from '@/lib/listingDrafts'
-import type { DigitalCategoryTemplate, ProductDigitalSpecs } from '@/types/product'
+import type { DigitalCategoryTemplate, Product, ProductDigitalSpecs } from '@/types/product'
 import { isYouTubeUrl } from '@/lib/youtube'
 
 interface LocalImage {
@@ -204,7 +204,12 @@ export default function Sell() {
     if (!id || !user) return
     let active = true
     const loadListing = async () => {
-      const { data, error: fetchError } = await supabase.rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: id })
+      const idToken = await auth.currentUser?.getIdToken()
+      if (!idToken) { setError('আপনার Firebase সেশন পাওয়া যায়নি। আবার লগইন করুন।'); setLoadingExisting(false); return }
+      const response = await fetch('/api/seller-listings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'get', productId: id }) })
+      const payload = await response.json().catch(() => ({})) as { product?: Product; error?: string }
+      const data = payload.product
+      const fetchError = response.ok ? null : new Error(payload.error || 'Listing load failed')
       if (!active) return
       if (fetchError || !data || data.seller_id !== user.uid) {
         setError('এই লিস্টিং খুঁজে পাওয়া যায়নি বা এটি আপনার নয়।')

@@ -49,6 +49,7 @@ const ALLOWED_ADMIN_RPCS = new Set([
   'admin_list_sellers',
   'admin_list_withdrawals',
   'admin_list_roles',
+  'admin_list_reviews',
   'admin_list_digital_category_templates',
   'admin_moderate_product',
   'admin_moderate_review',

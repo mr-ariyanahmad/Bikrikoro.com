@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import adminRpc from '../server/api/admin-rpc.js'
+import adminAccess from '../server/api/admin-access.js'
 import adminHealth from '../server/api/admin-health.js'
 import adminSellerVerifications from '../server/api/admin-seller-verifications.js'
 import agentRouter from '../server/api/agent-router.js'
@@ -16,18 +17,22 @@ import paymentReconcile from '../server/api/payment-reconcile.js'
 import paymentReturn from '../server/api/payment-return.js'
 import pendingOrder from '../server/api/pending-order.js'
 import productPreview from '../server/api/product-preview.js'
+import productInterest from '../server/api/product-interest.js'
 import productOgImage from '../server/api/product-og-image.js'
 import productQuestion from '../server/api/product-question.js'
 import sellerPreview from '../server/api/seller-preview.js'
 import sellerOgImage from '../server/api/seller-og-image.js'
 import profileBootstrap from '../server/api/profile-bootstrap.js'
 import sellerVerificationStatus from '../server/api/seller-verification-status.js'
+import sellerVerificationSubmit from '../server/api/seller-verification-submit.js'
 import sellerProfile from '../server/api/seller-profile.js'
 import sellerDigitalContent from '../server/api/seller-digital-content.js'
 import sellerProduct from '../server/api/seller-product.js'
+import sellerListings from '../server/api/seller-listings.js'
 import sellerListingOptions from '../server/api/seller-listing-options.js'
 import sitemap from '../server/api/sitemap.xml.js'
 import verificationDocument from '../server/api/verification-document.js'
+import verificationUploadUrl from '../server/api/verification-upload-url.js'
 import walletWithdrawal from '../server/api/wallet-withdrawal.js'
 import walletBalance from '../server/api/wallet-balance.js'
 import userFeatures from '../server/api/user-features.js'
@@ -52,6 +57,7 @@ function applyAllowedCors(req: VercelRequest, res: VercelResponse) {
 
 const HANDLERS: Record<string, ApiHandler> = {
   'admin-rpc': adminRpc,
+  'admin-access': adminAccess,
   'admin-health': adminHealth,
   'admin-seller-verifications': adminSellerVerifications,
   'agent-router': agentRouter,
@@ -68,18 +74,22 @@ const HANDLERS: Record<string, ApiHandler> = {
   'payment-return': paymentReturn,
   'pending-order': pendingOrder,
   'product-preview': productPreview,
+  'product-interest': productInterest,
   'product-og-image': productOgImage,
   'product-question': productQuestion,
   'seller-preview': sellerPreview,
   'seller-og-image': sellerOgImage,
   'profile-bootstrap': profileBootstrap,
   'seller-verification-status': sellerVerificationStatus,
+  'seller-verification-submit': sellerVerificationSubmit,
   'seller-profile': sellerProfile,
   'seller-digital-content': sellerDigitalContent,
   'seller-product': sellerProduct,
+  'seller-listings': sellerListings,
   'seller-listing-options': sellerListingOptions,
   'sitemap.xml': sitemap,
   'verification-document': verificationDocument,
+  'verification-upload-url': verificationUploadUrl,
   'wallet-withdrawal': walletWithdrawal,
   'wallet-balance': walletBalance,
   'user-features': userFeatures,

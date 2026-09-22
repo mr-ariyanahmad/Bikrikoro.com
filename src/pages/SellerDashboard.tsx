@@ -103,21 +103,22 @@ export default function SellerDashboard() {
       const idToken = await auth.currentUser?.getIdToken()
       if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
       const [productsRes, profileRes, orderListRes, walletRes, notificationRes, unreadCountRes] = await Promise.all([
-        supabase.rpc('seller_list_products', { p_seller_id: uid }),
+        fetch('/api/seller-listings', { headers: { Authorization: `Bearer ${idToken}` } }),
         loadSellerProfile(uid),
         fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'list' }) }),
         fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) }),
         loadNotifications(uid),
         loadUnreadNotificationCount(uid),
       ])
-      if (productsRes.error) throw productsRes.error
+      const productsPayload = await productsRes.json().catch(() => ({})) as { products?: Product[]; error?: string }
+      if (!productsRes.ok) throw new Error(productsPayload.error || 'লিস্টিং লোড করা যায়নি।')
       if (profileRes.error) throw profileRes.error
       const orderPayload = await orderListRes.json().catch(() => ({})) as { error?: string; orders?: SellerOrder[] }
       if (!orderListRes.ok) throw new Error(orderPayload.error || 'সেলার অর্ডার লোড করা যায়নি।')
       const walletPayload = await walletRes.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; withdrawalSummary?: WalletWithdrawalSummary | null; warning?: string | null }
       if (!walletRes.ok) throw new Error(walletPayload.error || 'ওয়ালেট ডেটা লোড করা যায়নি।')
       setData({
-        products: (productsRes.data ?? []) as Product[],
+        products: (productsPayload.products ?? []) as Product[],
         orders: (orderPayload.orders ?? []).filter((order) => order.seller_id === uid),
         profile: profileRes.data as Profile | null,
         wallet: walletPayload.balance ?? null,

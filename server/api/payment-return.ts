@@ -30,8 +30,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { error: paymentError } = await supabase.from('payments').upsert({ order_id: order.id, invoice_id: invoiceId, amount: providerAmount, fee: money(verified.fee), payment_method: typeof verified.payment_method === 'string' ? verified.payment_method.toUpperCase() : null, sender_number: verified.sender_number || null, transaction_id: verified.transaction_id || null, status, raw_payload: verified }, { onConflict: 'invoice_id' })
     if (paymentError) throw paymentError
     if (status === 'COMPLETED') {
-      const { error: transitionError } = await supabase.from('orders').update({ status: 'ESCROW_HELD', payment_method: typeof verified.payment_method === 'string' ? verified.payment_method.toUpperCase() : null, updated_at: new Date().toISOString() }).eq('id', order.id).eq('status', 'PENDING_PAYMENT').select('id').maybeSingle()
+      const transition = { status: 'ESCROW_HELD', payment_method: typeof verified.payment_method === 'string' ? verified.payment_method.toUpperCase() : null, updated_at: new Date().toISOString() }
+      const { data: transitioned, error: transitionError } = await supabase.from('orders').update(transition).eq('id', order.id).eq('status', 'PENDING_PAYMENT').select('id').maybeSingle()
       if (transitionError) throw transitionError
+      if (!transitioned?.id && order.status === 'CANCELLED') {
+        const { error: recoveryError } = await supabase.from('orders').update(transition).eq('id', order.id).eq('status', 'CANCELLED').lte('payment_expires_at', new Date().toISOString()).select('id').maybeSingle()
+        if (recoveryError) throw recoveryError
+      }
     }
     res.redirect(302, `${siteUrl}/orders/payment-callback?order_id=${encodeURIComponent(order.id)}&invoice_id=${encodeURIComponent(invoiceId)}`)
   } catch (error) {

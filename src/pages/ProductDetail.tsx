@@ -140,7 +140,7 @@ export default function ProductDetail() {
     }
     void load()
     return () => { active = false }
-  }, [id])
+  }, [id, user])
 
   useEffect(() => {
     if (!user || !id || !product) {

@@ -6,11 +6,15 @@ const BUCKET = 'seller-verification-docs'
 
 /** Uploads to the private bucket and returns the storage path (not a public URL — see getVerificationDocUrl). */
 export async function uploadVerificationDocument(file: File, userId: string): Promise<string> {
-  const ext = file.name.split('.').pop() || 'jpg'
-  const path = `${userId}/${crypto.randomUUID()}.${ext}`
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file)
+  if (auth.currentUser?.uid !== userId) throw new Error('Verification upload identity mismatch')
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Firebase session unavailable')
+  const urlResponse = await fetch('/api/verification-upload-url', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ fileName: file.name }) })
+  const urlPayload = await urlResponse.json().catch(() => ({})) as { path?: string; token?: string; error?: string }
+  if (!urlResponse.ok || !urlPayload.path || !urlPayload.token) throw new Error(urlPayload.error || 'Secure upload URL তৈরি করা যায়নি।')
+  const { error } = await supabase.storage.from(BUCKET).uploadToSignedUrl(urlPayload.path, urlPayload.token, file)
   if (error) throw error
-  return path
+  return urlPayload.path
 }
 
 /** Short-lived signed URL issued only by the server after Firebase owner/admin authorization. */
@@ -49,22 +53,16 @@ export async function submitSellerRegistrationV2(params: {
   address: string
   documents: Array<{ document_type: string; document_path: string }>
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('submit_seller_registration_v3', {
-    p_user_id: params.userId,
-    p_listing_mode: params.listingMode,
-    p_business_type: params.businessType,
-    p_sector: params.sector,
-    p_full_name: params.fullName,
-    p_phone: params.phone,
-    p_nid_or_business_number: params.nidOrBusinessNumber,
-    p_business_name: params.businessName,
-    p_shop_name: params.shopName,
-    p_shop_username: params.shopUsername,
-    p_address: params.address,
-    p_documents: params.documents,
-  })
-  if (error) throw error
-  return data as string
+  const idToken = await auth.currentUser?.getIdToken()
+  if (!idToken) throw new Error('Firebase session unavailable')
+  const response = await fetch('/api/seller-verification-submit', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({
+    listingMode: params.listingMode, businessType: params.businessType, sector: params.sector, fullName: params.fullName, phone: params.phone,
+    nidOrBusinessNumber: params.nidOrBusinessNumber, businessName: params.businessName, shopName: params.shopName, shopUsername: params.shopUsername,
+    address: params.address, documents: params.documents,
+  }) })
+  const payload = await response.json().catch(() => ({})) as { registrationId?: string; error?: string }
+  if (!response.ok || !payload.registrationId) throw new Error(payload.error || 'Seller verification submission failed')
+  return payload.registrationId
 }
 
 export async function submitSellerRegistration(params: {

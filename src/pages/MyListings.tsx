@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
@@ -19,9 +18,12 @@ export default function MyListings() {
 
   const load = useCallback(async () => {
     if (!user) return
-    const { data, error } = await supabase.rpc('seller_list_products', { p_seller_id: user.uid })
-    if (error) setMessage('আপনার লিস্টিং লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
-    setProducts((data ?? []) as Product[])
+    const idToken = await auth.currentUser?.getIdToken()
+    if (!idToken) { setMessage('আপনার Firebase সেশন পাওয়া যায়নি। আবার লগইন করুন।'); setLoading(false); return }
+    const response = await fetch('/api/seller-listings', { headers: { Authorization: `Bearer ${idToken}` } })
+    const payload = await response.json().catch(() => ({})) as { products?: Product[]; error?: string }
+    if (!response.ok) setMessage(payload.error || 'আপনার লিস্টিং লোড করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।')
+    setProducts(payload.products ?? [])
     setLoading(false)
   }, [user])
 
@@ -70,7 +72,7 @@ export default function MyListings() {
     if (digitalContent) {
       const saveResponse = await fetch('/api/seller-digital-content', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, deliveryType: digitalContent.delivery_type, deliveryText: digitalContent.delivery_text }) })
       if (!saveResponse.ok) {
-        await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
+        await fetch('/api/seller-listings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'archive', productId: newProductId }) })
         setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু ডিজিটাল ডেলিভারির তথ্য কপি হয়নি; নিরাপত্তার জন্য তালিকাটি সংরক্ষণ করা হয়েছে।')
         setDuplicatingId(null)
         return
@@ -80,14 +82,13 @@ export default function MyListings() {
       const options = optionsPayload.options as Record<string, unknown>
       const saveOptionsResponse = await fetch('/api/seller-listing-options', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'save', productId: newProductId, specifications: options.specifications, autoDeliveryEnabled: options.auto_delivery_enabled, deactivateWhenOutOfStock: options.deactivate_when_out_of_stock, stockMode: options.stock_mode === 'KEY_POOL' ? 'UNLIMITED' : options.stock_mode, stockQuantity: options.stock_quantity, fulfillmentWindowMinutes: options.fulfillment_window_minutes, regionCode: options.region_code, subscriptionPeriod: options.subscription_period, warrantyPeriod: options.warranty_period, deliveryNote: options.delivery_note }) })
       if (!saveOptionsResponse.ok) {
-        await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: newProductId })
+        await fetch('/api/seller-listings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'archive', productId: newProductId }) })
         setMessage('লিস্টিং তৈরি হয়েছিল, কিন্তু তালিকার অতিরিক্ত তথ্য কপি হয়নি; নিরাপত্তার জন্য তালিকাটি সংরক্ষণ করা হয়েছে।')
         setDuplicatingId(null)
         return
       }
     }
-    const { data: createdProduct } = await supabase.rpc('seller_get_product', { p_seller_id: user.uid, p_product_id: newProductId })
-    setProducts((prev) => [createdProduct as Product, ...prev])
+    await load()
     setMessage('লিস্টিং কপি হয়েছে। সম্পাদনা করে প্রকাশের আগে তথ্য যাচাই করুন।')
     setDuplicatingId(null)
   }
@@ -95,9 +96,11 @@ export default function MyListings() {
   const handleDelete = async (productId: string) => {
     if (!user) return
     setDeletingId(productId)
-    const { error } = await supabase.rpc('seller_archive_product', { p_seller_id: user.uid, p_product_id: productId })
-    if (error) {
-      setMessage(`লিস্টিং সংরক্ষণ করা যায়নি: ${error.message}`)
+    const idToken = await auth.currentUser?.getIdToken()
+    const response = idToken ? await fetch('/api/seller-listings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'archive', productId }) }) : null
+    if (!response || !response.ok) {
+      const payload = await response?.json().catch(() => ({})) as { error?: string } | undefined
+      setMessage(`লিস্টিং সংরক্ষণ করা যায়নি: ${payload?.error || 'Firebase সেশন পাওয়া যায়নি'}`)
     } else {
       setProducts((prev) => prev.map((product) => product.id === productId ? { ...product, is_hidden: true } : product))
       setMessage('লিস্টিং সংরক্ষণ করা হয়েছে। এটি ক্রেতাদের তালিকায় আর দেখা যাবে না।')

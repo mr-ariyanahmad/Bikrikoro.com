@@ -98,7 +98,7 @@ serve(async (req) => {
   const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, price, escrow_fee, buyer_id, seller_id, delivery_email, order_number, product_title")
+    .select("id, status, payment_expires_at, price, escrow_fee, buyer_id, seller_id, delivery_email, order_number, product_title")
     .eq("id", orderId)
     .maybeSingle();
   if (orderError || !order) return new Response("Order not found", { status: 404 });
@@ -142,13 +142,14 @@ serve(async (req) => {
   // Idempotent: only flips orders that are still awaiting payment. The provider
   // verification above is authoritative, so a delayed webhook is not rejected
   // merely because the local 30-minute browser deadline has passed.
-  const { data: transitionedOrder, error: updateError } = await supabaseAdmin
+  const transition = {
+    status: "ESCROW_HELD",
+    payment_method: (verified.payment_method as string | undefined)?.toUpperCase() ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  let { data: transitionedOrder, error: updateError } = await supabaseAdmin
     .from("orders")
-    .update({
-      status: "ESCROW_HELD",
-      payment_method: (verified.payment_method as string | undefined)?.toUpperCase() ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(transition)
     .eq("id", orderId)
     .eq("status", "PENDING_PAYMENT")
     .select("id")
@@ -157,6 +158,19 @@ serve(async (req) => {
 
   if (updateError) {
     return new Response(JSON.stringify({ error: updateError.message }), { status: 500 });
+  }
+
+  if (!transitionedOrder?.id && order.status === "CANCELLED" && order.payment_expires_at && new Date(order.payment_expires_at) <= new Date()) {
+    const { data: recoveredOrder, error: recoveryError } = await supabaseAdmin
+      .from("orders")
+      .update(transition)
+      .eq("id", orderId)
+      .eq("status", "CANCELLED")
+      .lte("payment_expires_at", new Date().toISOString())
+      .select("id")
+      .maybeSingle();
+    if (recoveryError) return new Response(JSON.stringify({ error: recoveryError.message }), { status: 500 });
+    if (recoveredOrder?.id) transitionedOrder = recoveredOrder;
   }
 
   if (transitionedOrder?.id) {
