@@ -76,6 +76,8 @@ export default function Home() {
     const offset = daySeed % ranked.length
     return [...ranked.slice(offset), ...ranked.slice(0, offset)]
   }, [products])
+  const newListingProducts = rankedHomeProducts.slice(0, 6)
+  const hotDealProducts = rankedHomeProducts.filter((product) => Boolean(product.original_price && product.original_price > product.price)).slice(0, 6)
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')
@@ -256,7 +258,8 @@ export default function Home() {
     }
   }
 
-  const productGrid = <><div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[0.78] animate-pulse rounded-xl bg-outline/40" />) : rankedHomeProducts.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : null}</div>}</>
+  const productGrid = <><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">{loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[0.82] animate-pulse rounded-[1.25rem] bg-outline/40" />) : newListingProducts.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id]} />)}</div>{!loading && <div className="mt-5 flex min-h-8 items-center justify-center text-xs font-medium text-ink-500">{loadingMoreProducts ? <span className="inline-flex items-center gap-2"><Loader2 size={15} className="animate-spin" />আরও পণ্য লোড হচ্ছে...</span> : hasMoreProducts ? <span>আরও পণ্য দেখতে নিচে স্ক্রল করুন</span> : null}</div>}</>
+  const hotDealRail = <div className="scrollbar-none -mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1">{hotDealProducts.map((product) => <div key={product.id} className="w-[72vw] max-w-[18rem] shrink-0"><ProductCard product={product} seller={sellersById[product.seller_id]} /></div>)}</div>
 
   return <Layout wide>
     <Helmet><title>BikriKoro.Com — বাংলাদেশের নিরাপদ ডিজিটাল মার্কেটপ্লেস</title><meta name="description" content="এসক্রো-সুরক্ষিত ডিজিটাল মার্কেটপ্লেস — নিরাপদে ডিজিটাল কী, ফাইল, প্রবেশাধিকার, কোর্স ও সেবা কিনুন এবং বিক্রি করুন।" /></Helmet>
@@ -269,6 +272,7 @@ export default function Home() {
       {banners.length > 0 && <div className="scrollbar-none -mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1">{banners.slice(0, 3).map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-28 w-[78vw] shrink-0 overflow-hidden rounded-[1.35rem] bg-brand-100 shadow-sm"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div>}
       <section className="mt-5"><div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-bold text-ink-900">ক্যাটাগরি</h2><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div><div className="-mx-4 overflow-x-auto px-4 pb-1"><CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /></div></section>
       <section className="mt-6"><div className="flex items-end justify-between px-0.5"><div><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-accent-600">জনপ্রিয় ও নতুন</p><h2 className="mt-0.5 text-xl font-bold text-ink-900">নতুন লিস্টিং</h2></div><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div>{productGrid}</section>
+      {hotDealProducts.length > 0 && <section className="mt-8"><div className="flex items-end justify-between px-0.5"><div><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-accent-600">সাশ্রয়ী অফার</p><h2 className="mt-0.5 text-xl font-bold text-ink-900">Hot Deals</h2></div><Link to="/products?sort=discount" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div>{hotDealRail}</section>}
       {!loading && products.length === 0 && <p className="mt-8 rounded-2xl border border-outline bg-surface p-6 text-center text-sm text-ink-600">এখনো কোনো পণ্য যোগ হয়নি।</p>}
       <section className="mt-8 rounded-[1.35rem] border border-brand-100 bg-brand-50 px-4 py-4"><div className="flex items-center gap-2"><ShieldCheck size={18} className="text-brand-500" /><h2 className="text-sm font-bold text-ink-900">নিরাপদে কেনাকাটা করুন</h2></div><div className="mt-3 grid grid-cols-2 gap-y-2 text-xs text-ink-600"><span>✓ নিরাপদ পেমেন্ট</span><span>✓ যাচাইকৃত বিক্রেতা</span><span>✓ এসক্রো সুরক্ষা</span><span>✓ দ্রুত ডিজিটাল ডেলিভারি</span></div></section>
     </div>

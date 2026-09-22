@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, GitCompareArrows, Heart, ShieldCheck, Star } from 'lucide-react'
+import { BadgeCheck, GitCompareArrows, Heart, MoreVertical, ShieldCheck, Star } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product, Profile } from '@/types/product'
 import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
-import { ProductDeliveryBadge } from '@/components/ProductDeliveryBadge'
 import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
 
 type CardSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>
@@ -20,6 +19,8 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
   const [compareLimitOpen, setCompareLimitOpen] = useState(false)
   const discount = product.original_price && product.original_price > product.price ? Math.round(100 - (product.price / product.original_price) * 100) : null
   const sellerName = seller?.shop_name?.trim() || seller?.name || 'BikriKoro seller'
+  const rating = Number(seller?.rating ?? 0)
+  const reviewCount = Number(seller?.review_count ?? 0)
 
   useEffect(() => {
     if (!user) return
@@ -27,6 +28,7 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
     isFavorited(user.uid, product.id).then((value) => { if (!cancelled) setFavorited(value) })
     return () => { cancelled = true }
   }, [user, product.id])
+
   useEffect(() => {
     const sync = () => setCompared(isCompared(product.id))
     window.addEventListener('bikrikoro:compare-changed', sync)
@@ -39,6 +41,7 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
     if (result.limitReached) setCompareLimitOpen(true)
     else setCompared(result.selected)
   }
+
   const handleToggleFavorite = async (event: React.MouseEvent) => {
     event.preventDefault(); event.stopPropagation()
     if (!user || toggling) return
@@ -50,22 +53,25 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
       else await removeFavorite(user.uid, product.id)
     } catch { setFavorited(!next) } finally { setToggling(false) }
   }
+
   const handleProductOpen = () => { if (!isTestDemoProduct(product)) trackCategoryInterest(product.category_id, 'click') }
+  const cardClass = compact ? 'flex items-stretch rounded-2xl border border-outline bg-surface p-1.5 shadow-sm' : 'rounded-[1.25rem] border border-outline bg-surface p-1.5 shadow-[0_5px_16px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)]'
 
   return <>
-    <article className={`group relative min-w-0 ${compact ? 'flex items-stretch border border-outline bg-surface' : ''}`}>
-      <Link to={`/products/${product.id}`} onClick={handleProductOpen} className={`block ${compact ? 'h-28 w-28 shrink-0' : ''}`}>
-        <div className={`relative overflow-hidden bg-outline/30 ${compact ? 'h-28 w-28' : 'aspect-[0.92] w-full'}`}>
-          {product.images[0] ? <img src={product.images[0]} alt={product.title} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full w-full items-center justify-center text-xs text-ink-300">ছবি নেই</div>}
-          {discount && <span className="absolute left-2 top-2 bg-error px-1.5 py-0.5 text-[10px] font-bold text-white">-{discount}%</span>}
+    <article className={`group relative min-w-0 overflow-hidden ${cardClass}`}>
+      <Link to={`/products/${product.id}`} onClick={handleProductOpen} className={compact ? 'h-28 w-28 shrink-0' : 'block'}>
+        <div className={`relative overflow-hidden bg-brand-50 ${compact ? 'h-28 w-28 rounded-xl' : 'aspect-[1.16] w-full rounded-[1rem]'}`}>
+          {product.images[0] ? <img src={product.images[0]} alt={product.title} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" /> : <div className="flex h-full w-full items-center justify-center text-xs text-ink-300">ছবি নেই</div>}
+          {discount && <span className="absolute right-2 top-2 rounded-xl bg-error px-2 py-1 text-[11px] font-extrabold text-white shadow-sm">-{discount}%</span>}
+          {product.is_escrow_protected && <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-lg bg-brand-700/90 px-2 py-1 text-[10px] font-bold text-white"><ShieldCheck size={11} />নিরাপদ</span>}
         </div>
       </Link>
-      <div className={`min-w-0 flex-1 ${compact ? 'p-3' : 'pt-2'}`}>
-        <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="block"><p className="line-clamp-2 min-h-9 text-[13px] font-semibold leading-4 text-ink-900">{product.title}</p></Link>
-        <p className="mt-1 truncate text-[10px] text-ink-500">{product.is_digital ? 'ডিজিটাল পণ্য' : product.location || 'Marketplace'}<span className="mx-1">•</span>{product.is_digital ? <ProductDeliveryBadge product={product} compact /> : 'দ্রুত ডেলিভারি'}</p>
-        <div className="mt-1.5 flex items-center justify-between gap-1"><Link to={`/products/${product.id}`} onClick={handleProductOpen} className="flex min-w-0 flex-wrap items-baseline gap-1"><span className="tabular-amount text-[16px] font-bold text-brand-600">{formatTaka(product.price)}</span>{product.original_price && product.original_price > product.price && <span className="tabular-amount text-[10px] text-ink-400 line-through">{formatTaka(product.original_price)}</span>}</Link><div className="flex shrink-0 items-center gap-1">{user && <button type="button" onClick={handleToggleFavorite} disabled={toggling} aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'} className="flex h-6 w-6 items-center justify-center text-ink-400 hover:text-error disabled:opacity-50"><Heart size={14} className={favorited ? 'fill-error text-error' : ''} /></button>}<button type="button" onClick={handleToggleCompare} aria-pressed={compared} aria-label={compared ? 'তুলনায় আছে' : 'তুলনায় যোগ করুন'} className={`flex h-6 w-6 items-center justify-center text-ink-400 hover:text-brand-700 ${compared ? 'text-brand-700' : ''}`}><GitCompareArrows size={13} /></button></div></div>
-        {seller && <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="mt-1.5 flex min-w-0 items-center gap-1 border-t border-outline pt-1.5"><span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[8px] font-bold text-brand-700">{seller.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="truncate text-[10px] font-medium text-ink-600">{sellerName}</span>{seller.is_verified && <BadgeCheck size={12} className="shrink-0 text-brand-500" aria-label="যাচাইকৃত বিক্রেতা" />}{seller.review_count > 0 && <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[9px] text-ink-500"><Star size={10} className="fill-amber-400 text-amber-400" />{seller.rating.toFixed(1)}</span>}</Link>}
-        {!seller && <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="mt-1.5 flex items-center gap-1 border-t border-outline pt-1.5 text-[10px] font-medium text-ink-500">{product.is_escrow_protected && <ShieldCheck size={11} className="text-brand-500" />}Buyer protected</Link>}
+      <div className={`min-w-0 flex-1 ${compact ? 'p-3' : 'px-1.5 pb-1.5 pt-2.5'}`}>
+        <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="block"><p className="line-clamp-2 min-h-10 text-[14px] font-bold leading-5 text-ink-900">{product.title}</p></Link>
+        <div className="mt-1.5 flex items-baseline gap-2"><Link to={`/products/${product.id}`} onClick={handleProductOpen} className="tabular-amount text-[1.15rem] font-extrabold text-accent-500">{formatTaka(product.price)}</Link>{product.original_price && product.original_price > product.price && <span className="tabular-amount text-xs text-ink-400 line-through">{formatTaka(product.original_price)}</span>}</div>
+        <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="mt-2 flex min-w-0 items-center gap-2 border-t border-outline pt-2"><span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[9px] font-bold text-brand-700">{seller?.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="min-w-0 truncate text-[12px] font-semibold text-brand-700">{sellerName}</span>{seller?.is_verified && <BadgeCheck size={14} className="shrink-0 text-brand-500" aria-label="যাচাইকৃত বিক্রেতা" />}<MoreVertical size={16} className="ml-auto shrink-0 text-ink-300" /></Link>
+        <div className="mt-1 flex min-h-4 items-center gap-1 text-[11px] text-ink-500">{reviewCount > 0 ? <><span className="flex items-center gap-0.5 text-accent-500">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={12} className={index < Math.round(rating) ? 'fill-accent-500 text-accent-500' : 'text-accent-200'} />)}</span><span>({reviewCount})</span></> : <><span className="flex items-center gap-0.5 text-accent-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={12} />)}</span><span>কোনো রিভিউ নেই</span></>}</div>
+        <div className="mt-1 flex items-center justify-end gap-1">{user && <button type="button" onClick={handleToggleFavorite} disabled={toggling} aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'} className="flex h-7 w-7 items-center justify-center rounded-full text-ink-300 hover:bg-accent-100 hover:text-error disabled:opacity-50"><Heart size={15} className={favorited ? 'fill-error text-error' : ''} /></button>}<button type="button" onClick={handleToggleCompare} aria-pressed={compared} aria-label={compared ? 'তুলনায় আছে' : 'তুলনায় যোগ করুন'} className={`flex h-7 w-7 items-center justify-center rounded-full text-ink-300 hover:bg-brand-50 hover:text-brand-700 ${compared ? 'bg-brand-50 text-brand-700' : ''}`}><GitCompareArrows size={14} /></button></div>
       </div>
     </article>
     <BrandedDialog open={compareLimitOpen} title="তুলনা তালিকা পূর্ণ" onClose={() => setCompareLimitOpen(false)} tone="warning" actions={<DialogButton onClick={() => setCompareLimitOpen(false)}>ঠিক আছে</DialogButton>}>একসাথে সর্বোচ্চ ৩টি পণ্য তুলনা করা যাবে। আগে Compare page থেকে একটি পণ্য সরিয়ে আবার চেষ্টা করুন।</BrandedDialog>
