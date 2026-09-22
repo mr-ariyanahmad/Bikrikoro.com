@@ -46,6 +46,20 @@ export function getServiceSupabase(): SupabaseClient {
   return serviceSupabase
 }
 
+/** Ensure a Firebase-authenticated user has a profile without overwriting edits. */
+export async function ensureFirebaseProfile(supabase: SupabaseClient, token: DecodedIdToken) {
+  const { error } = await supabase.from('profiles').upsert({
+    id: token.uid,
+    name: token.name ?? '',
+    phone: token.phone_number ?? null,
+    email: token.email ?? null,
+    photo_url: token.picture ?? null,
+    welcome_email_status: token.email ? 'PENDING' : 'SKIPPED',
+    seller_email_verified_at: token.email_verified ? new Date().toISOString() : null,
+  }, { onConflict: 'id', ignoreDuplicates: true })
+  if (error && error.code !== '23505') throw error
+}
+
 export function isAuthError(error: unknown) {
   return error instanceof Error && error.message === 'AUTH_REQUIRED'
 }

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { ensureFirebaseProfile, getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -11,6 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const token = await getVerifiedFirebaseToken(req)
     const supabase = getServiceSupabase()
+    await ensureFirebaseProfile(supabase, token)
     const { data: registration, error } = await supabase
       .from('seller_registrations')
       .select('id, status, listing_mode, business_type, sector, full_name, phone, nid_or_business_number, business_name, address, document_path, admin_note, submitted_at, reviewed_at')

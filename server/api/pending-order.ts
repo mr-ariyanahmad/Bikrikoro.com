@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { ensureFirebaseProfile, getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 import { sendNewOrderEmail, sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
 
 type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'resume_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
+    await ensureFirebaseProfile(supabase, token)
     try { await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }) } catch { /* expiry cleanup must never block order loading */ }
     if (input.action === 'create' || input.action === 'create_wallet' || input.action === 'create_online') {
       if (!input.productId) throw new Error('Digital product is required')

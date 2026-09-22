@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { ensureFirebaseProfile, getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 type Body = { action?: 'list' | 'detail' | 'payment_state' | 'digital_library' | 'dispute' | 'wallet'; orderId?: string; disputeId?: string }
 
@@ -19,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
+    await ensureFirebaseProfile(supabase, token)
     try { await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }) } catch { /* expiry cleanup must never block order reads */ }
     if (input.action === 'list') {
       const { data: orders, error: ordersError } = await supabase.rpc('buyer_list_orders', { p_user_id: token.uid })

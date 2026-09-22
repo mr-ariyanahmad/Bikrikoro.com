@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const token = await getVerifiedFirebaseToken(req)
     const supabase = getServiceSupabase()
-    const { data: existing, error: readError } = await supabase
+    let { data: existing, error: readError } = await supabase
       .from('profiles')
       .select('id, email, name, phone, photo_url, welcome_email_status, welcome_email_sent_at, seller_email_verified_at')
       .eq('id', token.uid)
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const profileEmail = existing?.email || token.email || ''
     const profileName = existing?.name || token.name || 'প্রিয় ব্যবহারকারী'
-    const isNewProfile = !existing
+    let isNewProfile = !existing
     let welcomeStatus = existing?.welcome_email_status ?? (profileEmail ? 'PENDING' : 'SKIPPED')
 
     if (isNewProfile) {
@@ -43,8 +43,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         welcome_email_status: welcomeStatus,
         seller_email_verified_at: token.email_verified ? new Date().toISOString() : null,
       })
-      if (insertError) throw insertError
-    } else {
+      if (insertError) {
+        if (insertError.code !== '23505') throw insertError
+        const { data: racedProfile, error: racedReadError } = await supabase
+          .from('profiles')
+          .select('id, email, name, phone, photo_url, welcome_email_status, welcome_email_sent_at, seller_email_verified_at')
+          .eq('id', token.uid)
+          .single()
+        if (racedReadError) throw racedReadError
+        existing = racedProfile
+        isNewProfile = false
+        welcomeStatus = racedProfile.welcome_email_status ?? (profileEmail ? 'PENDING' : 'SKIPPED')
+      }
+    } else if (existing) {
       const profilePatch: Record<string, string> = {}
       if (!existing.email && token.email) profilePatch.email = token.email
       if (!existing.name && token.name) profilePatch.name = token.name
@@ -60,6 +71,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (updateError) throw updateError
         if (profilePatch.welcome_email_status) welcomeStatus = profilePatch.welcome_email_status
       }
+    } else {
+      throw new Error('Profile bootstrap could not resolve the profile row')
     }
 
     const shouldSendWelcome = Boolean(

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
+import { ensureFirebaseProfile, getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 
 type Action = 'confirm_delivery' | 'buyer_confirm_digital' | 'digital_deliver' | 'buyer_cancel' | 'seller_prepare' | 'seller_ship' | 'seller_deliver' | 'seller_cancel' | 'report_dispute' | 'send_dispute_message'
 
@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const token = await getVerifiedFirebaseToken(req)
     const input = bodyOf(req)
     const supabase = getServiceSupabase()
+    await ensureFirebaseProfile(supabase, token)
     const orderId = input.orderId?.trim()
     const action = input.action
     if (!action) throw new Error('Action is required')
