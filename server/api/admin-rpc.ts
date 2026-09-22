@@ -19,6 +19,7 @@ function supabaseErrorMessage(error: unknown) {
 const ALLOWED_ADMIN_RPCS = new Set([
   'admin_adjust_customer_wallet',
   'admin_assign_member',
+  'admin_bulk_product_action',
   'admin_count_pending_seller_verifications',
   'admin_count_admins',
   'admin_find_user_profile',
