@@ -336,12 +336,23 @@ export default function Login() {
           </button>
         </div>
         {socialBusy && (
-          <p className="mt-2 text-center text-xs text-ink-500">
+          <p
+            role="status"
+            className="mt-2 flex items-center justify-center gap-2 text-center text-xs text-ink-500"
+          >
+            <span
+              className="h-3 w-3 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600"
+              aria-hidden="true"
+            />
             {socialBusy === "google" ? "Google" : "Facebook"} login হচ্ছে…
           </p>
         )}
         {error && (
-          <p className="mt-4 rounded-xl border border-error/20 bg-error/5 p-3 text-center text-sm font-medium text-error">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="mt-4 rounded-xl border border-error/20 bg-error/5 p-3 text-center text-sm font-medium text-error"
+          >
             {error}
           </p>
         )}
