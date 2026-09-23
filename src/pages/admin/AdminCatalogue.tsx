@@ -44,7 +44,9 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setSelectedIds([])
     if (mode === 'products') {
+      setProducts([])
       if (!user?.uid) {
         setError('আপনার login session এখনো প্রস্তুত নয়। আবার login করে চেষ্টা করুন।')
         setProducts([])
@@ -55,6 +57,8 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
       setProducts((data ?? []) as AdminProduct[])
       if (loadError) setError(formatAdminRpcError(loadError, 'প্রোডাক্ট data', '014 admin workspace migration'))
     } else {
+      setCategories([])
+      setTemplates([])
       const [{ data, error: loadError }, templateResult] = await Promise.all([
         supabase.from('categories').select('*').order('sort_order'),
         user?.uid ? adminRpc('admin_list_digital_category_templates', { p_admin_id: user.uid }) : Promise.resolve({ data: [], error: null }),

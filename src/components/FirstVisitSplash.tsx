@@ -28,6 +28,7 @@ export function FirstVisitSplash({ children }: { children: ReactNode }) {
   const [closing, setClosing] = useState(false)
   const [sceneIndex, setSceneIndex] = useState(0)
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [failedImages, setFailedImages] = useState<string[]>([])
 
   useEffect(() => {
     try { setVisible(window.localStorage.getItem(WELCOME_SPLASH_STORAGE_KEY) !== '1') } catch { setVisible(true) }
@@ -41,6 +42,14 @@ export function FirstVisitSplash({ children }: { children: ReactNode }) {
       media.removeEventListener?.('change', updateMotion)
       window.removeEventListener(WELCOME_SPLASH_REPLAY_EVENT, replay)
     }
+  }, [])
+
+  useEffect(() => {
+    scenes.forEach((item) => {
+      const image = new Image()
+      image.src = item.image
+      image.onerror = () => setFailedImages((current) => current.includes(item.image) ? current : [...current, item.image])
+    })
   }, [])
 
   const finish = () => {
@@ -83,8 +92,8 @@ export function FirstVisitSplash({ children }: { children: ReactNode }) {
 
         <main className="flex min-h-0 flex-1 flex-col justify-center pt-4">
           <section key={scene.id} className={`flex min-h-0 flex-col items-center ${reducedMotion ? '' : 'animate-[splash-copy-in_240ms_ease-out]'}`}>
-            <div className="w-full overflow-hidden rounded-[2rem] bg-[#effbf5] px-1 shadow-[0_18px_50px_rgba(1,124,80,0.08)]">
-              <img src={scene.image} alt="" className="h-auto w-full object-contain" draggable="false" />
+            <div className="relative flex min-h-[17rem] w-full items-center justify-center overflow-hidden rounded-[2rem] bg-[#effbf5] px-1 shadow-[0_18px_50px_rgba(1,124,80,0.08)] sm:min-h-0">
+              {failedImages.includes(scene.image) ? <div className="flex h-full min-h-[17rem] w-full flex-col items-center justify-center gap-3 px-8 text-center"><img src="/icon-192.png" alt="" className="h-16 w-16 rounded-2xl shadow-sm" /><p className="text-sm font-semibold text-brand-700">BikriKoro-তে স্বাগতম</p><p className="text-xs leading-5 text-ink-500">এই দৃশ্যের ছবি এখন লোড করা যাচ্ছে না, তবে আপনি পরের ধাপে যেতে পারবেন।</p></div> : <img src={scene.image} alt="" fetchPriority="high" className="h-auto w-full object-contain" draggable="false" onError={() => setFailedImages((current) => current.includes(scene.image) ? current : [...current, scene.image])} />}
             </div>
             <div className="mt-6 text-center">
               <h1 className="whitespace-pre-line text-[clamp(2rem,9vw,2.9rem)] font-black leading-[1.08] tracking-[-0.055em] text-ink-900">{scene.title}</h1>

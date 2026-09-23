@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .order('sort_order')
         .limit(MAX_PAGE_SIZE)
       if (error) throw error
-      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=900')
+      res.setHeader('Cache-Control', 'no-store')
       res.status(200).json({ categories: data ?? [] })
       return
     }
@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(404).json({ error: 'Product not found' })
         return
       }
-      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
+      res.setHeader('Cache-Control', 'no-store')
       res.status(200).json({ product: data })
       return
     }
@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data, error } = await query
     if (error) throw error
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300')
+    res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({ products: data ?? [], nextOffset: (data?.length ?? 0) === limit ? offset + limit : null })
   } catch (error) {
     console.error('Mobile catalog request failed:', error)
