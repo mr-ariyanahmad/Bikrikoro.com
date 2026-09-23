@@ -47,6 +47,7 @@ export default function SupportCenter() {
   }, [])
 
   useEffect(() => {
+    void chatRequest({ action: 'support_mark_all_read' }).then(() => window.dispatchEvent(new Event('bikrikoro-chat-read'))).catch(() => undefined)
     void loadCases().catch((loadError) => setError(loadError instanceof Error ? loadError.message : 'Support cases লোড করা যায়নি।')).finally(() => setLoading(false))
     const loadOrders = async () => {
       const token = await auth.currentUser?.getIdToken()

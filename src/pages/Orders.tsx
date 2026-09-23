@@ -12,6 +12,7 @@ import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { ReviewModal } from '@/components/ReviewModal'
 import { buyerCancelOrder, confirmDigitalDelivery, sellerCancelOrder, sellerDeliverDigital } from '@/lib/orders'
 import { startUddoktaPayCheckout, cancelPendingOrder } from '@/lib/payments'
+import { markOrderNotificationsRead } from '@/lib/marketplace'
 import { formatTaka, formatDate } from '@/lib/format'
 import { formatOrderNumber } from '@/lib/orderNumber'
 import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
@@ -92,6 +93,7 @@ export default function Orders() {
       setLoading(true)
     }
     void load()
+    void markOrderNotificationsRead(uid).then(() => window.dispatchEvent(new Event('bikrikoro-order-read'))).catch(() => undefined)
     const channel = supabase.channel(`orders-${uid}`).on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { void load() }).subscribe()
     return () => { void supabase.removeChannel(channel) }
   }, [applyOrderPayload, cacheKey, uid, load])

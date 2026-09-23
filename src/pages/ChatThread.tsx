@@ -106,6 +106,7 @@ export default function ChatThreadPage() {
 
         void chatRequest({ action: 'mark_read', threadId }).then(() => {
           if (!active) return
+          window.dispatchEvent(new Event('bikrikoro-chat-read'))
           setThread((current) => {
             if (!current) return current
             const now = new Date().toISOString()

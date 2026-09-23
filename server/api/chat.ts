@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 import { sendChatMessageEmail } from '../lib/resendEmail.js'
 
-type Action = 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send' | 'support_cases' | 'support_case_messages' | 'support_create_case' | 'support_send_message'
+type Action = 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send' | 'support_cases' | 'support_case_messages' | 'support_create_case' | 'support_send_message' | 'support_unread_count' | 'support_mark_all_read'
 
 type Body = {
   action?: Action
@@ -135,6 +135,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data, error } = await supabase.rpc('list_my_support_cases', { p_customer_id: token.uid })
       if (error) throw error
       res.status(200).json({ cases: data ?? [] })
+      return
+    }
+
+    if (action === 'support_unread_count') {
+      const { data, error } = await supabase.rpc('count_my_support_unread', { p_customer_id: token.uid })
+      if (error) throw error
+      res.status(200).json({ unreadCount: Number(data ?? 0) })
+      return
+    }
+
+    if (action === 'support_mark_all_read') {
+      const { data, error } = await supabase.rpc('mark_my_support_cases_read', { p_customer_id: token.uid })
+      if (error) throw error
+      res.status(200).json({ marked: Number(data ?? 0) })
       return
     }
 

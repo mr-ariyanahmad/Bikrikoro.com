@@ -5,8 +5,9 @@ import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { BackButton } from '@/components/BackButton'
-import { loadUnreadNotificationCount } from '@/lib/marketplace'
+import { loadUnreadNotificationCount, loadUnreadOrderNotificationCount } from '@/lib/marketplace'
 import { chatRequest } from '@/lib/chat'
+import { adminRpc } from '@/lib/adminRpc'
 import { supabase } from '@/lib/supabase'
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
@@ -76,6 +77,9 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const [accountOpen, setAccountOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0)
+  const [adminUnreadCount, setAdminUnreadCount] = useState(0)
+  const [orderUnreadCount, setOrderUnreadCount] = useState(0)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
   const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading ? { to: '/become-seller', label: '...', icon: Store, prominent: true } : isSeller ? { to: '/sell', label: 'বিক্রি', icon: Plus, prominent: true } : { to: '/become-seller', label: 'বিক্রি', icon: Plus, prominent: true }
   const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS).filter((item) => !(item.to === '/become-seller' && sellerStatusLoading)).map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
@@ -91,18 +95,34 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
-  const badgeForPath = (path: string) => path === '/chat' ? chatUnreadCount : path === '/notifications' ? unreadCount : 0
+  const badgeForPath = (path: string) => path === '/chat' ? chatUnreadCount + supportUnreadCount : path === '/orders' ? orderUnreadCount : path === '/notifications' ? unreadCount : path === '/admin' ? adminUnreadCount : 0
   const displayName = user?.displayName?.trim() || 'BikriKoro সদস্য'
 
   useEffect(() => {
     if (!user) { setUnreadCount(0); return }
     let active = true
-    void loadUnreadNotificationCount(user.uid).then((count) => { if (active) setUnreadCount(count) }).catch(() => undefined)
+    void Promise.all([loadUnreadNotificationCount(user.uid), loadUnreadOrderNotificationCount(user.uid)]).then(([count, orderCount]) => { if (active) { setUnreadCount(count); setOrderUnreadCount(orderCount) } }).catch(() => undefined)
     const onChanged = (event: Event) => { const count = (event as CustomEvent<{ unreadCount?: number }>).detail?.unreadCount; if (typeof count === 'number') setUnreadCount(count) }
+    const onOrderRead = () => { void loadUnreadOrderNotificationCount(user.uid).then((count) => { if (active) setOrderUnreadCount(count) }).catch(() => undefined) }
     const channel = supabase.channel(`header-notifications-${user.uid}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.uid}` }, () => setUnreadCount((count) => count + 1)).subscribe()
     window.addEventListener('bikrikoro-notifications-changed', onChanged)
-    return () => { active = false; window.removeEventListener('bikrikoro-notifications-changed', onChanged); void supabase.removeChannel(channel) }
+    window.addEventListener('bikrikoro-order-read', onOrderRead)
+    return () => { active = false; window.removeEventListener('bikrikoro-notifications-changed', onChanged); window.removeEventListener('bikrikoro-order-read', onOrderRead); void supabase.removeChannel(channel) }
   }, [user])
+
+  useEffect(() => {
+    if (!user || !isAdmin) { setAdminUnreadCount(0); return }
+    let active = true
+    const loadAdminUnread = async () => {
+      const result = await adminRpc<number>('admin_count_support_unread')
+      if (active && !result.error) setAdminUnreadCount(Number(result.data ?? 0))
+    }
+    void loadAdminUnread()
+    const poller = window.setInterval(() => { void loadAdminUnread() }, 12000)
+    const onRead = () => { void loadAdminUnread() }
+    window.addEventListener('bikrikoro-admin-read', onRead)
+    return () => { active = false; window.clearInterval(poller); window.removeEventListener('bikrikoro-admin-read', onRead) }
+  }, [isAdmin, user])
 
   useEffect(() => {
     if (!fullScreen) return
@@ -113,19 +133,24 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   }, [fullScreen])
 
   useEffect(() => {
-    if (!user) { setChatUnreadCount(0); return }
+    if (!user) { setChatUnreadCount(0); setSupportUnreadCount(0); return }
     let active = true
     const loadChatUnread = async () => {
       try {
-        const result = await chatRequest<{ threads?: Array<{ buyer_id: string; seller_id: string; buyer_unread_count: number; seller_unread_count: number }> }>({ action: 'list' })
+        const [result, supportResult] = await Promise.all([
+          chatRequest<{ threads?: Array<{ buyer_id: string; seller_id: string; buyer_unread_count: number; seller_unread_count: number }> }>({ action: 'list' }),
+          chatRequest<{ unreadCount?: number }>({ action: 'support_unread_count' }),
+        ])
         const total = (result.threads ?? []).reduce((sum, thread) => sum + Number(thread.buyer_id === user.uid ? thread.buyer_unread_count : thread.seller_unread_count), 0)
-        if (active) setChatUnreadCount(total)
+        if (active) { setChatUnreadCount(total); setSupportUnreadCount(Number(supportResult.unreadCount ?? 0)) }
       } catch { /* keep last known badge */ }
     }
     void loadChatUnread()
     const poller = window.setInterval(() => { void loadChatUnread() }, 12000)
-    const channel = supabase.channel(`header-chat-${user.uid}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => { void loadChatUnread() }).subscribe()
-    return () => { active = false; window.clearInterval(poller); void supabase.removeChannel(channel) }
+    const channel = supabase.channel(`header-chat-${user.uid}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => { void loadChatUnread() }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_case_messages' }, () => { void loadChatUnread() }).subscribe()
+    const onRead = () => { void loadChatUnread() }
+    window.addEventListener('bikrikoro-chat-read', onRead)
+    return () => { active = false; window.clearInterval(poller); window.removeEventListener('bikrikoro-chat-read', onRead); void supabase.removeChannel(channel) }
   }, [user])
 
   return (

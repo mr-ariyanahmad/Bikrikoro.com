@@ -2,13 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, isAuthError, verifyFirebaseRequest } from './_server-auth.js'
 
 type NotificationRequest = {
-  action?: 'list' | 'count' | 'read' | 'mark_all' | 'register_token' | 'disable_token' | 'admin_campaigns' | 'create_campaign'
+  action?: 'list' | 'count' | 'read' | 'mark_all' | 'mark_type_read' | 'register_token' | 'disable_token' | 'admin_campaigns' | 'create_campaign'
   notificationId?: string
   token?: string
   platform?: string
   browser?: string
   targetType?: 'ALL' | 'CUSTOMERS' | 'SELLERS' | 'USER_LIST'
   targetUserIds?: string[]
+  type?: string
   title?: string
   body?: string
   link?: string | null
@@ -96,6 +97,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (input.action === 'count') {
       const { data, error } = await supabase.rpc('get_my_unread_notification_count', { p_user_id: userId })
+      if (error) throw error
+      res.status(200).json({ count: Number(data ?? 0) })
+      return
+    }
+
+    if (input.action === 'mark_type_read') {
+      if (!input.type?.trim()) throw new Error('Notification type is required')
+      const { data, error } = await supabase.rpc('mark_my_notifications_type_read', { p_user_id: userId, p_type: input.type.trim() })
       if (error) throw error
       res.status(200).json({ count: Number(data ?? 0) })
       return

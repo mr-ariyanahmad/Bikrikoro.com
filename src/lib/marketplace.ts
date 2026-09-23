@@ -95,3 +95,13 @@ export async function loadUnreadNotificationCount(userId: string) {
   const result = await notificationApi(userId, { action: 'count' })
   return Number(result.count ?? 0)
 }
+
+export async function loadUnreadOrderNotificationCount(userId: string) {
+  const items = await loadNotifications(userId) as Array<{ type?: string; is_read?: boolean }>
+  return items.filter((item) => item.type === 'ORDER' && !item.is_read).length
+}
+
+export async function markOrderNotificationsRead(userId: string) {
+  const result = await notificationApi(userId, { action: 'mark_type_read', type: 'ORDER' })
+  return Number(result.count ?? 0)
+}
