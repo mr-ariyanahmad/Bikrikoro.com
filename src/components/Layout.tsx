@@ -4,7 +4,6 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { useIsSeller } from '@/hooks/useIsSeller'
-import { SearchBar } from '@/components/SearchBar'
 import { BackButton } from '@/components/BackButton'
 import { loadUnreadNotificationCount } from '@/lib/marketplace'
 import { chatRequest } from '@/lib/chat'
@@ -42,6 +41,31 @@ const DRAWER_LINKS: NavItem[] = [
 ]
 const CITIES = ['খুলনা', 'ঢাকা', 'চট্টগ্রাম', 'সারা বাংলাদেশ']
 
+function pageTitle(pathname: string) {
+  if (pathname === '/') return 'হোম'
+  if (pathname === '/chat/support') return 'কাস্টমার কেয়ার'
+  if (pathname === '/chat' || pathname.startsWith('/chat/')) return 'চ্যাট'
+  if (pathname === '/orders' || pathname.startsWith('/orders/')) return pathname.includes('payment-callback') ? 'পেমেন্ট' : 'অর্ডার'
+  if (pathname === '/products' || pathname.startsWith('/products/')) return pathname.startsWith('/products/') ? 'প্রোডাক্ট বিস্তারিত' : 'প্রোডাক্ট'
+  if (pathname.startsWith('/admin')) return 'অ্যাডমিন প্যানেল'
+  if (pathname === '/account' || pathname.startsWith('/account/')) return 'অ্যাকাউন্ট'
+  if (pathname === '/seller/dashboard') return 'সেলার ড্যাশবোর্ড'
+  if (pathname.startsWith('/seller/')) return 'সেলার প্রোফাইল'
+  if (pathname === '/wallet') return 'ওয়ালেট ও পেমেন্ট'
+  if (pathname === '/notifications') return 'নোটিফিকেশন'
+  if (pathname === '/favorites') return 'পছন্দের তালিকা'
+  if (pathname === '/library') return 'ডিজিটাল লাইব্রেরি'
+  if (pathname === '/settings') return 'সেটিংস'
+  if (pathname === '/search') return 'সার্চ'
+  if (pathname === '/compare') return 'তুলনা'
+  if (pathname === '/sell' || pathname.startsWith('/sell/')) return 'বিক্রি করুন'
+  if (pathname === '/become-seller') return 'সেলার হোন'
+  if (pathname.startsWith('/disputes/')) return 'অভিযোগ'
+  if (pathname === '/blog' || pathname.startsWith('/blog/')) return 'গাইড'
+  if (pathname === '/help' || pathname === '/faq' || pathname === '/contact') return 'সাহায্য ও সাপোর্ট'
+  return 'BikriKoro'
+}
+
 export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, hideMobileQuickNav = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; hideMobileQuickNav?: boolean }) {
   const location = useLocation()
   const { user, logout, loading: authLoading } = useAuth()
@@ -63,7 +87,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     { to: '/account', label: 'প্রোফাইল', icon: UserRound },
   ]
   const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
-  const showPrimaryMobileSearch = location.pathname !== '/search'
+  const currentPageTitle = pageTitle(location.pathname)
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }
   const toggleAccountMenu = () => { setMenuOpen(false); setAccountOpen((open) => !open) }
@@ -111,8 +135,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
           <div className="flex min-h-[4.5rem] items-center gap-3 sm:gap-5">
             <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={closeMobileMenu}><img src="/icon-512.png" alt="BikriKoro" className="h-10 w-10 rounded-xl shadow-sm" /><span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span></Link>
             <div className="hidden shrink-0 sm:block"><BackButton fallbackTo={backFallback} label={backLabel} /></div>
-            <div className="hidden min-w-0 flex-1 sm:block"><SearchBar /></div>
-            {showPrimaryMobileSearch && <div className="min-w-0 flex-1 sm:hidden"><SearchBar compact /></div>}
+            <div className="min-w-0 flex-1 px-1 sm:px-2"><h1 className="truncate text-center text-base font-bold text-ink-900 sm:text-lg">{currentPageTitle}</h1></div>
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <div className="relative hidden md:block"><button type="button" onClick={() => setCityOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-xl border border-outline bg-bg px-3 py-2 text-sm font-medium text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={cityOpen}><MapPin size={16} className="text-brand-600" /><span>খুলনা</span><ChevronDown size={14} className={cityOpen ? 'rotate-180 transition' : 'transition'} /></button>{cityOpen && <div className="absolute right-0 top-12 z-50 w-44 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{CITIES.map((city) => <Link key={city} to={`/products?location=${encodeURIComponent(city)}`} onClick={() => setCityOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-ink-700 hover:bg-brand-50 hover:text-brand-700"><MapPin size={14} />{city}</Link>)}</div>}</div>
               {user ? <div className="relative hidden md:block"><button type="button" onClick={toggleAccountMenu} className="inline-flex items-center gap-2 rounded-xl border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-300 hover:text-brand-700" aria-expanded={accountOpen} aria-haspopup="menu"><UserRound size={16} />অ্যাকাউন্ট<ChevronDown size={14} className={accountOpen ? 'rotate-180 transition' : 'transition'} /></button>{accountOpen && <div role="menu" className="absolute right-0 top-12 z-50 w-60 rounded-2xl border border-outline bg-surface p-1.5 shadow-xl">{ACCOUNT_LINKS.map((link) => <Link key={link.to} to={link.to} role="menuitem" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"><link.icon size={16} /><span className="min-w-0 flex-1">{link.label}</span>{badgeForPath(link.to) > 0 && <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold leading-5 text-white">{badgeForPath(link.to) > 99 ? '99+' : badgeForPath(link.to)}</span>}</Link>)}<div className="my-1 h-px bg-outline" /><button type="button" onClick={() => { setAccountOpen(false); void logout() }} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" role="menuitem"><LogOut size={16} />লগআউট</button></div>}</div> : <Link to="/login" className="rounded-xl bg-brand-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-600 sm:px-4">লগইন</Link>}
