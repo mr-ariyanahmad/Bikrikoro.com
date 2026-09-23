@@ -25,6 +25,8 @@ const ALLOWED_ADMIN_RPCS = new Set([
   'admin_find_user_profile',
   'admin_get_dashboard_overview',
   'admin_get_finance_overview',
+  'admin_get_product_analytics',
+  'admin_get_product_price_history',
   'admin_get_system_status',
   'admin_delete_banner',
   'admin_delete_coupon',
