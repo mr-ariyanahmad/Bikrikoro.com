@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   const [overviewRange, setOverviewRange] = useState('TODAY')
   const [analyticsRange, setAnalyticsRange] = useState('30')
   const [analytics, setAnalytics] = useState<AnalyticsPoint[]>([])
+  const riskSignals = stats.pending + stats.disputes + stats.sellers + stats.unread_chats
 
   useEffect(() => {
     let active = true
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
         <AdminStatCard label="প্রোডাক্ট" value={loading ? '—' : stats.products.toLocaleString('bn-BD')} helper="ক্যাটালগে প্রকাশিত" tone="green" />
         <AdminStatCard label="Total User Wallet Balance" value={loading ? '—' : formatTaka(stats.total_wallet_balance)} helper={`${stats.wallet_users.toLocaleString('bn-BD')}টি wallet`} tone="blue" />
         <AdminStatCard label="অপঠিত চ্যাট" value={loading ? '—' : stats.unread_chats.toLocaleString('bn-BD')} helper="সব thread মিলিয়ে" tone="amber" />
+        <AdminStatCard label="Operational risk signals" value={loading ? '—' : riskSignals.toLocaleString('bn-BD')} helper="pending + dispute + seller + chat" tone={riskSignals > 0 ? 'red' : 'green'} />
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
