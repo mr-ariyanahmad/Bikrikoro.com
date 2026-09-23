@@ -1,4 +1,4 @@
-import { BadgeCheck, Heart, Package, Star, Users } from 'lucide-react'
+import { BadgeCheck, ChevronRight, Heart, Package, Star, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Profile } from '@/types/product'
 import { shopUrl } from '@/lib/shopProfile'
@@ -17,9 +17,9 @@ export function SellerShopCard({ seller, followerCount, productCount, onFollow, 
     .map((badge) => ({ ...badge, badge_label: badge.badge_label.replace(/\s*সেলার\s*যাচাইকৃত\s*$/u, '').replace(/\s*যাচাইকৃত\s*$/u, '').trim() }))
     .filter((badge) => badge.badge_label.length > 0)
   return (
-    <section className="border border-outline bg-surface shadow-sm">
+    <section className="rounded-2xl border border-outline bg-surface shadow-sm">
       <div className="flex items-center gap-2.5 px-3 py-3 sm:gap-3 sm:px-4 sm:py-3.5">
-        <Link to={profileUrl} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border border-outline bg-brand-100 text-lg font-bold text-brand-700 transition hover:border-brand-500 sm:h-16 sm:w-16">
+        <Link to={profileUrl} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-100 bg-brand-100 text-lg font-bold text-brand-700 transition hover:border-brand-500 sm:h-16 sm:w-16">
           {seller.photo_url ? <img src={seller.photo_url} alt={`${shopName} shop`} className="h-full w-full object-cover" loading="lazy" /> : shopName.charAt(0)}
         </Link>
         <div className="min-w-0 flex-1">
@@ -30,7 +30,7 @@ export function SellerShopCard({ seller, followerCount, productCount, onFollow, 
             {categoryBadges.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{categoryBadges.slice(0, 2).map((badge) => <span key={badge.badge_key} className="inline-flex items-center gap-0.5 bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700"><Package size={10} />{badge.badge_label}</span>)}</div>}
           </Link>
         </div>
-        <button type="button" onClick={onFollow} className={`inline-flex h-9 w-32 shrink-0 items-center justify-center gap-1 border px-2 text-[11px] font-semibold whitespace-nowrap transition sm:h-10 sm:w-36 sm:gap-1.5 sm:text-xs ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-500 text-brand-700 hover:bg-brand-50'}`}><Heart size={14} className={following ? 'fill-brand-500 text-brand-500' : ''} /><span>{following ? 'Follow করা আছে' : 'Follow'}</span></button>
+        <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={onFollow} className={`inline-flex h-9 w-24 items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold whitespace-nowrap transition sm:h-10 sm:w-36 sm:gap-1.5 sm:text-xs ${following ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-500 text-brand-700 hover:bg-brand-50'}`}><Heart size={14} className={following ? 'fill-brand-500 text-brand-500' : ''} /><span>{following ? 'অনুসরণ করা আছে' : 'অনুসরণ'}</span></button><Link to={profileUrl} aria-label="সেলার প্রোফাইল দেখুন" className="grid h-9 w-8 place-items-center text-ink-400 hover:text-brand-700 sm:h-10"><ChevronRight size={20} /></Link></div>
       </div>
     </section>
   )

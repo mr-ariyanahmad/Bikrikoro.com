@@ -67,7 +67,7 @@ function pageTitle(pathname: string) {
   return 'BikriKoro'
 }
 
-export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, hideMobileQuickNav = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; hideMobileQuickNav?: boolean }) {
+export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, hideMobileQuickNav = false, hideMobileHeader = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; hideMobileQuickNav?: boolean; hideMobileHeader?: boolean }) {
   const location = useLocation()
   const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
@@ -155,7 +155,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
 
   return (
     <div className={`site-minimal bg-bg text-ink-900 ${fullScreen ? 'flex h-[100dvh] min-h-0 flex-col overflow-hidden' : 'min-h-screen'}`}>
-      <header className={`sticky top-0 z-40 border-b border-outline/45 bg-surface/95 shadow-[0_2px_12px_rgba(15,23,42,0.055)] backdrop-blur ${fullScreen ? 'shrink-0' : ''}`}>
+      <header className={`${hideMobileHeader ? 'hidden md:block' : ''} sticky top-0 z-40 border-b border-outline/45 bg-surface/95 shadow-[0_2px_12px_rgba(15,23,42,0.055)] backdrop-blur ${fullScreen ? 'shrink-0' : ''}`}>
         <div className={`mx-auto ${maxWidth} px-4 sm:px-5`}>
           <div className="flex min-h-[3.5rem] items-center gap-3 sm:min-h-[3.75rem] sm:gap-5">
             <Link to="/" className="flex shrink-0 items-center gap-2.5" onClick={closeMobileMenu}><img src="/icon-512.png" alt="BikriKoro" className="h-8 w-8 rounded-[0.85rem] shadow-sm ring-1 ring-brand-100 sm:h-9 sm:w-9" /><span className="hidden text-[15px] font-bold tracking-tight text-ink-900 sm:inline">BikriKoro<span className="text-brand-600">.Com</span></span></Link>

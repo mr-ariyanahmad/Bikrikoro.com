@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { BackButton } from '@/components/BackButton'
 import { BuyModal } from '@/components/BuyModal'
 import { RecommendedProducts } from '@/components/RecommendedProducts'
 import { SellerShopCard } from '@/components/SellerShopCard'
@@ -326,7 +327,7 @@ export default function ProductDetail() {
   }
 
   return (
-    <Layout wide hideFooter={showBuy} hideMobileQuickNav>
+    <Layout wide hideFooter={showBuy} hideMobileQuickNav hideMobileHeader>
       <Helmet>
         <title>{`${product.title} — ৳${product.price} | BikriKoro.Com`}</title>
         <meta
@@ -366,10 +367,19 @@ export default function ProductDetail() {
         </script>
       </Helmet>
 
-      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
+      <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
+        <BackButton fallbackTo="/products" label="পণ্য তালিকায় ফিরে যান" />
+        <h1 className="min-w-0 flex-1 truncate text-center text-base font-bold text-ink-900">লিস্টিংয়ের বিবরণ</h1>
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={handleShare} aria-label="পণ্য শেয়ার করুন" className="grid h-10 w-10 place-items-center rounded-full text-ink-700 transition hover:bg-brand-50 hover:text-brand-700"><Share2 size={20} /></button>
+          <button type="button" onClick={() => setShowReport(true)} aria-label="পণ্য রিপোর্ট করুন" className="grid h-10 w-10 place-items-center rounded-full text-error transition hover:bg-red-50"><Flag size={20} /></button>
+        </div>
+      </div>
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
         <div>
           <div
-            className="relative aspect-[4/3] touch-pan-y overflow-hidden rounded-3xl border border-outline bg-slate-50 shadow-sm sm:aspect-square lg:aspect-[1.05]"
+            className="relative aspect-[1.08] touch-pan-y overflow-hidden rounded-2xl border border-outline bg-slate-50 shadow-sm sm:aspect-square sm:rounded-3xl lg:aspect-[1.05]"
             onTouchStart={(e) => {
               touchStartX.current = e.touches[0].clientX
             }}
@@ -400,13 +410,13 @@ export default function ProductDetail() {
               <img
                 src={product.images[activeImageIndex]}
                 alt={product.title}
-                className="h-full w-full object-contain p-2 sm:p-3"
+                className="h-full w-full object-cover sm:object-contain sm:p-3"
                 draggable={false}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
             )}
-            <div className="absolute right-3 top-3 flex flex-col gap-2">
+            <div className="absolute right-3 top-3 flex flex-row gap-2 sm:flex-col">
               <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} aria-pressed={alertEnabled} title={alertEnabled ? 'দাম সতর্কতা বন্ধ করুন' : 'দাম কমলে জানান'} className={`grid h-10 w-10 place-items-center rounded-full border shadow-md backdrop-blur transition ${alertEnabled ? 'border-brand-300 bg-brand-500 text-white' : 'border-white/80 bg-white/90 text-amber-700 hover:bg-amber-50'}`}><Bell size={18} /></button>
               <button type="button" onClick={handleShare} title="পণ্য শেয়ার করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-sky-700 shadow-md backdrop-blur transition hover:bg-sky-50"><Share2 size={18} /></button>
               <button type="button" onClick={() => setShowReport(true)} title="পণ্য সম্পর্কে রিপোর্ট করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-error shadow-md backdrop-blur transition hover:bg-red-50"><Flag size={18} /></button>
@@ -431,12 +441,12 @@ export default function ProductDetail() {
               })}
             </div>
           )}
-          <RecommendedProducts
+          <div className="hidden md:block"><RecommendedProducts
             title="আরও পণ্য দেখুন"
             mode={{ type: 'popular', excludeProductId: product.id }}
             limit={4}
             layout="media"
-          />
+          /></div>
         </div>
 
         <div>
@@ -457,9 +467,9 @@ export default function ProductDetail() {
               </button>
             )}
           </div>
-          <h1 className="mt-2 text-xl font-semibold text-ink-900 sm:text-2xl">{product.title}</h1>
+          <h1 className="mt-3 text-[1.35rem] font-bold leading-tight text-ink-900 sm:text-2xl">{product.title}</h1>
 
-          <div className="mt-3 flex items-baseline gap-3">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <span className="tabular-amount text-2xl font-bold text-brand-600">
               {formatTaka(product.price)}
             </span>
@@ -468,7 +478,10 @@ export default function ProductDetail() {
                 {formatTaka(product.original_price)}
               </span>
             )}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700"><span aria-hidden="true">★</span>{seller?.review_count ? `${Number(seller.rating).toFixed(1)} · ${seller.review_count} রিভিউ` : 'এখনো রেটিং নেই'}</span>
           </div>
+
+          <p className="mt-2 text-xs text-ink-400">তৈরি হয়েছে: {formatDate(product.created_at)}</p>
 
           {isDemoListing && <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"><p className="font-bold">TEST / Demo only — বিক্রির জন্য নয়</p><p className="mt-1 text-xs leading-5">এই listing শুধু marketplace layout ও category পরীক্ষা করার জন্য। এখানে অর্ডার, পেমেন্ট বা ডেলিভারি করা যাবে না।</p></div>}
 
@@ -491,8 +504,8 @@ export default function ProductDetail() {
 
           {product.is_digital && digitalSpecs && Object.keys(digitalSpecs.specifications ?? {}).length > 0 && <section className="mt-4 border border-outline bg-surface p-4"><h2 className="text-sm font-semibold text-ink-900">পণ্যের গুরুত্বপূর্ণ তথ্য</h2><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(digitalSpecs.specifications).map(([key, value]) => <div key={key} className="border-b border-outline/70 pb-2"><p className="text-xs text-ink-400">{key.replaceAll('_', ' ')}</p><p className="mt-0.5 break-words text-sm font-medium text-ink-800">{typeof value === 'boolean' ? value ? 'হ্যাঁ' : 'না' : Array.isArray(value) ? value.join(', ') : String(value)}</p></div>)}</div><div className="mt-3 flex flex-wrap gap-2 text-xs text-ink-600"><span className="border border-outline px-2 py-1">অঞ্চল: {digitalSpecs.region_code}</span>{digitalSpecs.subscription_period && <span className="border border-outline px-2 py-1">মেয়াদ: {digitalSpecs.subscription_period}</span>}{digitalSpecs.warranty_period && <span className="border border-outline px-2 py-1">ওয়ারেন্টি: {digitalSpecs.warranty_period}</span>}{digitalSpecs.auto_delivery_enabled && <span className="border border-brand-200 bg-brand-50 px-2 py-1 text-brand-700">স্বয়ংক্রিয় ডেলিভারি</span>}</div>{digitalSpecs.delivery_note && <p className="mt-3 border-l-2 border-brand-500 pl-3 text-xs leading-5 text-ink-600">{digitalSpecs.delivery_note}</p>}</section>}
 
-          <div className="mt-4 rounded-xl bg-bg p-4 text-xs leading-relaxed text-ink-600">
-            <p className="font-medium text-ink-900">অর্ডার নীতি</p>
+          <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 text-xs leading-relaxed text-ink-600">
+            <p className="flex items-center gap-2 font-bold text-ink-900"><ShieldCheck size={15} className="text-brand-600" />নিরাপদে কেনাকাটার টিপস</p>
             <ul className="mt-1.5 list-disc space-y-1 pl-4">
               <li>পেমেন্ট এসক্রোতে জমা থাকে — পণ্য হাতে পাওয়ার আগে বিক্রেতাকে দেওয়া হয় না।</li>
               <li>শুধুমাত্র বিকাশ/নগদ/রকেট দিয়ে আগে থেকে পেমেন্ট, কোনো ক্যাশ অন ডেলিভারি নেই।</li>
@@ -573,7 +586,7 @@ export default function ProductDetail() {
         limit={8}
       />
 
-      {!showBuy && !isOwnListing && <div className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 px-3 pb-[max(env(safe-area-inset-bottom),0.7rem)] pt-2.5 shadow-[0_-10px_26px_rgba(15,23,42,0.14)] backdrop-blur-xl md:hidden"><div className="mx-auto flex max-w-xl gap-2"><button type="button" onClick={() => void handleChat()} disabled={startingChat} className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 disabled:opacity-60"><MessageCircle size={18} />{startingChat ? 'অপেক্ষা করুন...' : 'চ্যাট করুন'}</button>{isDemoListing ? <div className="flex min-h-12 flex-[1.35] items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 text-center text-xs font-bold text-amber-900">TEST / Demo only — অর্ডার বন্ধ</div> : <button type="button" onClick={() => user ? setShowBuy(true) : navigate('/login')} className="flex min-h-12 flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(1,124,80,0.24)]"><ShoppingBag size={18} />{user ? 'অর্ডার করুন' : 'লগইন করে অর্ডার'}</button>}</div></div>}
+      {!showBuy && !isOwnListing && <div className="fixed inset-x-0 bottom-0 z-50 border-t border-outline/80 bg-surface/95 px-3 pb-[max(env(safe-area-inset-bottom),0.7rem)] pt-2.5 shadow-[0_-10px_26px_rgba(15,23,42,0.14)] backdrop-blur-xl md:hidden"><div className="mx-auto flex max-w-xl gap-2"><button type="button" onClick={() => void handleChat()} disabled={startingChat} className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 disabled:opacity-60"><MessageCircle size={18} />{startingChat ? 'অপেক্ষা করুন...' : 'চ্যাট করুন'}</button>{isDemoListing ? <div className="flex min-h-12 flex-[1.35] items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-3 text-center text-xs font-bold text-amber-900">TEST / Demo only — অর্ডার বন্ধ</div> : <button type="button" onClick={() => user ? setShowBuy(true) : navigate('/login')} className="flex min-h-12 flex-[1.35] items-center justify-center gap-1.5 rounded-xl bg-brand-600 px-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(1,124,80,0.24)]"><ShoppingBag size={18} />{user ? 'এখনই কিনুন' : 'লগইন করে অর্ডার'}</button>}</div></div>}
       {showBuy && user && !isDemoListing && <BuyModal product={product} digitalSpecs={digitalSpecs} buyerId={user.uid} onClose={() => setShowBuy(false)} />}
       {showReport && <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/50 p-0 sm:items-center sm:p-5"><div className="w-full max-w-md rounded-t-3xl bg-surface p-5 sm:rounded-3xl"><h2 className="text-lg font-bold text-ink-900">তালিকা সম্পর্কে অভিযোগ করুন</h2><p className="mt-1 text-sm text-ink-500">কেন তালিকাটি সমস্যাযুক্ত মনে হচ্ছে?</p><div className="mt-4"><BrandSelect label="অভিযোগের কারণ" value={reportReason} options={['ভুল বা বিভ্রান্তিকর তথ্য', 'নিষিদ্ধ পণ্য', 'ভুয়া বা প্রতারণামূলক তালিকা', 'অন্য কারণ'].map((value) => ({ value, label: value }))} onChange={setReportReason} /></div><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} rows={4} placeholder="বিস্তারিত লিখুন (ঐচ্ছিক)" className="mt-3 w-full rounded-xl border border-outline px-3 py-2.5 text-sm outline-none focus:border-brand-500" /><div className="mt-4 flex gap-2"><button type="button" onClick={() => setShowReport(false)} className="flex-1 rounded-none border border-outline py-2.5 text-sm font-semibold text-ink-600">বাতিল</button><button type="button" onClick={handleReport} className="flex-1 rounded-none bg-error py-2.5 text-sm font-semibold text-white">অভিযোগ পাঠান</button></div></div></div>}
     </Layout>
