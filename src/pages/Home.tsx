@@ -30,6 +30,24 @@ type HomepageCache = {
   hasMoreProducts: boolean
 }
 
+type HomepageSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>
+
+async function loadHomepageSellers(sellerIds: string[]) {
+  if (sellerIds.length === 0) return {} as Record<string, HomepageSeller>
+  const { data: directRows } = await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds)
+  const sellerMap = Object.fromEntries(((directRows ?? []) as HomepageSeller[]).map((seller) => [seller.id, seller])) as Record<string, HomepageSeller>
+  const missingIds = sellerIds.filter((sellerId) => !sellerMap[sellerId])
+  if (missingIds.length === 0) return sellerMap
+  const publicRows = await Promise.all(missingIds.map(async (sellerId) => {
+    const { data, error } = await supabase.rpc('get_public_seller_profile', { p_lookup: sellerId })
+    if (error) return null
+    const seller = Array.isArray(data) ? data[0] : data
+    return seller ? { ...seller, id: seller.id ?? sellerId } as HomepageSeller : null
+  }))
+  publicRows.filter(Boolean).forEach((seller) => { if (seller) sellerMap[seller.id] = seller })
+  return sellerMap
+}
+
 function readHomepageCache(): HomepageCache | null {
   try {
     const rawCache = window.localStorage.getItem(HOMEPAGE_CACHE_KEY)
@@ -56,7 +74,7 @@ export default function Home() {
   const [banners, setBanners] = useState<PromoBanner[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
-  const [sellersById, setSellersById] = useState<Record<string, Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>>>({})
+  const [sellersById, setSellersById] = useState<Record<string, HomepageSeller>>({})
   const [loading, setLoading] = useState(true)
   const [loadingMoreProducts, setLoadingMoreProducts] = useState(false)
   const [hasMoreProducts, setHasMoreProducts] = useState(false)
@@ -116,11 +134,7 @@ export default function Home() {
         const globalProducts = (productsRes.data ?? []) as Product[]
         const loadedProducts = globalProducts
         const sellerIds = [...new Set(loadedProducts.map((product) => product.seller_id).filter(Boolean))]
-        const { data: sellerRows, error: sellerError } = sellerIds.length > 0
-          ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds)
-          : { data: [], error: null }
-        if (sellerError) console.error('Homepage seller summaries load failed:', sellerError)
-        const nextSellers = Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])) as Record<string, Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>>
+        const nextSellers = await loadHomepageSellers(sellerIds)
         const categoryMap = new Map((categoriesRes.data ?? []).map((category) => [category.id, category]))
         const digitalCategories = (templatesRes.data ?? []).map((template) => categoryMap.get(template.category_id)).filter(Boolean)
         setBanners(bannersRes.data ?? [])
@@ -164,15 +178,12 @@ export default function Home() {
       if (error) throw error
         const nextProducts = (data ?? []) as Product[]
       const nextSellerIds = [...new Set(nextProducts.map((product) => product.seller_id).filter(Boolean))]
-      const { data: sellerRows, error: sellerError } = nextSellerIds.length > 0
-        ? await supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', nextSellerIds)
-        : { data: [], error: null }
-      if (sellerError) console.error('Homepage additional seller summaries load failed:', sellerError)
+      const nextSellers = await loadHomepageSellers(nextSellerIds)
       setProducts((current) => {
         const knownIds = new Set(current.map((product) => product.id))
         return [...current, ...nextProducts.filter((product) => !knownIds.has(product.id))]
       })
-      setSellersById((current) => ({ ...current, ...Object.fromEntries((sellerRows ?? []).map((seller) => [seller.id, seller])) }))
+      setSellersById((current) => ({ ...current, ...nextSellers }))
       setProductOffset((current) => current + nextProducts.length)
       setHasMoreProducts(nextProducts.length === HOMEPAGE_PRODUCT_PAGE_SIZE)
     } catch (error) {
