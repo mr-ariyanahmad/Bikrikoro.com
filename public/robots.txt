@@ -6,6 +6,10 @@ Disallow: /account
 Disallow: /admin
 Disallow: /chat
 Disallow: /chat/*
+Disallow: /checkout
+Disallow: /checkout/*
+Disallow: /dashboard
+Disallow: /dashboard/*
 Disallow: /disputes
 Disallow: /disputes/*
 Disallow: /favorites

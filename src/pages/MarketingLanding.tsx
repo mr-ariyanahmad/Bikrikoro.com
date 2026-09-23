@@ -21,8 +21,8 @@ const faqItems = [
 export default function MarketingLanding() {
   return <div className="site-minimal min-h-screen overflow-x-hidden bg-[#f7fbfa] text-ink-900">
     <Helmet>
-      <title>BikriKoro | বাংলাদেশের নিরাপদ Digital Marketplace</title>
-      <meta name="description" content="BikriKoro-তে game, software, subscription, course ও digital service নিরাপদে কিনুন এবং বিক্রি করুন। Verified seller, secure delivery ও স্বচ্ছ order flow এক জায়গায়।" />
+      <title>BikriKoro — বাংলাদেশের নিরাপদ ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস</title>
+      <meta name="description" content="BikriKoro-তে নিরাপদে ডিজিটাল প্রোডাক্ট কিনুন ও বিক্রি করুন। বিভিন্ন ডিজিটাল প্রোডাক্ট আবিষ্কার করুন, নিজের প্রোডাক্ট লিস্ট করুন এবং সহজ ও নিরাপদ marketplace experience উপভোগ করুন।" />
       <meta name="keywords" content="digital marketplace Bangladesh, game account কেনাবেচা, software subscription, digital service, BikriKoro" />
       <link rel="canonical" href="https://www.bikrikoro.com/" />
       <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', name: 'BikriKoro — বাংলাদেশের নিরাপদ Digital Marketplace', url: 'https://www.bikrikoro.com/', description: 'বাংলাদেশের নিরাপদ digital marketplace যেখানে game, software, subscription, course ও digital service কেনাবেচা করা যায়।', about: ['digital marketplace', 'secure digital delivery', 'online selling in Bangladesh'] })}</script>

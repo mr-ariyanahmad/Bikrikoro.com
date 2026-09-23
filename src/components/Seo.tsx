@@ -3,13 +3,13 @@ import { useLocation } from 'react-router-dom'
 
 export const SEO_SITE_URL = 'https://www.bikrikoro.com'
 export const SEO_SITE_NAME = 'BikriKoro'
-export const SEO_DEFAULT_TITLE = 'BikriKoro — বাংলাদেশের Official Online Marketplace'
-export const SEO_DEFAULT_DESCRIPTION = 'BikriKoro হলো বাংলাদেশের নিরাপদ official online marketplace—ডিজিটাল পণ্য, গেম, সাবস্ক্রিপশন, সফটওয়্যার, কোর্স ও সেবা নিরাপদে কিনুন ও বিক্রি করুন।'
+export const SEO_DEFAULT_TITLE = 'BikriKoro — বাংলাদেশের নিরাপদ ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস'
+export const SEO_DEFAULT_DESCRIPTION = 'BikriKoro-তে নিরাপদে ডিজিটাল প্রোডাক্ট কিনুন ও বিক্রি করুন। বিভিন্ন ডিজিটাল প্রোডাক্ট আবিষ্কার করুন, নিজের প্রোডাক্ট লিস্ট করুন এবং সহজ ও নিরাপদ marketplace experience উপভোগ করুন।'
 export const SEO_DEFAULT_IMAGE = `${SEO_SITE_URL}/og-image.jpg`
 
 const PRIVATE_PREFIXES = [
   '/account', '/admin', '/chat', '/disputes', '/favorites', '/library', '/my-listings', '/notifications',
-  '/orders', '/rewards', '/sell', '/seller/dashboard', '/settings', '/wallet', '/saved-searches', '/become-seller/verify',
+  '/orders', '/rewards', '/sell', '/seller/dashboard', '/settings', '/wallet', '/saved-searches', '/become-seller/verify', '/checkout', '/dashboard',
 ]
 
 function isNoindexPath(pathname: string) {
@@ -80,7 +80,7 @@ export function Seo() {
     <meta property="og:description" content={SEO_DEFAULT_DESCRIPTION} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={SEO_DEFAULT_IMAGE} />
-    <meta property="og:image:alt" content="BikriKoro — বাংলাদেশের Official Online Marketplace" />
+    <meta property="og:image:alt" content="BikriKoro — বাংলাদেশের নিরাপদ ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />

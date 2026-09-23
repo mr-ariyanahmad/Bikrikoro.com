@@ -20,6 +20,14 @@ export default defineConfig({
       },
     },
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/app.js',
+        assetFileNames: (assetInfo) => assetInfo.name?.endsWith('.css') ? 'assets/app.css' : 'assets/[name]-[hash][extname]',
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
