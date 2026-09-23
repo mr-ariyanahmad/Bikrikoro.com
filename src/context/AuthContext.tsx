@@ -52,6 +52,7 @@ interface AuthContextValue {
   loginWithFacebook: () => Promise<void>;
   authError: string | null;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -256,6 +257,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   };
 
+  const deleteAccount = async () => {
+    ensureFirebaseConfigured();
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('auth/no-current-user');
+    const idToken = await currentUser.getIdToken(true);
+    const response = await fetch('/api/account-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ confirmation: 'DELETE' }),
+    });
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(payload.error || 'অ্যাকাউন্ট ডিলিট করা যায়নি।');
+    clearUserCachedData(currentUser.uid);
+    await firebaseSignOut(auth);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -273,7 +290,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         loginWithFacebook,
         authError,
-        logout,
+      logout,
+      deleteAccount,
       }}
     >
       {children}

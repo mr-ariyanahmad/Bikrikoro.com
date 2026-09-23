@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bell,
   CircleHelp,
   FileText,
@@ -89,6 +90,12 @@ export default function SettingsHub() {
           "নোটিফিকেশন",
           "অর্ডার, সেলার ও গুরুত্বপূর্ণ update দেখুন",
           Bell,
+        ],
+        [
+          "/account",
+          "অ্যাকাউন্ট ডিলিট",
+          "Account settings-এর নিচে স্থায়ী deletion option",
+          AlertTriangle,
         ],
       ]
     : [

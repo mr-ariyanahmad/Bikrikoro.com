@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BadgeCheck, Check, Eye, Mail, PencilLine, ShieldCheck, ShoppingBag, Star, Store, UserRound, WalletCards, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { AlertTriangle, BadgeCheck, Check, Eye, Mail, PencilLine, ShieldCheck, ShoppingBag, Star, Store, UserRound, WalletCards, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { Layout } from '@/components/Layout'
+import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { useIsSeller } from '@/hooks/useIsSeller'
 import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { Profile } from '@/types/product'
@@ -18,11 +19,16 @@ function maskEmail(value: string | null | undefined) {
 }
 
 export default function Account() {
-  const { user } = useAuth()
+  const { user, deleteAccount } = useAuth()
+  const navigate = useNavigate()
   const { isSeller } = useIsSeller()
   const uid = user!.uid
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const cacheKey = userCacheKey(uid, 'account-profile')
 
   useEffect(() => {
@@ -43,6 +49,20 @@ export default function Account() {
   const totalTrades = Number(profile?.review_count ?? 0)
   const rating = profile?.rating ? Number(profile.rating).toFixed(1) : '0.0'
 
+  const confirmDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE' || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteAccount()
+      navigate('/login', { replace: true, state: { accountDeleted: true } })
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'অ্যাকাউন্ট ডিলিট করা যায়নি।')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return <Layout wide>
     <Helmet><title>অ্যাকাউন্ট | BikriKoro.Com</title></Helmet>
     <div className="mx-auto w-full max-w-3xl pb-24">
@@ -53,6 +73,8 @@ export default function Account() {
       <section className="mt-4 grid grid-cols-3 gap-2"><StatCard icon={ShoppingBag} value="0" label="বিক্রয়" /><StatCard icon={WalletCards} value="0" label="ক্রয়" /><StatCard icon={Eye} value="0" label="চলমান" /></section>
       <section className="mt-4 rounded-[1.35rem] border border-outline bg-surface p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="text-lg font-bold text-ink-900">প্রোফাইল সম্পূর্ণতা</h2><p className="mt-1 text-sm text-ink-500">আপনার অ্যাকাউন্ট আরও বিশ্বাসযোগ্য করুন</p></div><span className="text-2xl font-bold text-brand-600">{completionPercent}%</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-brand-50"><div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${completionPercent}%` }} /></div><Link to="/account/edit" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-brand-700"><UserRound size={16} />তথ্য আপডেট করুন</Link></section>
       <section className="mt-4 flex items-start gap-3 rounded-[1.35rem] border border-brand-100 bg-brand-50 p-4"><ShieldCheck size={21} className="mt-0.5 shrink-0 text-brand-600" /><div><h2 className="font-bold text-ink-900">আপনার তথ্য নিরাপদ</h2><p className="mt-1 text-sm leading-6 text-ink-600">ইমেইল, ফোন ও লগইন তথ্য অন্য ক্রেতা বা বিক্রেতার কাছে প্রকাশ করা হয় না।</p></div></section>
+      <section className="mt-5 rounded-[1.35rem] border border-red-200 bg-red-50/60 p-4 sm:p-5"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-600" /><div className="min-w-0 flex-1"><h2 className="font-bold text-red-900">অ্যাকাউন্ট ডিলিট</h2><p className="mt-1 text-sm leading-6 text-red-800/80">অ্যাকাউন্ট ডিলিট করলে আপনার profile ও login স্থায়ীভাবে মুছে যাবে। এই কাজটি undo করা যাবে না।</p><button type="button" onClick={() => { setDeleteError(null); setDeleteConfirmation(''); setDeleteDialogOpen(true) }} className="mt-3 rounded-xl border border-red-300 bg-white px-3.5 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100">অ্যাকাউন্ট ডিলিট করার অনুরোধ</button></div></div></section>
+      <BrandedDialog open={deleteDialogOpen} title="অ্যাকাউন্ট স্থায়ীভাবে ডিলিট করবেন?" tone="danger" onClose={() => { if (!deleting) setDeleteDialogOpen(false) }} actions={<><DialogButton variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>বাতিল</DialogButton><DialogButton tone="danger" onClick={() => void confirmDeleteAccount()} disabled={deleting || deleteConfirmation !== 'DELETE'}>{deleting ? 'ডিলিট হচ্ছে…' : 'স্থায়ীভাবে ডিলিট করুন'}</DialogButton></>}><div className="space-y-3 text-sm leading-6 text-ink-700"><p>এই কাজের পর আপনার login, profile information এবং account access আর ফিরিয়ে আনা যাবে না।</p><ul className="list-disc space-y-1 pl-5"><li>চলমান order থাকলে account ডিলিট হবে না—আগে order সম্পন্ন করুন বা Support Center-এ যোগাযোগ করুন।</li><li>আইনি, নিরাপত্তা বা লেনদেনের প্রয়োজনীয় কিছু record নীতিমালা অনুযায়ী রাখা হতে পারে।</li><li>ডিলিট করার আগে প্রয়োজনীয় তথ্য বা order record সংরক্ষণ করে নিন।</li></ul>{deleteError && <p className="rounded-xl bg-red-50 p-3 font-semibold text-red-700">{deleteError}</p>}<label className="block"><span className="mb-1.5 block font-bold text-ink-900">নিশ্চিত করতে <code className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">DELETE</code> লিখুন</span><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="DELETE" className="w-full rounded-xl border border-outline bg-surface px-3 py-3 font-mono text-sm uppercase outline-none focus:border-red-400 focus:ring-2 focus:ring-red-500/10" /></label></div></BrandedDialog>
     </div>
   </Layout>
 }

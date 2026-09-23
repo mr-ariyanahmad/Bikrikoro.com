@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 type FirebaseApp = import('firebase-admin/app').App
 
-async function getFirebaseApp(): Promise<FirebaseApp> {
+export async function getFirebaseApp(): Promise<FirebaseApp> {
   const { cert, getApps, initializeApp } = await import('firebase-admin/app')
   const existing = getApps()[0]
   if (existing) return existing
