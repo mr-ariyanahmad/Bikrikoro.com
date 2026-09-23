@@ -82,6 +82,16 @@ function AppRoutes() {
       <Route path="/preview/startup-recovery" element={<StartupAnimationPreview />} />
       <Route path="/" element={window.location.pathname === '/app' || window.location.pathname.startsWith('/app/') ? <Home /> : <MarketingLanding />} />
       <Route path="/becom-seller" element={<Navigate to="/become-seller" replace />} />
+      <Route path="/home" element={<Navigate to={window.location.pathname.startsWith('/app/') ? '/' : '/app'} replace />} />
+      <Route path="/marketplace" element={<Navigate to={window.location.pathname.startsWith('/app/') ? '/' : '/app'} replace />} />
+      <Route path="/dashboard" element={<Navigate to="/seller/dashboard" replace />} />
+      <Route path="/seller" element={<Navigate to="/become-seller" replace />} />
+      <Route path="/profile" element={<Navigate to="/account" replace />} />
+      <Route path="/support" element={<Navigate to="/chat/support" replace />} />
+      <Route path="/order" element={<Navigate to="/orders" replace />} />
+      <Route path="/checkout" element={<Navigate to="/products" replace />} />
+      <Route path="/payment-callback" element={<Navigate to="/orders/payment-callback" replace />} />
+      <Route path="/payment-return" element={<Navigate to="/orders/payment-callback" replace />} />
       <Route path="/products" element={<Products />} />
       <Route path="/search" element={<SearchPage />} />
       <Route path="/products/:id" element={<ProductDetail />} />
