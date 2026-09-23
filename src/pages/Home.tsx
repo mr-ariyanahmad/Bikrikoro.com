@@ -94,7 +94,7 @@ export default function Home() {
     const offset = daySeed % ranked.length
     return [...ranked.slice(offset), ...ranked.slice(0, offset)]
   }, [products])
-  const newListingProducts = rankedHomeProducts.slice(0, 6)
+  const newListingProducts = rankedHomeProducts
   const hotDealProducts = rankedHomeProducts.filter((product) => Boolean(product.original_price && product.original_price > product.price)).slice(0, 6)
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
