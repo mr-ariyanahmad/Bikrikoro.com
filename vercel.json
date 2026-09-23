@@ -89,6 +89,13 @@
     { "source": "/__/auth/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/auth/:path*" },
     { "source": "/__/firebase/:path*", "destination": "https://com-bikrikoro.firebaseapp.com/__/firebase/:path*" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
+    { "source": "/products", "destination": "/seo/products.html" },
+    { "source": "/blog", "destination": "/seo/blog.html" },
+    { "source": "/about", "destination": "/seo/about.html" },
+    { "source": "/help", "destination": "/seo/help.html" },
+    { "source": "/faq", "destination": "/seo/faq.html" },
+    { "source": "/contact", "destination": "/seo/contact.html" },
+    { "source": "/become-seller", "destination": "/seo/become-seller.html" },
     { "source": "/((?!api/|listing-covers/).*)", "destination": "/index.html" }
   ]
 }
