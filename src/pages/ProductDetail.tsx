@@ -134,14 +134,20 @@ export default function ProductDetail() {
           if (!active) return
           if (specsResult.error && !/relation .* does not exist/i.test(specsResult.error.message)) console.error('Digital specs load failed:', specsResult.error)
           const nextSpecs = specsResult.data ? specsResult.data as ProductDigitalSpecs : null
-          const sellerData = sellerResult.data as Profile | null
           const sellerPublic = Array.isArray(sellerPublicResult.data) ? sellerPublicResult.data[0] : sellerPublicResult.data
           const nextBadges = (badgeResult.data ?? []) as Array<{ badge_key: string; badge_label: string }>
-          setSeller(sellerData as Profile | null)
+          // Public profile RPC is security-definer and remains available to guests;
+          // direct profile reads can be blocked by RLS, which previously caused the
+          // detail page to fall back to the generic “BikriKoro seller” label.
+          const directSeller = sellerResult.data as Profile | null
+          const nextSeller = sellerPublic
+            ? { ...(directSeller ?? {}), ...sellerPublic, phone: directSeller?.phone ?? null, email: directSeller?.email ?? null } as Profile
+            : directSeller
+          setSeller(nextSeller)
           setDigitalSpecs(nextSpecs)
           setSellerStats({ followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) })
           setSellerBadges(nextBadges)
-          writeCachedValue(cacheKey, { product: normalizedProduct, digitalSpecs: nextSpecs, seller: sellerData, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
+          writeCachedValue(cacheKey, { product: normalizedProduct, digitalSpecs: nextSpecs, seller: nextSeller, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
           void trackProductView(normalizedProduct.id)
         }
       } catch (error) {
