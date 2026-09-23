@@ -14,6 +14,7 @@ type Body = {
   subject?: string
   orderId?: string | null
   caseId?: string
+  attachments?: Array<{ name: string; url: string; type: string; size: number }>
 }
 
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown }
@@ -141,6 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const caseId = requiredText(input.caseId, 'Case ID')
       const { data, error } = await supabase.rpc('list_my_support_case_messages', { p_customer_id: token.uid, p_case_id: caseId })
       if (error) throw error
+      await supabase.rpc('mark_my_support_case_read', { p_customer_id: token.uid, p_case_id: caseId })
       res.status(200).json({ messages: data ?? [] })
       return
     }
@@ -150,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const subject = requiredText(input.subject, 'Subject')
       const initialMessage = typeof input.text === 'string' ? input.text.trim() : null
       const orderId = typeof input.orderId === 'string' && input.orderId.trim() ? input.orderId.trim() : null
-      const { data, error } = await supabase.rpc('create_my_support_case', { p_customer_id: token.uid, p_category: category, p_subject: subject, p_order_id: orderId, p_initial_message: initialMessage })
+      const { data, error } = await supabase.rpc('create_my_support_case', { p_customer_id: token.uid, p_category: category, p_subject: subject, p_order_id: orderId, p_initial_message: initialMessage, p_attachments: input.attachments ?? [] })
       if (error) throw error
       res.status(200).json({ supportCase: data })
       return
@@ -158,8 +160,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'support_send_message') {
       const caseId = requiredText(input.caseId, 'Case ID')
-      const text = requiredText(input.text, 'Message')
-      const { data, error } = await supabase.rpc('send_my_support_case_message', { p_customer_id: token.uid, p_case_id: caseId, p_text: text })
+      const text = typeof input.text === 'string' ? input.text.trim() : ''
+      if (!text && !(input.attachments?.length)) throw new Error('Message or attachment is required')
+      const { data, error } = await supabase.rpc('send_my_support_case_message', { p_customer_id: token.uid, p_case_id: caseId, p_text: text, p_attachments: input.attachments ?? [] })
       if (error) throw error
       res.status(200).json({ messageId: data })
       return

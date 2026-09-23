@@ -10,6 +10,7 @@ export type ChatApiPayload = {
   subject?: string
   orderId?: string | null
   caseId?: string
+  attachments?: Array<{ name: string; url: string; type: string; size: number }>
 }
 
 type ChatApiResponse = {
