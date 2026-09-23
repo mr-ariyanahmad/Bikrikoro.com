@@ -178,7 +178,7 @@ export default function ChatThreadPage() {
         <div className="flex shrink-0 items-center gap-3 border-b border-outline bg-surface pb-3">
           <Link to="/chat" aria-label="চ্যাট তালিকায় ফিরুন" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-700 transition hover:bg-brand-50 hover:text-brand-700"><ArrowLeft size={21} /></Link>
           {sellerProfileUrl ? <Link to={sellerProfileUrl} className="flex min-w-0 flex-1 items-center gap-3" aria-label={`${otherName || 'শপ'} খুলুন`}>{participantHeader()}</Link> : <div className="flex min-w-0 flex-1 items-center gap-3">{participantHeader()}</div>}
-          <Link to="/settings" className="shrink-0 text-xs font-semibold text-brand-600">সহায়তা</Link>
+          <Link to="/chat/support" className="shrink-0 text-xs font-semibold text-brand-600">নতুন সাপোর্ট অনুরোধ</Link>
         </div>
         {error && <p className="mt-3 shrink-0 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         {loading ? <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl border border-outline bg-bg p-4" aria-label="আগের মেসেজ লোড হচ্ছে"><div className="h-4 w-28 animate-pulse self-center rounded-full bg-outline" /><div className="h-14 w-3/5 animate-pulse rounded-2xl rounded-bl-md bg-outline/70" /><div className="h-10 w-2/5 animate-pulse self-end rounded-2xl rounded-br-md bg-brand-100" /><div className="h-16 w-4/5 animate-pulse rounded-2xl rounded-bl-md bg-outline/70" /></div> : <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-outline bg-surface">

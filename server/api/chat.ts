@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 import { sendChatMessageEmail } from '../lib/resendEmail.js'
 
-type Action = 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send'
+type Action = 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send' | 'support_cases' | 'support_case_messages' | 'support_create_case' | 'support_send_message'
 
 type Body = {
   action?: Action
@@ -10,6 +10,10 @@ type Body = {
   productId?: string | null
   threadId?: string
   text?: string
+  category?: string
+  subject?: string
+  orderId?: string | null
+  caseId?: string
 }
 
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown }
@@ -122,6 +126,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error('Chat email delivery failed:', emailError)
         }
       })()
+      res.status(200).json({ messageId: data })
+      return
+    }
+
+    if (action === 'support_cases') {
+      const { data, error } = await supabase.rpc('list_my_support_cases', { p_customer_id: token.uid })
+      if (error) throw error
+      res.status(200).json({ cases: data ?? [] })
+      return
+    }
+
+    if (action === 'support_case_messages') {
+      const caseId = requiredText(input.caseId, 'Case ID')
+      const { data, error } = await supabase.rpc('list_my_support_case_messages', { p_customer_id: token.uid, p_case_id: caseId })
+      if (error) throw error
+      res.status(200).json({ messages: data ?? [] })
+      return
+    }
+
+    if (action === 'support_create_case') {
+      const category = requiredText(input.category, 'Category')
+      const subject = requiredText(input.subject, 'Subject')
+      const initialMessage = typeof input.text === 'string' ? input.text.trim() : null
+      const orderId = typeof input.orderId === 'string' && input.orderId.trim() ? input.orderId.trim() : null
+      const { data, error } = await supabase.rpc('create_my_support_case', { p_customer_id: token.uid, p_category: category, p_subject: subject, p_order_id: orderId, p_initial_message: initialMessage })
+      if (error) throw error
+      res.status(200).json({ supportCase: data })
+      return
+    }
+
+    if (action === 'support_send_message') {
+      const caseId = requiredText(input.caseId, 'Case ID')
+      const text = requiredText(input.text, 'Message')
+      const { data, error } = await supabase.rpc('send_my_support_case_message', { p_customer_id: token.uid, p_case_id: caseId, p_text: text })
+      if (error) throw error
       res.status(200).json({ messageId: data })
       return
     }

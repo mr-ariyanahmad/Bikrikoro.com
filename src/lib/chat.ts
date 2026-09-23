@@ -1,11 +1,15 @@
 import { auth } from '@/lib/firebase'
 
 export type ChatApiPayload = {
-  action: 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send'
+  action: 'create' | 'list' | 'thread' | 'messages' | 'mark_read' | 'send' | 'support_cases' | 'support_case_messages' | 'support_create_case' | 'support_send_message'
   sellerId?: string
   productId?: string | null
   threadId?: string
   text?: string
+  category?: string
+  subject?: string
+  orderId?: string | null
+  caseId?: string
 }
 
 type ChatApiResponse = {
@@ -14,6 +18,8 @@ type ChatApiResponse = {
   thread?: unknown
   messages?: unknown[]
   messageId?: string
+  cases?: unknown[]
+  supportCase?: unknown
   ok?: boolean
   error?: string
 }
