@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Bell, BellRing, CheckCheck, CheckCircle2, Filter, RefreshCw } from 'lucide-react'
+import { Bell, BellRing, CheckCheck, CreditCard, Megaphone, MessageCircle, Package, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext'
 import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
 import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
 import { supabase } from '@/lib/supabase'
-import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 
 interface NotificationItem {
   id: string
@@ -19,20 +18,7 @@ interface NotificationItem {
   created_at: string
 }
 
-type NotificationFilter = 'all' | 'unread' | 'ORDER' | 'PAYMENT' | 'VERIFICATION' | 'CHAT' | 'WALLET' | 'CAMPAIGN' | 'SYSTEM'
-const NOTIFICATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000
-
-const filterOptions: Array<[NotificationFilter, string]> = [
-  ['all', 'সব'],
-  ['unread', 'অপঠিত'],
-  ['ORDER', 'অর্ডার'],
-  ['PAYMENT', 'পেমেন্ট'],
-  ['VERIFICATION', 'ভেরিফিকেশন'],
-  ['CHAT', 'চ্যাট'],
-  ['WALLET', 'ওয়ালেট'],
-  ['CAMPAIGN', 'ঘোষণা'],
-  ['SYSTEM', 'সিস্টেম'],
-]
+type NotificationFilter = 'all' | 'unread'
 
 function notifyHeader(unreadCount: number) {
   window.dispatchEvent(new CustomEvent('bikrikoro-notifications-changed', { detail: { unreadCount } }))
@@ -48,7 +34,6 @@ export default function Notifications() {
   const [pushState, setPushState] = useState<'idle' | 'loading' | 'registered' | 'denied' | 'unsupported' | 'missing-config' | 'unavailable'>('idle')
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
-  const notificationCacheKey = user ? userCacheKey(user.uid, 'notifications') : null
 
   useEffect(() => {
     let active = true
@@ -88,7 +73,6 @@ export default function Notifications() {
       const data = (await loadNotifications(user.uid)) as NotificationItem[]
       setItems(data)
       notifyHeader(data.filter((item) => !item.is_read).length)
-      writeCachedValue(userCacheKey(user.uid, 'notifications'), data)
       setError(null)
     } catch (err) {
       console.error('notifications load failed:', err)
@@ -100,14 +84,8 @@ export default function Notifications() {
 
   useEffect(() => {
     if (!user) return
-    const cached = notificationCacheKey ? readCachedValue<NotificationItem[]>(notificationCacheKey, NOTIFICATION_CACHE_MAX_AGE_MS) : null
-    if (cached) {
-      setItems(cached.value)
-      notifyHeader(cached.value.filter((item) => !item.is_read).length)
-      setLoading(false)
-    } else {
-      setLoading(true)
-    }
+    setItems([])
+    setLoading(true)
     void load()
     const channel = supabase
       .channel(`notifications-${user.uid}`)
@@ -121,7 +99,7 @@ export default function Notifications() {
       document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
-  }, [load, notificationCacheKey, user])
+  }, [load, user])
 
   const enablePushNotifications = async () => {
     if (!user || pushState === 'loading') return
@@ -171,13 +149,23 @@ export default function Notifications() {
   }
 
   const unreadCount = items.filter((item) => !item.is_read).length
-  const visibleItems = items.filter((item) => filter === 'all' || (filter === 'unread' ? !item.is_read : item.type === filter))
+  const visibleItems = items.filter((item) => filter === 'all' || !item.is_read)
+
+  const notificationMeta = (type: string) => {
+    if (type === 'ORDER') return { label: 'অর্ডার', icon: Package, tone: 'bg-blue-50 text-blue-700' }
+    if (type === 'PAYMENT') return { label: 'পেমেন্ট', icon: CreditCard, tone: 'bg-emerald-50 text-emerald-700' }
+    if (type === 'VERIFICATION') return { label: 'ভেরিফিকেশন', icon: ShieldCheck, tone: 'bg-violet-50 text-violet-700' }
+    if (type === 'CHAT') return { label: 'চ্যাট', icon: MessageCircle, tone: 'bg-cyan-50 text-cyan-700' }
+    if (type === 'WALLET') return { label: 'ওয়ালেট', icon: WalletCards, tone: 'bg-amber-50 text-amber-700' }
+    if (type === 'CAMPAIGN') return { label: 'ঘোষণা', icon: Megaphone, tone: 'bg-orange-50 text-orange-700' }
+    return { label: 'সিস্টেম', icon: Bell, tone: 'bg-slate-100 text-slate-700' }
+  }
 
   return (
     <Layout wide>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><div className="flex items-center gap-2"><Bell size={19} className="text-brand-600" /><h1 className="text-xl font-semibold text-ink-900">নোটিফিকেশন</h1></div><p className="mt-1 text-sm text-ink-600">অর্ডার, পেমেন্ট, verification, chat, wallet ও admin announcement এক জায়গায়।</p></div>
-        <div className="flex items-center gap-2"><button type="button" onClick={markAll} disabled={!unreadCount} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600 disabled:opacity-40"><CheckCheck size={15} />সব read</button><button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-lg border border-outline px-3 py-2 text-sm font-medium text-ink-600 hover:border-brand-500 hover:text-brand-600"><RefreshCw size={15} />রিফ্রেশ</button></div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700"><Bell size={21} /></span><div className="min-w-0"><h1 className="text-xl font-bold text-ink-900">নোটিফিকেশন</h1><p className="mt-0.5 truncate text-sm text-ink-500">আপনার গুরুত্বপূর্ণ আপডেটগুলো এখানে</p></div></div>
+        <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => void load()} aria-label="রিফ্রেশ" className="grid h-10 w-10 place-items-center rounded-xl text-ink-500 transition hover:bg-brand-50 hover:text-brand-700"><RefreshCw size={17} /></button><button type="button" onClick={markAll} disabled={!unreadCount} className="hidden items-center gap-1.5 rounded-xl border border-outline px-3 py-2 text-xs font-bold text-ink-600 transition hover:border-brand-500 hover:text-brand-600 disabled:opacity-40 sm:inline-flex"><CheckCheck size={15} />সব read</button></div>
       </div>
       {pushPermission !== 'granted' && pushState !== 'registered' && pushState !== 'denied' && pushState !== 'unsupported' && pushState !== 'missing-config' && pushState !== 'unavailable' && (
         <section className="mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-sm sm:p-5">
@@ -187,13 +175,12 @@ export default function Notifications() {
           </div>
         </section>
       )}
-      {pushPermission === 'granted' || pushState === 'registered' ? <p className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700"><CheckCircle2 size={16} />নোটিফিকেশন চালু আছে</p> : null}
       {pushState === 'denied' && pushMessage && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">{pushMessage}</p>}
       {pushState === 'missing-config' && pushMessage && <p className="mt-4 rounded-xl border border-outline bg-bg p-3 text-sm leading-6 text-ink-600">{pushMessage}</p>}
       {pushMessage && pushState === 'registered' && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm leading-6 text-brand-700">{pushMessage}</p>}
       <BrandedDialog open={permissionDialogOpen} title="নোটিফিকেশন চালু করবেন?" onClose={() => setPermissionDialogOpen(false)} actions={<><DialogButton variant="outline" onClick={() => setPermissionDialogOpen(false)}>এখন নয়</DialogButton><DialogButton onClick={() => { setPermissionDialogOpen(false); void enablePushNotifications() }}>চালু করুন</DialogButton></>}><p>অর্ডার, পেমেন্ট, বিক্রেতার যাচাই, চ্যাট এবং ওয়ালেটের গুরুত্বপূর্ণ আপডেট সময়মতো পেতে নোটিফিকেশন চালু করুন। পরের ধাপে আপনার ব্রাউজারের অনুমতির বার্তা আসবে; সেখানে <strong>অনুমতি দিন</strong> নির্বাচন করলেই সেটআপ সম্পূর্ণ হবে।</p></BrandedDialog>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2"><Filter size={15} className="text-ink-400" />{filterOptions.map(([value, label]) => <button type="button" key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === value ? 'bg-brand-500 text-white' : 'border border-outline text-ink-600'}`}>{label}{value === 'unread' && ` (${unreadCount})`}</button>)}</div>
+      <div className="mt-6 flex items-center justify-between border-b border-outline pb-3"><div className="flex items-center gap-1 rounded-xl bg-bg p-1"><button type="button" onClick={() => setFilter('all')} className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${filter === 'all' ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-500'}`}>সব</button><button type="button" onClick={() => setFilter('unread')} className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${filter === 'unread' ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-500'}`}>অপঠিত</button></div><span className="text-xs font-semibold text-ink-400">{unreadCount ? `${unreadCount}টি নতুন` : 'সব দেখা হয়েছে'}</span></div>
 
       {error && <p className="mt-5 rounded-xl bg-error/10 p-4 text-sm text-error">{error}</p>}
       {loading ? (
@@ -203,9 +190,11 @@ export default function Notifications() {
       ) : (
         <div className="mt-6 space-y-3">
           {visibleItems.map((item) => {
+            const meta = notificationMeta(item.type)
+            const Icon = meta.icon
             const content = (
-              <div className={`rounded-xl border p-4 transition ${item.is_read ? 'border-outline bg-surface' : 'border-brand-200 bg-brand-50/60'}`}>
-                <div className="flex gap-3"><span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.is_read ? 'bg-outline' : 'bg-brand-500'}`} /><div className="min-w-0 flex-1"><p className="font-semibold text-ink-900">{item.title}</p><p className="mt-1 text-sm leading-relaxed text-ink-600">{item.body}</p><p className="mt-2 text-xs text-ink-300">{new Date(item.created_at).toLocaleString('bn-BD')}</p></div></div>
+              <div className={`rounded-2xl border p-3.5 transition hover:border-brand-200 ${item.is_read ? 'border-outline bg-surface' : 'border-brand-200 bg-brand-50/40'}`}>
+                <div className="flex gap-3"><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${meta.tone}`}><Icon size={18} /></span><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className="font-bold text-ink-900">{item.title}</p>{!item.is_read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />}</div><p className="mt-1 text-sm leading-relaxed text-ink-600">{item.body}</p><div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-ink-400"><span className={`rounded-full px-2 py-0.5 ${meta.tone}`}>{meta.label}</span><span>•</span><span>{new Date(item.created_at).toLocaleString('bn-BD')}</span></div></div></div>
               </div>
             )
             return item.link ? <Link key={item.id} to={item.link} onClick={() => void read(item)}>{content}</Link> : <button type="button" key={item.id} onClick={() => void read(item)} className="block w-full text-left">{content}</button>
