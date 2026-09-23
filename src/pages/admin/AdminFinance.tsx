@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { formatAdminRpcError } from '@/lib/adminRpcError'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { adminRpc } from '@/lib/adminRpc'
+import AdminPaymentAccounts from './AdminPaymentAccounts'
 
 type Withdrawal = {
   id: string
@@ -156,6 +157,7 @@ export default function AdminFinance() {
           </div>
         )}
       </AdminTableCard>
+      <AdminPaymentAccounts />
       {error && <p className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
     </AdminShell>
   )
