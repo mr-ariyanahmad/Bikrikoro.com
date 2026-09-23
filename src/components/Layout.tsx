@@ -83,13 +83,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
   const [adminUnreadCount, setAdminUnreadCount] = useState(0)
   const [orderUnreadCount, setOrderUnreadCount] = useState(0)
   const sellerStatusLoading = authLoading || Boolean(user && sellerLoading)
-  // Keep the center action visually stable while Firebase and seller access are resolving.
-  // A changing Store/Plus icon makes the whole bottom dock feel like it is re-rendering.
-  const mobileSellerAction: MobileQuickNavItem = sellerStatusLoading
-    ? { to: '/become-seller', label: 'বিক্রি', icon: Plus, prominent: true }
-    : isSeller
-      ? { to: '/sell', label: 'বিক্রি', icon: Plus, prominent: true }
-      : { to: '/become-seller', label: 'বিক্রি', icon: Plus, prominent: true }
+  const mobileSellerAction: MobileQuickNavItem = user ? { to: '/sell', label: 'বিক্রি', icon: Plus, prominent: true } : { to: '/become-seller', label: 'বিক্রি', icon: Plus, prominent: true }
   const navLinks = (isAdmin ? [...NAV_LINKS, { to: '/admin', label: 'অ্যাডমিন', icon: UserRound }] : NAV_LINKS).filter((item) => !(item.to === '/become-seller' && sellerStatusLoading)).map((item) => item.to === '/become-seller' && isSeller ? { ...item, to: '/seller/dashboard', label: 'সেলার অ্যাকাউন্ট', icon: Store } : item)
   const mobileQuickLinks: MobileQuickNavItem[] = [
     { to: '/', label: 'হোম', icon: Home },

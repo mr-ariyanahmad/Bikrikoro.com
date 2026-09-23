@@ -114,7 +114,7 @@ function AppRoutes() {
         path="/sell"
         element={
           <ProtectedRoute>
-            <SellerRoute><Sell /></SellerRoute>
+            <Sell />
           </ProtectedRoute>
         }
       />
