@@ -52,6 +52,7 @@ const AdminCustomers = lazy(() => import('@/pages/admin/AdminCustomers'))
 const AdminCustomerDetail = lazy(() => import('@/pages/admin/AdminCustomerDetail'))
 const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
 const AdminCatalogue = lazy(() => import('@/pages/admin/AdminCatalogue'))
+const AdminProductAnalytics = lazy(() => import('@/pages/admin/AdminProductAnalytics'))
 const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
 const AdminContent = lazy(() => import('@/pages/admin/AdminContent'))
 const AdminCommunityLinks = lazy(() => import('@/pages/admin/AdminCommunityLinks'))
@@ -354,6 +355,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AdminRoute>
               <AdminCatalogue />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/product-analytics"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminProductAnalytics />
             </AdminRoute>
           </ProtectedRoute>
         }

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { Activity, AlertTriangle, Bell, BookOpen, CircleHelp, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, Link2, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Bell, BookOpen, CircleHelp, Download, ExternalLink, Factory, FileText, Image as ImageIcon, LayoutDashboard, Link2, LogOut, Menu, MessageCircle, Newspaper, Package, Settings, ShoppingBag, Star, Tags, TicketPercent, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useIsAdmin } from '@/hooks/useIsAdmin'
 import { permissionForAdminPath } from '@/lib/adminPermissions'
@@ -31,6 +31,7 @@ const groups: { label: string; links: AdminLink[] }[] = [
     label: 'ক্যাটালগ',
     links: [
       { to: '/admin/products', label: 'প্রোডাক্ট', icon: Package },
+      { to: '/admin/product-analytics', label: 'পারফরম্যান্স', icon: BarChart3 },
       { to: '/admin/categories', label: 'ক্যাটাগরি', icon: Tags },
       { to: '/admin/industries', label: 'ইন্ডাস্ট্রি', icon: Factory },
     ],

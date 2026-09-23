@@ -213,6 +213,7 @@ export default function ProductDetail() {
 
   const handleShare = async () => {
     const url = getShareUrl()
+    void supabase.rpc('record_product_share', { p_product_id: product.id, p_user_id: user?.uid ?? null })
     try {
       if (navigator.share) {
         await navigator.share({ title: product.title, text: `${product.title} — ${formatTaka(product.price)}`, url })
