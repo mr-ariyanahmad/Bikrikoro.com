@@ -54,6 +54,7 @@ const AdminDeliveries = lazy(() => import('@/pages/admin/AdminDeliveries'))
 const AdminCustomers = lazy(() => import('@/pages/admin/AdminCustomers'))
 const AdminCustomerDetail = lazy(() => import('@/pages/admin/AdminCustomerDetail'))
 const AdminCoupons = lazy(() => import('@/pages/admin/AdminCoupons'))
+import AdminFinance from '@/pages/admin/AdminFinance'
 const AdminCatalogue = lazy(() => import('@/pages/admin/AdminCatalogue'))
 const AdminProductAnalytics = lazy(() => import('@/pages/admin/AdminProductAnalytics'))
 const AdminReviews = lazy(() => import('@/pages/admin/AdminReviews'))
@@ -61,7 +62,6 @@ const AdminContent = lazy(() => import('@/pages/admin/AdminContent'))
 const AdminCommunityLinks = lazy(() => import('@/pages/admin/AdminCommunityLinks'))
 const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings'))
 const AdminSystemStatus = lazy(() => import('@/pages/admin/AdminSystemStatus'))
-const AdminFinance = lazy(() => import('@/pages/admin/AdminFinance'))
 const AdminSupport = lazy(() => import('@/pages/admin/AdminSupport'))
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminNotifications'))
 const AdminDisputes = lazy(() => import('@/pages/admin/AdminDisputes'))
@@ -360,6 +360,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/admin/payouts" element={<Navigate to="/admin/finance" replace />} />
+      <Route path="/admin/payment-accounts" element={<Navigate to="/admin/finance" replace />} />
       <Route
         path="/admin/support"
         element={

@@ -162,6 +162,6 @@ export function AdminStatCard({ label, value, helper, tone = 'green' }: { label:
   )
 }
 
-export function AdminTableCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`overflow-hidden rounded-2xl border border-outline bg-surface shadow-sm ${className}`}>{children}</div>
+export function AdminTableCard({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
+  return <div id={id} className={`scroll-mt-24 overflow-hidden rounded-2xl border border-outline bg-surface shadow-sm ${className}`}>{children}</div>
 }
