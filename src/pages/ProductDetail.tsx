@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, Flag, MessageCircle, MessageCircleQuestion, Play, Share2, ShieldCheck, ShoppingBag } from 'lucide-react'
+import { Flag, MessageCircle, MessageCircleQuestion, Play, Share2, ShieldCheck, ShoppingBag } from 'lucide-react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
@@ -16,7 +16,7 @@ import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import { trackProductView } from '@/lib/recentlyViewed'
 import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
 import { recordPublicProductView } from '@/lib/productPopularity'
-import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleProductAlert, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
+import { answerProductQuestion, askProductQuestion, getUserFeatureStatus, listProductQuestions, reportProduct, toggleSellerFollow, type ProductQuestion } from '@/lib/publicFeatures'
 import { formatTaka, formatDate } from '@/lib/format'
 import type { Product, ProductDigitalSpecs, Profile } from '@/types/product'
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from '@/lib/youtube'
@@ -66,7 +66,6 @@ export default function ProductDetail() {
   const [favorited, setFavorited] = useState(false)
   const [togglingFavorite, setTogglingFavorite] = useState(false)
   const [shareMessage, setShareMessage] = useState<string | null>(null)
-  const [alertEnabled, setAlertEnabled] = useState(false)
   const [followingSeller, setFollowingSeller] = useState(false)
   const [questions, setQuestions] = useState<ProductQuestion[]>([])
   const [questionText, setQuestionText] = useState('')
@@ -159,7 +158,6 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!user || !id || !product) {
       setFavorited(false)
-      setAlertEnabled(false)
       setFollowingSeller(false)
       return
     }
@@ -170,7 +168,6 @@ export default function ProductDetail() {
     ]).then(([favorite, featureStatus]) => {
       if (!active) return
       setFavorited(favorite)
-      setAlertEnabled(featureStatus.alertEnabled)
       setFollowingSeller(featureStatus.following)
     }).catch((error) => console.error('Product preference load failed:', error))
     return () => { active = false }
@@ -257,17 +254,6 @@ export default function ProductDetail() {
       setFavorited(!next)
     } finally {
       setTogglingFavorite(false)
-    }
-  }
-
-  const handleAlert = async (type: 'PRICE_DROP' | 'BACK_IN_STOCK') => {
-    if (!user) { navigate('/login'); return }
-    try {
-      const enabled = await toggleProductAlert(product.id, type)
-      setAlertEnabled(enabled)
-      setFeatureMessage(enabled ? (type === 'PRICE_DROP' ? 'দাম কমলে আপনাকে জানানো হবে।' : 'পণ্য আবার পাওয়া গেলে আপনাকে জানানো হবে।') : 'এই পণ্যের সতর্কতা বন্ধ হয়েছে।')
-    } catch (error) {
-      setFeatureMessage(error instanceof Error ? `সতর্কতা চালু করা যায়নি: ${error.message}` : 'সতর্কতা চালু করা যায়নি।')
     }
   }
 
@@ -416,11 +402,6 @@ export default function ProductDetail() {
             ) : (
               <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
             )}
-            <div className="absolute right-3 top-3 flex flex-row gap-2 sm:flex-col">
-              <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} aria-pressed={alertEnabled} title={alertEnabled ? 'দাম সতর্কতা বন্ধ করুন' : 'দাম কমলে জানান'} className={`grid h-10 w-10 place-items-center rounded-full border shadow-md backdrop-blur transition ${alertEnabled ? 'border-brand-300 bg-brand-500 text-white' : 'border-white/80 bg-white/90 text-amber-700 hover:bg-amber-50'}`}><Bell size={18} /></button>
-              <button type="button" onClick={handleShare} title="পণ্য শেয়ার করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-sky-700 shadow-md backdrop-blur transition hover:bg-sky-50"><Share2 size={18} /></button>
-              <button type="button" onClick={() => setShowReport(true)} title="পণ্য সম্পর্কে রিপোর্ট করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-error shadow-md backdrop-blur transition hover:bg-red-50"><Flag size={18} /></button>
-            </div>
             {mediaCount > 1 && (
               <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
                 {Array.from({ length: mediaCount }, (_, i) => (
