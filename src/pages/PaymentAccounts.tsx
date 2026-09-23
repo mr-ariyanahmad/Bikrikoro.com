@@ -82,16 +82,13 @@ export default function PaymentAccounts() {
   }
   const choosePurpose = (next: PaymentPurpose) => { setPurpose(next); setShowForm(false); setError(null) }
 
-  if (showForm) return <Layout wide hideFooter mobileBottomBar>
+  if (showForm) return <Layout fullScreen fullWidth hideMobileHeader hideFooter hideMobileQuickNav>
     <Helmet><title>{editing ? 'Payment account আপডেট' : 'Payment account যোগ করুন'} | BikriKoro.Com</title></Helmet>
-    <div className="mx-auto w-full max-w-2xl pb-4" style={{ '--provider-color': selectedProvider.color, '--provider-soft': selectedProvider.soft, '--provider-border': selectedProvider.border } as CSSProperties}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <button type="button" onClick={closeForm} className="inline-flex items-center gap-2 text-sm font-bold text-ink-600 hover:text-ink-900">← Payment accounts</button>
-        <span className="text-xs font-bold text-ink-500">{tab.label}</span>
-      </div>
-      <section className="overflow-hidden rounded-[1.25rem] border-2 bg-surface shadow-sm" style={{ borderColor: selectedProvider.border }}>
-        <header className="px-4 py-4 text-white sm:px-6" style={{ backgroundColor: selectedProvider.color }}><div className="flex items-center gap-3"><img src={selectedProvider.logo} alt={selectedProvider.label} className="h-11 w-11 rounded-xl bg-white object-contain p-1.5" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">{tab.label}</p><h1 className="mt-0.5 truncate text-xl font-bold">{editing ? 'Payment account আপডেট' : 'পেমেন্ট account যোগ করুন'}</h1></div></div></header>
-        <div className="space-y-4 p-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col" style={{ '--provider-color': selectedProvider.color, '--provider-soft': selectedProvider.soft, '--provider-border': selectedProvider.border, backgroundColor: '#f7f8fc' } as CSSProperties}>
+      <header className="shrink-0 px-4 py-4 text-white shadow-sm sm:px-6" style={{ backgroundColor: selectedProvider.color }}><div className="mx-auto flex w-full max-w-3xl items-center gap-3"><button type="button" onClick={closeForm} aria-label="ফিরে যান" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-2xl leading-none hover:bg-white/25">←</button><div className="min-w-0 flex-1 text-center"><p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">{tab.label}</p><h1 className="truncate text-xl font-bold">{editing ? 'Payment account আপডেট' : 'পেমেন্ট পদ্ধতি যোগ করুন'}</h1></div><img src={selectedProvider.logo} alt={selectedProvider.label} className="h-10 w-10 shrink-0 rounded-xl bg-white object-contain p-1.5" /></div></header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6">
+        <section className="mx-auto w-full max-w-3xl rounded-[1.25rem] border-2 bg-surface shadow-sm" style={{ borderColor: selectedProvider.border }}>
+          <div className="space-y-4 p-4 sm:p-6">
           <div><h2 className="text-lg font-bold text-ink-900">পেমেন্ট মেথড সিলেক্ট করুন</h2><div className="mt-3 grid grid-cols-2 gap-2.5">{PROVIDERS.map((item) => <button key={item.value} type="button" onClick={() => { setProvider(item.value); setError(null) }} className="flex min-h-[72px] items-center gap-2 rounded-xl border-2 px-3 py-2 text-left transition active:scale-[0.98]" style={provider === item.value ? { borderColor: item.border, backgroundColor: item.soft, color: item.text } : { borderColor: '#d9e5e1', backgroundColor: '#fff' }}><img src={item.logo} alt="" className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain p-1" /><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-ink-900">{item.label}</span><span className="mt-0.5 block text-[11px] text-ink-500">{item.subtitle}</span></span>{provider === item.value && <Check size={17} style={{ color: item.color }} />}</button>)}</div></div>
           <label className="block text-sm font-bold text-ink-900">অ্যাকাউন্টের ব্যবহার<select value={transactionType} onChange={(event) => setTransactionType(event.target.value as PaymentTransactionType)} className="mt-1.5 w-full appearance-none rounded-xl border-2 bg-surface px-3 py-3 text-base font-normal outline-none" style={{ borderColor: selectedProvider.border, color: selectedProvider.text, backgroundColor: selectedProvider.soft }}>{TRANSACTION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           <label className="block text-sm font-bold text-ink-900">অ্যাকাউন্টের ধরন<select value={accountType} onChange={(event) => setAccountType(event.target.value as PaymentAccountType)} className="mt-1.5 w-full appearance-none rounded-xl border-2 bg-surface px-3 py-3 text-base font-normal outline-none" style={{ borderColor: selectedProvider.border, color: selectedProvider.text, backgroundColor: selectedProvider.soft }}><option value="PERSONAL">Personal account</option><option value="MERCHANT">Merchant account</option></select></label>
@@ -100,8 +97,9 @@ export default function PaymentAccounts() {
           <label className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold" style={{ backgroundColor: selectedProvider.soft, color: selectedProvider.text }}><input type="checkbox" checked={isDefault} onChange={(event) => setIsDefault(event.target.checked)} className="h-5 w-5" style={{ accentColor: selectedProvider.color }} />এই purpose-এর default account রাখুন</label>
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <button type="button" onClick={() => void handleSave()} disabled={saving} className="w-full rounded-xl py-3.5 text-base font-bold text-white shadow-sm transition active:scale-[0.99] hover:brightness-95 disabled:opacity-50" style={{ backgroundColor: selectedProvider.color }}>{saving ? 'সংরক্ষণ হচ্ছে…' : editing ? 'Payment account আপডেট করুন' : 'পেমেন্ট account যোগ করুন'}</button>
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     </div>
   </Layout>
 
