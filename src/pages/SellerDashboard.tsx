@@ -13,7 +13,6 @@ import { CommunityLinks } from '@/components/CommunityLinks'
 import { displayShopDescription, displayShopName, displayUserName } from '@/lib/shopProfile'
 import type { Profile, Product } from '@/types/product'
 import type { OrderStatus } from '@/types/order'
-import type { WalletBalance, WalletWithdrawalSummary } from '@/types/wallet'
 
 interface SellerOrder {
   id: string
@@ -40,9 +39,6 @@ interface DashboardData {
   products: Product[]
   orders: SellerOrder[]
   profile: Profile | null
-  wallet: WalletBalance | null
-  withdrawalSummary: WalletWithdrawalSummary | null
-  walletWarning: string | null
   notifications: SellerNotification[]
   unreadNotificationCount: number
 }
@@ -78,7 +74,7 @@ const sellerNav: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: '/my-listings', label: 'আমার লিস্টিং', icon: Package },
   { to: '/orders', label: 'অর্ডার', icon: ShoppingCart },
   { to: '/chat', label: 'মেসেজ', icon: MessageCircle },
-  { to: '/wallet', label: 'ওয়ালেট', icon: WalletCards },
+  { to: '/payment-accounts', label: 'পেমেন্ট অ্যাকাউন্ট', icon: WalletCards },
   { to: '/notifications', label: 'নোটিফিকেশন', icon: Bell },
 ]
 
@@ -100,11 +96,10 @@ export default function SellerDashboard() {
     try {
       const idToken = await auth.currentUser?.getIdToken()
       if (!idToken) throw new Error('আপনার Firebase session পাওয়া যায়নি। আবার login করুন।')
-      const [productsRes, profileRes, orderListRes, walletRes, notificationRes, unreadCountRes] = await Promise.all([
+      const [productsRes, profileRes, orderListRes, notificationRes, unreadCountRes] = await Promise.all([
         fetch('/api/seller-listings', { headers: { Authorization: `Bearer ${idToken}` } }),
         loadSellerProfile(uid),
         fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'list' }) }),
-        fetch('/api/order-read', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` }, body: JSON.stringify({ action: 'wallet' }) }),
         loadNotifications(uid),
         loadUnreadNotificationCount(uid),
       ])
@@ -113,15 +108,10 @@ export default function SellerDashboard() {
       if (profileRes.error) throw profileRes.error
       const orderPayload = await orderListRes.json().catch(() => ({})) as { error?: string; orders?: SellerOrder[] }
       if (!orderListRes.ok) throw new Error(orderPayload.error || 'সেলার অর্ডার লোড করা যায়নি।')
-      const walletPayload = await walletRes.json().catch(() => ({})) as { error?: string; balance?: WalletBalance; withdrawalSummary?: WalletWithdrawalSummary | null; warning?: string | null }
-      if (!walletRes.ok) throw new Error(walletPayload.error || 'ওয়ালেট ডেটা লোড করা যায়নি।')
       setData({
         products: (productsPayload.products ?? []) as Product[],
         orders: (orderPayload.orders ?? []).filter((order) => order.seller_id === uid),
         profile: profileRes.data as Profile | null,
-        wallet: walletPayload.balance ?? null,
-        withdrawalSummary: walletPayload.withdrawalSummary ?? null,
-        walletWarning: walletPayload.warning ?? null,
         notifications: (notificationRes as SellerNotification[]).slice(0, 5),
         unreadNotificationCount: unreadCountRes,
       })
@@ -167,13 +157,12 @@ export default function SellerDashboard() {
         <SellerSidebar unreadCount={data?.unreadNotificationCount ?? 0} />
         <main className="w-full min-w-0 max-w-full">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-outline pb-5">
-            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">বিক্রেতার কর্মক্ষেত্র</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">স্বাগতম, {displayShopName(profile?.shop_name, profile?.name, 'সেলার')}</h1><p className="mt-1 text-base text-ink-600">আপনার ডিজিটাল পণ্য, অর্ডার ও ওয়ালেট এক জায়গা থেকে পরিচালনা করুন।</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">বিক্রেতার কর্মক্ষেত্র</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">স্বাগতম, {displayShopName(profile?.shop_name, profile?.name, 'সেলার')}</h1><p className="mt-1 text-base text-ink-600">আপনার ডিজিটাল পণ্য, অর্ডার ও payment account এক জায়গা থেকে পরিচালনা করুন।</p></div>
             <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void loadDashboard(true)} className="inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />রিফ্রেশ</button><Link to="/sell" className="inline-flex items-center gap-2 border border-brand-500 bg-brand-500 px-3 py-2.5 text-base font-semibold text-white transition hover:bg-brand-600"><Plus size={17} />নতুন ডিজিটাল পণ্য</Link></div>
           </div>
 
           {notice && <p className="mt-4 border border-brand-200 bg-brand-50 p-3 text-base text-brand-800">{notice}</p>}
           {loadError && <p className="mt-4 border border-error/20 bg-error/5 p-3 text-base text-error">ড্যাশবোর্ড লোড করা যায়নি: {loadError}</p>}
-          {data?.walletWarning && <p className="mt-4 border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">{data.walletWarning}</p>}
           <div className="mt-5"><CommunityLinks placement="SELLER_DASHBOARD" popup compact /></div>
 
           {loading || !data || !stats ? <DashboardSkeleton /> : (
@@ -185,7 +174,7 @@ export default function SellerDashboard() {
                 <MetricCard icon={ShoppingCart} label="আজকের বিক্রি" value={formatTaka(stats.todaySales)} tone="green" note="সম্পন্ন ডিজিটাল অর্ডার" />
                 <MetricCard icon={BarChart3} label="এই মাসের বিক্রি" value={formatTaka(stats.monthSales)} tone="purple" note="চলতি মাস" />
                 <MetricCard icon={CreditCard} label="মোট বিক্রি" value={formatTaka(stats.totalSales)} tone="orange" note={`${stats.completedOrders}টি সম্পন্ন অর্ডার`} />
-                <MetricCard icon={WalletCards} label="ওয়ালেটের ব্যালেন্স" value={formatTaka(data.wallet?.available_balance ?? 0)} tone="blue" note="সুরক্ষিত ওয়ালেট তথ্য" />
+                <MetricCard icon={WalletCards} label="পেমেন্ট অ্যাকাউন্ট" value="সেটআপ করুন" tone="blue" note="টাকা গ্রহণের destination" />
                 <MetricCard icon={Clock3} label="অপেক্ষমাণ অর্ডার" value={String(stats.pendingOrders)} tone="amber" note="পেমেন্ট বা ডেলিভারির কাজ বাকি" />
                 <MetricCard icon={CheckCircle2} label="সম্পন্ন অর্ডার" value={String(stats.completedOrders)} tone="green" note="সফল ডিজিটাল ডেলিভারি" />
                 <MetricCard icon={Package} label="মোট পণ্য" value={String(stats.activeProducts)} tone="purple" note={`${stats.pendingProducts}টি অনুমোদনের অপেক্ষায়`} />
@@ -194,7 +183,7 @@ export default function SellerDashboard() {
 
               <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.75fr)]">
                 <SalesOverview orders={data.orders} />
-                <WalletSummary balance={data.wallet} withdrawalSummary={data.withdrawalSummary} />
+                <PaymentAccountSummary />
               </section>
 
               <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
@@ -240,11 +229,8 @@ function SalesOverview({ orders }: { orders: SellerOrder[] }) {
   return <section className="border border-outline bg-surface p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">বিক্রয় সংক্ষেপ</p><h2 className="mt-1 text-lg font-bold text-ink-900">গত ৭ দিনের সম্পন্ন বিক্রয়</h2></div><BarChart3 size={20} className="text-brand-600" /></div>{hasSales ? <div className="mt-6"><div className="flex h-44 items-end gap-2 border-b border-l border-outline px-2 pb-0 sm:gap-4">{points.map((point) => <div key={point.key} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] text-ink-400">{point.amount > 0 ? formatCompactTaka(point.amount) : ''}</span><div className="w-full max-w-10 bg-brand-500 transition hover:bg-brand-600" style={{ height: `${Math.max((point.amount / max) * 118, point.amount > 0 ? 10 : 3)}px` }} title={`${point.label}: ${formatTaka(point.amount)}`} /><span className="text-[10px] text-ink-400">{point.label}</span></div>)}</div><p className="mt-3 text-xs text-ink-400">শুধু live completed order-এর total দেখানো হয়েছে।</p></div> : <EmptyPanel icon={BarChart3} title="এখনো বিক্রয়ের ইতিহাস নেই" body="ডিজিটাল অর্ডার সম্পন্ন হলে এখানে বাস্তব বিক্রয়ের তথ্য দেখা যাবে।" />}</section>
 }
 
-function WalletSummary({ balance, withdrawalSummary }: { balance: WalletBalance | null; withdrawalSummary: WalletWithdrawalSummary | null }) {
-  const available = Number(balance?.available_balance ?? 0)
-  const reserved = Number(withdrawalSummary?.reserved_amount ?? 0)
-  const withdrawable = Number(withdrawalSummary?.spendable_balance ?? Math.max(available - reserved, 0))
-  return <section className="border border-brand-100 bg-brand-700 p-4 text-white shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-100">ওয়ালেট সংক্ষেপ</p><h2 className="mt-1 text-lg font-bold">ওয়ালেট</h2></div><WalletCards size={22} className="text-brand-100" /></div><p className="tabular-amount mt-6 text-3xl font-bold">{formatTaka(available)}</p><p className="mt-1 text-sm text-brand-100">উপলব্ধ ব্যালেন্স</p><div className="mt-6 grid grid-cols-2 gap-3"><div className="border border-white/20 bg-white/10 p-3"><p className="text-xs text-brand-100">আটকে রাখা</p><p className="tabular-amount mt-1 text-lg font-bold">{formatTaka(reserved)}</p></div><div className="border border-white/20 bg-white/10 p-3"><p className="text-xs text-brand-100">উত্তোলনযোগ্য</p><p className="tabular-amount mt-1 text-lg font-bold">{formatTaka(withdrawable)}</p></div></div><Link to="/wallet" className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-white hover:text-brand-100">লেনদেন ও অর্থ উত্তোলন দেখুন <ArrowUpRight size={15} /></Link></section>
+function PaymentAccountSummary() {
+  return <section className="border border-pink-200 bg-pink-50 p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-pink-700">পেমেন্ট সেটআপ</p><h2 className="mt-1 text-lg font-bold text-ink-900">সেলার payment account</h2></div><WalletCards size={22} className="text-pink-600" /></div><p className="mt-4 text-sm leading-6 text-pink-950">বিক্রির টাকা পাওয়ার জন্য আপনার default bKash, Nagad, Rocket বা Upay account বেছে রাখুন। Account বদলালেও আগের order-এর snapshot অপরিবর্তিত থাকবে।</p><Link to="/payment-accounts?purpose=SELLER_RECEIVE" className="mt-5 inline-flex items-center gap-1 rounded-xl bg-[#e2136e] px-4 py-2.5 text-sm font-bold text-white hover:brightness-95">পেমেন্ট অ্যাকাউন্ট পরিচালনা করুন <ChevronRight size={15} /></Link></section>
 }
 
 function RecentOrders({ orders }: { orders: SellerOrder[] }) {
@@ -253,7 +239,7 @@ function RecentOrders({ orders }: { orders: SellerOrder[] }) {
 }
 
 function NotificationPanel({ notifications }: { notifications: SellerNotification[] }) {
-  return <section className="border border-outline bg-surface p-4 shadow-sm sm:p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">নোটিফিকেশন</p><h2 className="mt-1 text-lg font-bold text-ink-900">আপডেট</h2></div><Link to="/notifications" className="text-sm font-semibold text-brand-700">সব দেখুন</Link></div>{notifications.length === 0 ? <EmptyPanel icon={Bell} title="নতুন নোটিফিকেশন নেই" body="অর্ডার, পেমেন্ট, মেসেজ ও ওয়ালেটের আপডেট এখানে আসবে।" /> : <div className="mt-4 space-y-2">{notifications.slice(0, 4).map((item) => <Link key={item.id} to={item.link || '/notifications'} className={`block border-l-2 p-3 transition hover:bg-brand-50 ${item.is_read ? 'border-outline bg-bg' : 'border-brand-500 bg-brand-50/60'}`}><div className="flex items-start gap-2"><Bell size={15} className="mt-0.5 shrink-0 text-brand-600" /><div className="min-w-0"><p className="line-clamp-1 text-sm font-semibold text-ink-900">{item.title}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-600">{item.body}</p><p className="mt-1 text-[11px] text-ink-400">{formatDateTime(item.created_at)}</p></div></div></Link>)}</div>}</section>
+  return <section className="border border-outline bg-surface p-4 shadow-sm sm:p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">নোটিফিকেশন</p><h2 className="mt-1 text-lg font-bold text-ink-900">আপডেট</h2></div><Link to="/notifications" className="text-sm font-semibold text-brand-700">সব দেখুন</Link></div>{notifications.length === 0 ? <EmptyPanel icon={Bell} title="নতুন নোটিফিকেশন নেই" body="অর্ডার, পেমেন্ট, মেসেজ ও account setup-এর আপডেট এখানে আসবে।" /> : <div className="mt-4 space-y-2">{notifications.slice(0, 4).map((item) => <Link key={item.id} to={item.link || '/notifications'} className={`block border-l-2 p-3 transition hover:bg-brand-50 ${item.is_read ? 'border-outline bg-bg' : 'border-brand-500 bg-brand-50/60'}`}><div className="flex items-start gap-2"><Bell size={15} className="mt-0.5 shrink-0 text-brand-600" /><div className="min-w-0"><p className="line-clamp-1 text-sm font-semibold text-ink-900">{item.title}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-600">{item.body}</p><p className="mt-1 text-[11px] text-ink-400">{formatDateTime(item.created_at)}</p></div></div></Link>)}</div>}</section>
 }
 
 function BestSellingProducts({ orders }: { orders: SellerOrder[] }) {

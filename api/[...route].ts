@@ -16,6 +16,7 @@ import orderReview from '../server/api/order-review.js'
 import orderRead from '../server/api/order-read.js'
 import paymentReconcile from '../server/api/payment-reconcile.js'
 import paymentReturn from '../server/api/payment-return.js'
+import paymentAccounts from '../server/api/payment-accounts.js'
 import pendingOrder from '../server/api/pending-order.js'
 import productPreview from '../server/api/product-preview.js'
 import productInterest from '../server/api/product-interest.js'
@@ -74,6 +75,7 @@ const HANDLERS: Record<string, ApiHandler> = {
   'order-read': orderRead,
   'payment-reconcile': paymentReconcile,
   'payment-return': paymentReturn,
+  'payment-accounts': paymentAccounts,
   'pending-order': pendingOrder,
   'product-preview': productPreview,
   'product-interest': productInterest,

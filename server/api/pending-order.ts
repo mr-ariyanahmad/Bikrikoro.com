@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { ensureFirebaseProfile, getServiceSupabase, getVerifiedFirebaseToken, isAuthError } from './_server-auth.js'
 import { sendNewOrderEmail, sendPendingPaymentReminderEmail } from '../lib/resendEmail.js'
 
-type Body = { action?: 'create' | 'create_wallet' | 'create_online' | 'resume_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
+type Body = { action?: 'create' | 'create_online' | 'resume_online' | 'cancel'; productId?: string; deliveryEmail?: string; couponCode?: string; orderId?: string }
 type SupabaseErrorLike = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
 
 function supabaseErrorMessage(error: unknown) {
@@ -34,15 +34,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = getServiceSupabase()
     await ensureFirebaseProfile(supabase, token)
     try { await supabase.rpc('expire_pending_payment_orders', { p_limit: 500 }) } catch { /* expiry cleanup must never block order loading */ }
-    if (input.action === 'create' || input.action === 'create_wallet' || input.action === 'create_online') {
+    if (input.action === 'create' || input.action === 'create_online') {
       if (!input.productId) throw new Error('Digital product is required')
-      const walletPayment = input.action === 'create_wallet'
-      const onlinePayment = input.action === 'create_online'
-      const result = walletPayment
-        ? input.couponCode?.trim()
-          ? await supabase.rpc('create_order_wallet_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
-          : await supabase.rpc('create_order_wallet_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null })
-        : input.couponCode?.trim()
+      const { data: refundAccount, error: refundAccountError } = await supabase
+        .from('payment_accounts')
+        .select('id')
+        .eq('user_id', token.uid)
+        .eq('purpose', 'BUYER_REFUND')
+        .eq('is_default', true)
+        .maybeSingle()
+      if (refundAccountError) throw refundAccountError
+      if (!refundAccount) {
+        res.status(428).json({ code: 'BUYER_REFUND_ACCOUNT_REQUIRED', error: 'অর্ডার করার আগে একটি default refund account যোগ করুন।' })
+        return
+      }
+      const onlinePayment = true
+      const result = input.couponCode?.trim()
           ? await supabase.rpc('create_order_pending_payment_with_coupon', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null, p_coupon_code: input.couponCode.trim() })
           : await supabase.rpc('create_order_pending_payment', { p_product_id: input.productId, p_buyer_id: token.uid, p_delivery_address: null, p_delivery_email: input.deliveryEmail?.trim() || null })
       if (result.error) throw result.error
@@ -89,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(200).json({ orderId, paymentUrl: charge.payment_url, paymentMethod: 'ONLINE' })
         return
       }
-      res.status(200).json({ orderId, paymentMethod: walletPayment ? 'WALLET' : 'ONLINE' })
+      res.status(200).json({ orderId, paymentMethod: 'ONLINE' })
       return
     }
     if (input.action === 'resume_online') {

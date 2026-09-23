@@ -24,7 +24,7 @@ const NAV_LINKS: NavItem[] = [
 ]
 const ACCOUNT_LINKS: NavItem[] = [
   { to: '/account', label: 'অ্যাকাউন্ট', icon: UserRound },
-  { to: '/wallet', label: 'ওয়ালেট ও পেমেন্ট', icon: WalletCards },
+  { to: '/payment-accounts', label: 'পেমেন্ট অ্যাকাউন্ট', icon: WalletCards },
   { to: '/notifications', label: 'নোটিফিকেশন', icon: Bell },
   { to: '/chat', label: 'চ্যাট', icon: MessageCircle },
   { to: '/favorites', label: 'পছন্দের তালিকা', icon: Heart },
@@ -33,7 +33,7 @@ const ACCOUNT_LINKS: NavItem[] = [
   { to: '/settings', label: 'সেটিংস', icon: Settings2 },
 ]
 const DRAWER_LINKS: NavItem[] = [
-  { to: '/wallet', label: 'ওয়ালেট ও পেমেন্ট', icon: CreditCard },
+  { to: '/payment-accounts', label: 'পেমেন্ট অ্যাকাউন্ট', icon: CreditCard },
   { to: '/become-seller', label: 'সেলার সেন্টার', icon: Store },
   { to: '/seller/dashboard', label: 'লিস্টিং বিশ্লেষণ', icon: BarChart3 },
   { to: '/help', label: 'সাহায্য ও সাপোর্ট', icon: CircleHelp },
@@ -52,7 +52,7 @@ function pageTitle(pathname: string) {
   if (pathname === '/account' || pathname.startsWith('/account/')) return 'অ্যাকাউন্ট'
   if (pathname === '/seller/dashboard') return 'সেলার ড্যাশবোর্ড'
   if (pathname.startsWith('/seller/')) return 'সেলার প্রোফাইল'
-  if (pathname === '/wallet') return 'ওয়ালেট ও পেমেন্ট'
+  if (pathname === '/wallet' || pathname === '/payment-accounts') return 'পেমেন্ট অ্যাকাউন্ট'
   if (pathname === '/notifications') return 'নোটিফিকেশন'
   if (pathname === '/favorites') return 'পছন্দের তালিকা'
   if (pathname === '/library') return 'ডিজিটাল লাইব্রেরি'

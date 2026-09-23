@@ -15,6 +15,7 @@ import {
   Sparkles,
   Store,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -90,6 +91,12 @@ export default function SettingsHub() {
           "নোটিফিকেশন",
           "অর্ডার, সেলার ও গুরুত্বপূর্ণ update দেখুন",
           Bell,
+        ],
+        [
+          "/payment-accounts",
+          "পেমেন্ট অ্যাকাউন্ট",
+          "সেলার পেমেন্ট ও buyer refund-এর account পরিচালনা করুন",
+          WalletCards,
         ],
         [
           "/account",

@@ -52,6 +52,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (originalPrice !== null && (!Number.isFinite(originalPrice) || originalPrice <= 0)) throw new Error('Original price is invalid')
 
     const supabase = getServiceSupabase()
+    if (action === 'create') {
+      const { data: paymentAccount, error: paymentAccountError } = await supabase
+        .from('payment_accounts')
+        .select('id')
+        .eq('user_id', token.uid)
+        .eq('purpose', 'SELLER_RECEIVE')
+        .eq('is_default', true)
+        .maybeSingle()
+      if (paymentAccountError) throw paymentAccountError
+      if (!paymentAccount) {
+        res.status(428).json({ code: 'SELLER_PAYMENT_ACCOUNT_REQUIRED', error: 'লিস্টিং প্রকাশের আগে একটি default seller payment account যোগ করুন।' })
+        return
+      }
+    }
     const rpcArgs = {
       p_seller_id: token.uid,
       p_title: title,
@@ -89,6 +103,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     const message = error instanceof Error ? error.message : 'Seller product could not be saved'
+    if (message.includes('SELLER_PAYMENT_ACCOUNT_REQUIRED')) {
+      res.status(428).json({ code: 'SELLER_PAYMENT_ACCOUNT_REQUIRED', error: 'লিস্টিং প্রকাশের আগে একটি default seller payment account যোগ করুন।' })
+      return
+    }
     if (message.includes('DUPLICATE_PENDING_PRODUCT')) {
       res.status(409).json({ code: 'DUPLICATE_PENDING_PRODUCT', error: 'এই শিরোনাম ও বিবরণসহ একটি প্রোডাক্ট ইতিমধ্যে যাচাইয়ের জন্য জমা হয়েছে। যাচাই শেষ হলে সেটি ওয়েবসাইটে লাইভ দেখাবে।' })
       return

@@ -83,7 +83,7 @@ async function sellerProductRequest(body: Record<string, unknown>) {
     body: JSON.stringify(body),
   })
   const payload = await response.json().catch(() => ({})) as { error?: string; code?: string; productId?: string }
-  if (!response.ok) throw new Error(payload.code === 'DUPLICATE_PENDING_PRODUCT' ? 'DUPLICATE_PENDING_PRODUCT' : (payload.error || 'পণ্য সেভ করা যায়নি।'))
+  if (!response.ok) throw new Error(payload.code === 'DUPLICATE_PENDING_PRODUCT' ? 'DUPLICATE_PENDING_PRODUCT' : payload.code === 'SELLER_PAYMENT_ACCOUNT_REQUIRED' ? 'SELLER_PAYMENT_ACCOUNT_REQUIRED' : (payload.error || 'পণ্য সেভ করা যায়নি।'))
   return payload
 }
 
@@ -484,6 +484,10 @@ export default function Sell() {
     } catch (submitError) {
       console.error('Product save failed:', submitError)
       const message = submitError instanceof Error ? submitError.message : ''
+      if (message === 'SELLER_PAYMENT_ACCOUNT_REQUIRED') {
+        navigate('/payment-accounts?purpose=SELLER_RECEIVE&required=1')
+        return
+      }
       if (message === 'DUPLICATE_PENDING_PRODUCT') {
         setPendingMessage('এই শিরোনাম ও বিবরণসহ একটি প্রোডাক্ট ইতিমধ্যে যাচাইয়ের জন্য জমা হয়েছে। অনুগ্রহ করে অপেক্ষা করুন—যাচাই সম্পন্ন হলে আপনার প্রোডাক্টটি ওয়েবসাইটে লাইভ দেখাবে।')
       } else {

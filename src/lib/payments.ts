@@ -19,25 +19,6 @@ export async function createPendingOrder(params: {
   return result.orderId
 }
 
-/** Asks the uddoktapay-create-charge Edge Function for a hosted payment URL, then the caller redirects there. */
-export async function createWalletOrder(params: {
-  productId: string
-  buyerId: string
-  deliveryEmail?: string
-  couponCode?: string
-}): Promise<string> {
-  if (auth.currentUser?.uid !== params.buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
-  const idToken = await auth.currentUser.getIdToken()
-  const response = await fetch('/api/pending-order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ action: 'create_wallet', productId: params.productId, deliveryEmail: params.deliveryEmail?.trim() || undefined, couponCode: params.couponCode?.trim() || undefined }),
-  })
-  const result = await response.json().catch(() => ({})) as { orderId?: string; error?: string }
-  if (!response.ok || !result.orderId) throw new Error(result.error || `Wallet order failed (HTTP ${response.status})`)
-  return result.orderId
-}
-
 /** Creates the pending order and starts UddoktaPay in one authenticated server request. */
 export async function createOnlineCheckout(params: {
   productId: string
@@ -86,13 +67,4 @@ export async function cancelPendingOrder(orderId: string, buyerId: string) {
   })
   const result = await response.json().catch(() => ({})) as { error?: string }
   if (!response.ok) throw new Error(result.error || `Order cancellation failed (HTTP ${response.status})`)
-}
-
-export async function getWalletBalance(buyerId: string): Promise<number> {
-  if (auth.currentUser?.uid !== buyerId) throw new Error('আপনার checkout session পাওয়া যায়নি। আবার login করুন।')
-  const idToken = await auth.currentUser.getIdToken()
-  const response = await fetch('/api/wallet-balance', { headers: { Authorization: `Bearer ${idToken}` } })
-  const result = await response.json().catch(() => ({})) as { available_balance?: number; error?: string }
-  if (!response.ok) throw new Error(result.error || `Wallet balance failed (HTTP ${response.status})`)
-  return Number(result.available_balance ?? 0)
 }
