@@ -34,6 +34,18 @@ type CachedProductDetail = {
   sellerStats: { followerCount: number; productCount: number }
 }
 
+function normalizeProduct(value: Product): Product {
+  return {
+    ...value,
+    title: typeof value.title === 'string' ? value.title : 'Untitled product',
+    description: typeof value.description === 'string' ? value.description : '',
+    images: Array.isArray(value.images) ? value.images.filter((image): image is string => typeof image === 'string' && image.trim().length > 0) : [],
+    category_id: typeof value.category_id === 'string' ? value.category_id : '',
+    location: typeof value.location === 'string' ? value.location : '',
+    price: Number.isFinite(Number(value.price)) ? Number(value.price) : 0,
+  }
+}
+
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -72,7 +84,7 @@ export default function ProductDetail() {
     const cacheKey = publicCacheKey('product-detail', id)
     const cached = readCachedValue<CachedProductDetail>(cacheKey, PRODUCT_DETAIL_CACHE_MAX_AGE_MS)
     if (cached) {
-      setProduct(cached.value.product)
+      setProduct(normalizeProduct(cached.value.product))
       setDigitalSpecs(cached.value.digitalSpecs)
       setSeller(cached.value.seller)
       setSellerBadges(cached.value.sellerBadges)
@@ -95,15 +107,16 @@ export default function ProductDetail() {
         const { data: productData, error: productError } = await supabase.from(PUBLIC_PRODUCT_TABLE).select(PUBLIC_PRODUCT_FIELDS).eq('id', id).maybeSingle()
         if (productError) throw productError
         if (!active) return
-        setProduct(productData as Product | null)
+        const normalizedProduct = productData ? normalizeProduct(productData as Product) : null
+        setProduct(normalizedProduct)
         setLoading(false)
-        if (productData && !isTestDemoProduct(productData as Product)) {
-          trackCategoryInterest(productData.category_id, 'view')
-          void recordPublicProductView(productData.id)
-          if (user) void auth.currentUser?.getIdToken().then(async (token) => { if (!token) return; await fetch('/api/product-interest', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ categoryId: productData.category_id, weight: 1 }) }) }).catch(() => undefined)
+        if (normalizedProduct && !isTestDemoProduct(normalizedProduct)) {
+          trackCategoryInterest(normalizedProduct.category_id, 'view')
+          void recordPublicProductView(normalizedProduct.id)
+          if (user) void auth.currentUser?.getIdToken().then(async (token) => { if (!token) return; await fetch('/api/product-interest', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ categoryId: normalizedProduct.category_id, weight: 1 }) }) }).catch(() => undefined)
         }
 
-        if (productData?.is_digital) {
+        if (normalizedProduct?.is_digital) {
           const [specsResult, sellerResult, sellerPublicResult, badgeResult] = await Promise.all([
             supabase
             .from('product_digital_specs')
@@ -113,10 +126,10 @@ export default function ProductDetail() {
             supabase
             .from('profiles')
             .select('id, name, photo_url, shop_name, shop_description, shop_username, shop_cover_url, is_verified, rating, review_count, created_at')
-            .eq('id', productData.seller_id)
+            .eq('id', normalizedProduct.seller_id)
             .maybeSingle(),
-            supabase.rpc('get_public_seller_profile', { p_lookup: productData.seller_id }),
-            supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', productData.seller_id).order('verified_at', { ascending: false }),
+            supabase.rpc('get_public_seller_profile', { p_lookup: normalizedProduct.seller_id }),
+            supabase.from('seller_verification_badges').select('badge_key, badge_label').eq('user_id', normalizedProduct.seller_id).order('verified_at', { ascending: false }),
           ])
           if (!active) return
           if (specsResult.error && !/relation .* does not exist/i.test(specsResult.error.message)) console.error('Digital specs load failed:', specsResult.error)
@@ -128,8 +141,8 @@ export default function ProductDetail() {
           setDigitalSpecs(nextSpecs)
           setSellerStats({ followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) })
           setSellerBadges(nextBadges)
-          writeCachedValue(cacheKey, { product: productData as Product, digitalSpecs: nextSpecs, seller: sellerData, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
-          void trackProductView(productData.id)
+          writeCachedValue(cacheKey, { product: normalizedProduct, digitalSpecs: nextSpecs, seller: sellerData, sellerBadges: nextBadges, sellerStats: { followerCount: Number(sellerPublic?.follower_count ?? 0), productCount: Number(sellerPublic?.product_count ?? 0) } })
+          void trackProductView(normalizedProduct.id)
         }
       } catch (error) {
         console.error('Product detail load failed:', error)
