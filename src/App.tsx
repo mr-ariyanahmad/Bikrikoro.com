@@ -6,11 +6,11 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SellerRoute } from '@/components/SellerRoute'
 import { AdminRoute } from '@/components/AdminRoute'
 import { useEnsureProfile } from '@/hooks/useEnsureProfile'
+import Home from '@/pages/Home'
+import MarketingLanding from '@/pages/MarketingLanding'
 const Login = lazy(() => import('@/pages/Login'))
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
 const SavedSearches = lazy(() => import('@/pages/SavedSearches'))
-const Home = lazy(() => import('@/pages/Home'))
-const MarketingLanding = lazy(() => import('@/pages/MarketingLanding'))
 const Products = lazy(() => import('@/pages/Products'))
 const SearchPage = lazy(() => import('@/pages/SearchPage'))
 const ProductDetail = lazy(() => import('@/pages/ProductDetail'))
