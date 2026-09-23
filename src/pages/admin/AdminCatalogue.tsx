@@ -9,10 +9,11 @@ import { BrandedDialog, DialogButton, DialogInput } from '@/components/BrandedDi
 import { BrandSelect } from '@/components/BrandSelect'
 import type { Category, DigitalCategoryTemplate, DigitalSpecField, Product } from '@/types/product'
 import { adminRpc } from '@/lib/adminRpc'
+import { getProductQuality } from '@/lib/adminProductQuality'
 
 type Mode = 'products' | 'categories' | 'industries'
 type AdminProduct = Product & { is_hidden?: boolean; archived_at?: string | null; moderation_note?: string | null; approval_status?: 'PENDING' | 'APPROVED' | 'REJECTED'; approval_note?: string; approval_reviewed_by?: string | null; approval_reviewed_email?: string | null; approval_reviewed_at?: string | null }
-type ProductView = 'PENDING' | 'LIVE' | 'REJECTED'
+type ProductView = 'PENDING' | 'LIVE' | 'REJECTED' | 'QUALITY'
 type ApprovalHistory = { id: string; product_id: string; admin_uid: string; admin_email: string; admin_name: string; decision: 'APPROVED' | 'REJECTED'; note: string; created_at: string }
 type ProductDraft = { title: string; description: string; price: string; category_id: string; condition: 'NEW' | 'USED'; images: string }
 type TemplateDraft = { category_id: string; name_bn: string; name_en: string; description_bn: string; icon_key: string; sort_order: string; is_active: boolean; fields: DigitalSpecField[] }
@@ -76,6 +77,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
       if (productView === 'PENDING') return product.approval_status !== 'APPROVED' && product.approval_status !== 'REJECTED' && !product.archived_at && product.moderation_note !== 'DELETE'
       if (productView === 'LIVE') return product.approval_status === 'APPROVED' && !product.is_hidden && !product.archived_at
       if (productView === 'REJECTED') return product.approval_status === 'REJECTED'
+      if (productView === 'QUALITY') return getProductQuality(product).score < 55 && !product.archived_at
       return false
     })
     return value ? byView.filter((product) => `${product.title} ${product.description} ${product.location} ${product.category_id}`.toLowerCase().includes(value)) : byView
@@ -85,6 +87,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
     PENDING: products.filter((product) => product.approval_status !== 'APPROVED' && product.approval_status !== 'REJECTED' && !product.archived_at && product.moderation_note !== 'DELETE').length,
     LIVE: products.filter((product) => product.approval_status === 'APPROVED' && !product.is_hidden && !product.archived_at).length,
     REJECTED: products.filter((product) => product.approval_status === 'REJECTED').length,
+    QUALITY: products.filter((product) => getProductQuality(product).score < 55 && !product.archived_at).length,
   }), [products])
 
   const toggleSelected = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
@@ -179,7 +182,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
       <AdminPageHeader title={title} description={mode === 'products' ? 'প্রোডাক্ট Pending, Live এবং Rejected—এই তিনটি status থেকে review ও management করুন।' : mode === 'categories' ? 'প্রোডাক্ট taxonomy ও category name/order ম্যানেজ করুন।' : 'ভবিষ্যৎ industry taxonomy-এর জন্য app-native grouping।'} actions={mode === 'categories' ? <button type="button" onClick={addCategory} className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white"><Plus size={16} />নতুন category</button> : undefined} />
       {error && <p className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
       {mode === 'products' ? <>
-        <div className="mb-4 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-2">{([['PENDING', 'Pending'], ['LIVE', 'Live'], ['REJECTED', 'Rejected']] as Array<[ProductView, string]>).map(([value, label]) => <button key={value} type="button" onClick={() => { setProductView(value); setSelectedIds([]) }} className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${productView === value ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-700'}`}>{label} <span className="ml-1 opacity-80">{viewCounts[value]}</span></button>)}</div>
+        <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 sm:grid-cols-4">{([['PENDING', 'Pending'], ['LIVE', 'Live'], ['REJECTED', 'Rejected'], ['QUALITY', 'Quality দরকার']] as Array<[ProductView, string]>).map(([value, label]) => <button key={value} type="button" onClick={() => { setProductView(value); setSelectedIds([]) }} className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${productView === value ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-700'}`}>{label} <span className="ml-1 opacity-80">{viewCounts[value]}</span></button>)}</div>
         <div className="mb-5 flex flex-col gap-3"><div className="flex flex-col gap-3 sm:flex-row"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Title, description বা category খুঁজুন..." className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500" /><span className="flex items-center rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-500">{filtered.length.toLocaleString('bn-BD')}টি listing</span></div>{selectedIds.length > 0 && <div className="flex flex-col gap-2 rounded-2xl border border-brand-200 bg-brand-50 p-3 sm:flex-row sm:items-center"><span className="text-sm font-bold text-brand-800">{selectedIds.length}টি selected</span><select value={bulkAction} onChange={(event) => setBulkAction(event.target.value as typeof bulkAction)} className="rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><option value="APPROVE">Approve / Live</option><option value="REJECT">Reject</option></select><button type="button" disabled={bulkWorking} onClick={() => void runBulkAction()} className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{bulkWorking ? 'চলছে...' : bulkAction === 'REJECT' ? 'সব Reject করুন' : 'সব Live করুন'}</button></div>}</div>
         <AdminTableCard>
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[auto_1.7fr_0.8fr_0.7fr_0.8fr_1fr] md:gap-4"><button type="button" onClick={toggleAll} aria-label="দেখানো সব product select করুন" className="inline-flex items-center gap-2 text-brand-700"><span>{visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id)) ? <CheckSquare size={17} /> : <Square size={17} />}</span><span className="normal-case md:hidden">সব select</span></button><span className="hidden md:block">Listing</span><span className="hidden md:block">দাম</span><span className="hidden md:block">ধরন</span><span className="hidden md:block">ভিজিবিলিটি</span><span className="hidden md:block">Control</span></div>
