@@ -55,12 +55,12 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
   }
 
   const handleProductOpen = () => { if (!isTestDemoProduct(product)) trackCategoryInterest(product.category_id, 'click') }
-  const cardClass = compact ? 'flex items-stretch rounded-2xl border border-outline bg-surface p-1.5 shadow-sm' : 'rounded-[1.25rem] border border-outline bg-surface p-1.5 shadow-[0_5px_16px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)]'
+  const cardClass = compact ? 'flex items-stretch rounded-2xl border border-outline bg-surface p-1.5 shadow-sm' : 'rounded-[1.15rem] border border-outline bg-surface p-1.5 shadow-[0_5px_16px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[0_10px_22px_rgba(15,23,42,0.1)] sm:rounded-[1.25rem]'
 
   return <>
     <article className={`group relative min-w-0 overflow-hidden ${cardClass}`}>
       <Link to={`/products/${product.id}`} onClick={handleProductOpen} className={compact ? 'h-28 w-28 shrink-0' : 'block'}>
-        <div className={`relative overflow-hidden bg-brand-50 ${compact ? 'h-28 w-28 rounded-xl' : 'aspect-[1.28] w-full rounded-[0.9rem]'}`}>
+          <div className={`relative overflow-hidden bg-brand-50 ${compact ? 'h-28 w-28 rounded-xl' : 'aspect-[1.14] w-full rounded-[0.85rem] sm:aspect-[1.28] sm:rounded-[0.9rem]'}`}>
           {product.images[0] ? <img src={product.images[0]} alt={product.title} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" /> : <div className="flex h-full w-full items-center justify-center text-xs text-ink-300">ছবি নেই</div>}
           {discount && <span className="absolute right-2 top-2 rounded-xl bg-error px-2 py-1 text-[11px] font-extrabold text-white shadow-sm">-{discount}%</span>}
           {product.is_escrow_protected && <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-lg bg-brand-700/90 px-2 py-1 text-[10px] font-bold text-white"><ShieldCheck size={11} />নিরাপদ</span>}
