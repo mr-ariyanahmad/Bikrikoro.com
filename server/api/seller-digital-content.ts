@@ -52,12 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (input.action === 'save') {
-      if (!input.deliveryType || !input.deliveryText?.trim()) throw new Error('Digital delivery details are required')
+      if (!input.deliveryType) throw new Error('Delivery type is required')
       const { error } = await supabase.rpc('seller_upsert_digital_content', {
         p_seller_id: token.uid,
         p_product_id: productId,
         p_delivery_type: input.deliveryType,
-        p_delivery_text: input.deliveryText.trim(),
+        p_delivery_text: input.deliveryText?.trim() ?? '',
       })
       if (error) throw error
       res.status(200).json({ ok: true })
