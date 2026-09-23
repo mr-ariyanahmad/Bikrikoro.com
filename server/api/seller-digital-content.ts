@@ -41,13 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (input.action === 'get') {
-      const { data, error } = await supabase
-        .from('digital_product_contents')
-        .select('delivery_type, delivery_text, updated_at')
-        .eq('product_id', productId)
-        .maybeSingle()
+      const { data, error } = await supabase.rpc('seller_get_digital_content', { p_seller_id: token.uid, p_product_id: productId })
       if (error) throw error
-      res.status(200).json({ content: data ?? null })
+      res.status(200).json({ content: data?.[0] ?? null })
       return
     }
 

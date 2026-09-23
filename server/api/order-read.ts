@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supabase.from('reviews').select('order_id').eq('buyer_id', token.uid),
         supabase.from('order_disputes').select('id, order_id').eq('buyer_id', token.uid),
         orderIds.length > 0
-          ? supabase.from('digital_deliveries').select('order_id, delivery_type, delivery_text, status, delivered_at, updated_at').in('order_id', orderIds)
+          ? supabase.rpc('buyer_list_digital_deliveries', { p_buyer_id: token.uid, p_order_ids: orderIds })
           : Promise.resolve({ data: [], error: null }),
         productIds.length > 0
           ? supabase.from('product_digital_specs').select('product_id, auto_delivery_enabled').in('product_id', productIds)
@@ -50,10 +50,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (input.action === 'detail') {
       if (!input.orderId) throw new Error('Order ID is required')
-      const [{ data: order, error: orderError }, { data: reviewed, error: reviewError }, { data: delivery, error: deliveryError }] = await Promise.all([
+      const [{ data: order, error: orderError }, { data: reviewed, error: reviewError }, { data: deliveryRows, error: deliveryError }] = await Promise.all([
         supabase.rpc('buyer_get_order', { p_user_id: token.uid, p_order_id: input.orderId }),
         supabase.rpc('buyer_has_order_review', { p_buyer_id: token.uid, p_order_id: input.orderId }),
-        supabase.from('digital_deliveries').select('order_id, delivery_type, delivery_text, status, delivered_at, updated_at').eq('order_id', input.orderId).maybeSingle(),
+        supabase.rpc('buyer_get_digital_delivery', { p_buyer_id: token.uid, p_order_id: input.orderId }),
       ])
       if (orderError) throw orderError
       if (reviewError) throw reviewError
@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const orderWithDeliveryMode = order
         ? { ...order, auto_delivery_enabled: digitalOption?.auto_delivery_enabled !== false }
         : order
-      res.status(200).json({ order: orderWithDeliveryMode, delivery: delivery ?? null, reviewed: reviewed === true })
+      res.status(200).json({ order: orderWithDeliveryMode, delivery: deliveryRows?.[0] ?? null, reviewed: reviewed === true })
       return
     }
     if (input.action === 'digital_library') {
