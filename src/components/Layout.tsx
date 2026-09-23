@@ -67,7 +67,7 @@ function pageTitle(pathname: string) {
   return 'BikriKoro'
 }
 
-export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, hideMobileQuickNav = false, hideMobileHeader = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; hideMobileQuickNav?: boolean; hideMobileHeader?: boolean }) {
+export function Layout({ children, wide = false, backFallback = '/', backLabel = 'ফিরে যান', hideFooter = false, fullScreen = false, fullWidth = false, hideMobileQuickNav = false, hideMobileHeader = false }: { children: ReactNode; wide?: boolean; backFallback?: string; backLabel?: string; hideFooter?: boolean; fullScreen?: boolean; fullWidth?: boolean; hideMobileQuickNav?: boolean; hideMobileHeader?: boolean }) {
   const location = useLocation()
   const { user, logout, loading: authLoading } = useAuth()
   const { isAdmin } = useIsAdmin()
@@ -96,7 +96,7 @@ export function Layout({ children, wide = false, backFallback = '/', backLabel =
     { to: '/orders', label: 'অর্ডার', icon: Package },
     { to: '/account', label: 'প্রোফাইল', icon: UserRound },
   ]
-  const maxWidth = wide ? 'max-w-7xl' : 'max-w-3xl'
+  const maxWidth = fullWidth ? 'max-w-none' : wide ? 'max-w-7xl' : 'max-w-3xl'
   const currentPageTitle = pageTitle(location.pathname)
   const closeMobileMenu = () => { setMenuOpen(false); setCityOpen(false) }
   const toggleMobileMenu = () => { setAccountOpen(false); setMenuOpen((open) => !open) }

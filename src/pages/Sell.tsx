@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardCheck, ShieldCheck } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
@@ -101,9 +102,24 @@ async function sellerListingOptionsRequest(body: Record<string, unknown>) {
 
 function HelpTip({ title, children }: { title: string; children: string }) {
   const [open, setOpen] = useState(false)
-  return <span className="relative inline-flex align-middle">
-    <button type="button" aria-label={`${title} সম্পর্কে জানুন`} aria-expanded={open} onClick={() => setOpen((value) => !value)} className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50"><CircleHelp size={13} /></button>
-    {open && <span role="tooltip" className="absolute left-0 top-7 z-20 w-72 rounded-lg border border-brand-200 bg-white p-3 text-left text-xs font-normal leading-5 text-ink-700 shadow-lg"><strong className="block text-brand-800">{title}</strong>{children}</span>}
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
+  useEffect(() => {
+    if (!open) return
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const width = Math.min(320, window.innerWidth - 24)
+      setPosition({ top: Math.min(rect.bottom + 8, window.innerHeight - 190), left: Math.min(Math.max(12, rect.left), window.innerWidth - width - 12) })
+    }
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => { window.removeEventListener('resize', updatePosition); window.removeEventListener('scroll', updatePosition, true) }
+  }, [open])
+  return <span className="inline-flex align-middle">
+    <button ref={buttonRef} type="button" aria-label={`${title} সম্পর্কে জানুন`} aria-expanded={open} onClick={() => setOpen((value) => !value)} className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50"><CircleHelp size={13} /></button>
+    {open && position && createPortal(<span role="tooltip" className="fixed z-[100] max-h-[min(14rem,calc(100vh-1.5rem))] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-lg border border-brand-200 bg-white p-3 text-left text-xs font-normal leading-5 text-ink-700 shadow-xl" style={{ top: position.top, left: position.left }}><strong className="block text-brand-800">{title}</strong>{children}</span>, document.body)}
   </span>
 }
 
@@ -508,12 +524,12 @@ export default function Sell() {
   }
 
   if (loadingExisting || digitalVerificationLoading) {
-    return <Layout wide><div className="mx-auto max-w-3xl animate-pulse border border-outline bg-surface p-8"><div className="h-6 w-48 bg-outline/50" /><div className="mt-4 h-32 bg-outline/30" /></div></Layout>
+    return <Layout wide fullWidth><div className="mx-auto max-w-3xl animate-pulse border border-outline bg-surface p-8"><div className="h-6 w-48 bg-outline/50" /><div className="mt-4 h-32 bg-outline/30" /></div></Layout>
   }
 
   if (archivedPhysical) {
     return (
-      <Layout wide>
+      <Layout wide fullWidth>
         <div className="mx-auto max-w-xl border border-outline bg-surface p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={32} />
           <h1 className="mt-3 text-lg font-bold text-ink-900">এই পুরনো তালিকাটি সংরক্ষণ করা হয়েছে</h1>
@@ -525,7 +541,7 @@ export default function Sell() {
 
   if (!digitalVerified) {
     return (
-      <Layout wide>
+      <Layout wide fullWidth>
         <div className="mx-auto max-w-xl border border-brand-200 bg-brand-50 p-6 text-center">
           <ShieldCheck className="mx-auto text-brand-600" size={34} />
           <h1 className="mt-3 text-lg font-bold text-ink-900">ডিজিটাল বিক্রেতার যাচাই প্রয়োজন</h1>
@@ -568,8 +584,8 @@ export default function Sell() {
   const deliveryCopy = secureDeliveryCopy(selectedTemplate)
 
   return (
-    <Layout wide>
-      <div id="listing-form" className="mx-auto max-w-6xl scroll-mt-24">
+    <Layout wide fullWidth>
+      <div id="listing-form" className="w-full scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><p className="text-sm font-semibold text-brand-700">Seller workspace</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">{isEditing ? 'লিস্টিং এডিট করুন' : 'নতুন লিস্টিং তৈরি করুন'}</h1><p className="mt-1 text-sm text-ink-500">কম ধাপে আপনার digital product-এর একটি professional listing তৈরি করুন।</p></div>
           <div className="flex gap-2"><button type="button" onClick={handleSaveDraft} className="rounded-lg border border-outline px-3 py-2 text-sm font-semibold text-ink-700 hover:border-brand-500 hover:text-brand-700">Save Draft</button>{!isEditing && <button type="button" onClick={handleClearDraft} className="rounded-lg border border-error/30 px-3 py-2 text-sm font-semibold text-error hover:bg-error/5">ড্রাফট মুছুন</button>}</div>
