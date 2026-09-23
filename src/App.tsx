@@ -69,9 +69,11 @@ const AdminTeam = lazy(() => import('@/pages/admin/AdminTeam'))
 
 function AppRoutes() {
   useEnsureProfile()
+  const location = useLocation()
+  const routeKey = `${location.pathname}${location.search}${location.hash}`
 
   return (
-    <Suspense fallback={<BrandLoader fullScreen />}>
+    <Suspense key={routeKey} fallback={<BrandLoader fullScreen message="পৃষ্ঠা লোড হচ্ছে…" />}>
       <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -21,14 +21,12 @@ export function userCacheKey(userId: string, scope: string, identifier = 'defaul
 
 export function readCachedValue<T>(key: string, maxStaleMs: number): CachedValue<T> | null {
   try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return null
-    const entry = JSON.parse(raw) as CacheEntry<T>
-    if (!entry || typeof entry.cachedAt !== 'number' || !('value' in entry) || Date.now() - entry.cachedAt > maxStaleMs) {
-      window.localStorage.removeItem(key)
-      return null
-    }
-    return { value: entry.value, cachedAt: entry.cachedAt, isStale: false }
+    // Cached records are retained only as a write-through optimization for future
+    // use, but never render before a fresh server response. This prevents a page
+    // from briefly showing deleted or outdated orders, chats, products, etc.
+    void maxStaleMs
+    window.localStorage.removeItem(key)
+    return null
   } catch {
     return null
   }
