@@ -16,15 +16,18 @@ const groups: { label: string; links: AdminLink[] }[] = [
     links: [{ to: '/admin', label: 'ড্যাশবোর্ড', icon: LayoutDashboard }],
   },
   {
-    label: 'সেলস',
+    label: 'প্রধান অপারেশন',
     links: [
       { to: '/admin/orders', label: 'অর্ডার', icon: ShoppingBag },
-      { to: '/admin/deliveries', label: 'ডেলিভারি', icon: Truck },
       { to: '/admin/customers', label: 'কাস্টমার', icon: Users },
-      { to: '/admin/coupons', label: 'কুপন', icon: TicketPercent },
-      { to: '/admin/reviews', label: 'রিভিউ', icon: Star },
-      { to: '/admin/disputes', label: 'ডিসপিউট', icon: AlertTriangle },
+      { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
       { to: '/admin/finance', label: 'পেআউট', icon: Wallet },
+      { to: '/admin/disputes', label: 'ডিসপিউট', icon: AlertTriangle },
+      { to: '/admin/deliveries', label: 'ডেলিভারি', icon: Truck },
+      { to: '/admin/support', label: 'সাপোর্ট চ্যাট', icon: MessageCircle },
+      { to: '/admin/notifications', label: 'নোটিফিকেশন', icon: Bell },
+      { to: '/admin/reviews', label: 'রিভিউ', icon: Star },
+      { to: '/admin/coupons', label: 'কুপন', icon: TicketPercent },
     ],
   },
   {
@@ -47,9 +50,6 @@ const groups: { label: string; links: AdminLink[] }[] = [
       { to: '/admin/pages', label: 'নীতি ও Help পেজ', icon: BookOpen },
       { to: '/admin/features', label: 'ফিচার কন্ট্রোল', icon: Settings },
       { to: '/admin/team', label: 'অ্যাডমিন টিম', icon: Users },
-      { to: '/admin/sellers', label: 'সেলার ভেরিফিকেশন', icon: FileText },
-      { to: '/admin/support', label: 'সাপোর্ট চ্যাট', icon: MessageCircle },
-      { to: '/admin/notifications', label: 'নোটিফিকেশন', icon: Bell },
     ],
   },
   {

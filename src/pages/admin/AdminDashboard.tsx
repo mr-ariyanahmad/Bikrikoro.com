@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, BadgeCheck, BarChart3, CalendarDays, ShoppingBag, TicketPercent } from 'lucide-react'
+import { ArrowUpRight, BadgeCheck, BarChart3, CalendarDays, ShoppingBag, Users, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatDateTime, formatTaka } from '@/lib/format'
 import { AdminPageHeader, AdminShell, AdminStatCard, AdminTableCard } from '@/components/admin/AdminShell'
@@ -67,9 +67,9 @@ export default function AdminDashboard() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <QuickAction href="/admin/orders" title="অর্ডার অপারেশন" detail="সব অর্ডার ও ডেলিভারি দেখুন" icon={ShoppingBag} tone="green" />
-        <QuickAction href="/admin/coupons" title="কুপন তৈরি করুন" detail="নতুন promotion code যোগ করুন" icon={TicketPercent} tone="blue" />
-        <QuickAction href="/admin/disputes" title="ডিসপিউট রিভিউ" detail={`${stats.disputes.toLocaleString('bn-BD')}টি অপেক্ষায়`} icon={AlertTriangle} tone="red" />
+        <QuickAction href="/admin/customers" title="কাস্টমার" detail={`${stats.customers.toLocaleString('bn-BD')}টি customer profile`} icon={Users} tone="blue" />
         <QuickAction href="/admin/sellers" title="সেলার যাচাই" detail={`${stats.sellers.toLocaleString('bn-BD')}টি আবেদন`} icon={BadgeCheck} tone="amber" />
+        <QuickAction href="/admin/finance" title="পেআউট" detail="seller payout ও finance queue" icon={Wallet} tone="green" />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
