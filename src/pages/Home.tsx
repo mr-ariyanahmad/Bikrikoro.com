@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Coins, Loader2, Plus, ShieldCheck, Store, WalletCards } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Check, Coins, Loader2, Plus, Search, ShieldCheck, Store, WalletCards } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase, supabaseConfigured } from '@/lib/supabase'
@@ -85,6 +85,7 @@ export default function Home() {
   const [checkedIn, setCheckedIn] = useState(false)
   const [checkInMessage, setCheckInMessage] = useState<string | null>(null)
   const [checkInLoading, setCheckInLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const initialFeedRefreshInProgress = useRef(false)
   const navigate = useNavigate()
   const rankedHomeProducts = useMemo(() => {
@@ -99,6 +100,11 @@ export default function Home() {
   const handleCategorySelect = (categoryId: string | null) => {
     if (categoryId) trackCategoryInterest(categoryId, 'click')
     navigate(categoryId ? `/products?category=${categoryId}` : '/products')
+  }
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const query = searchQuery.trim()
+    navigate(query ? `/search?q=${encodeURIComponent(query)}` : '/search')
   }
 
   useEffect(() => {
@@ -279,6 +285,7 @@ export default function Home() {
         <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-600">BikriKoro marketplace</p><h1 className="mt-1 text-[1.35rem] font-bold leading-tight tracking-tight text-ink-900">{isSeller ? 'কিনুন বা বিক্রি করুন' : 'আজ কী কিনবেন?'}</h1></div><Link to={isSeller ? '/sell' : '/become-seller'} aria-label={isSeller ? 'পণ্য পোস্ট করুন' : 'সেলার হোন'} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white shadow-[0_6px_16px_rgba(8,127,140,0.25)]">{isSeller ? <Plus size={21} /> : <Store size={18} />}</Link></div>
         <div className="mt-3 grid grid-cols-3 gap-2"><Link to="/wallet" className="rounded-2xl border border-outline bg-surface px-3 py-2.5"><span className="text-[10px] font-medium text-ink-500">ওয়ালেট</span><span className="mt-0.5 block truncate tabular-amount text-xs font-bold text-ink-900">{user ? formatTaka(balance) : 'লগইন'}</span></Link><button type="button" onClick={() => void checkIn()} disabled={checkInLoading || checkedIn} className="rounded-2xl border border-outline bg-surface px-3 py-2.5 text-left disabled:opacity-60"><span className="text-[10px] font-medium text-ink-500">চেক-ইন</span><span className="mt-0.5 block truncate text-xs font-bold text-accent-600">{checkedIn ? 'নেওয়া হয়েছে' : '+১০ কয়েন'}</span></button><Link to="/products" className="rounded-2xl border border-outline bg-surface px-3 py-2.5"><span className="text-[10px] font-medium text-ink-500">সুরক্ষা</span><span className="mt-0.5 block truncate text-xs font-bold text-brand-700">এসক্রো সুরক্ষিত</span></Link></div>
       </section>
+      <form onSubmit={submitSearch} className="relative mt-3"><Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand-600" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="লিস্টিং, সেলার খুঁজুন..." className="w-full rounded-2xl border border-outline bg-surface py-3.5 pl-11 pr-4 text-sm text-ink-900 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" /></form>
       {checkInMessage && <p className="mt-3 rounded-2xl border border-accent-100 bg-accent-100 px-3 py-2 text-xs font-medium text-accent-600">{checkInMessage}</p>}
       {banners.length > 0 && <div className="scrollbar-none -mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1">{banners.slice(0, 3).map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-28 w-[78vw] shrink-0 overflow-hidden rounded-[1.35rem] bg-brand-100 shadow-sm"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div>}
       <section className="mt-5"><div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-bold text-ink-900">ক্যাটাগরি</h2><Link to="/products" className="text-xs font-bold text-brand-700">সব দেখুন →</Link></div><div className="-mx-4 overflow-x-auto px-4 pb-1"><CategoryPills categories={categories} selectedId={null} onSelect={handleCategorySelect} /></div></section>
@@ -288,6 +295,7 @@ export default function Home() {
       <section className="mt-8 rounded-[1.35rem] border border-brand-100 bg-brand-50 px-4 py-4"><div className="flex items-center gap-2"><ShieldCheck size={18} className="text-brand-500" /><h2 className="text-sm font-bold text-ink-900">নিরাপদে কেনাকাটা করুন</h2></div><div className="mt-3 grid grid-cols-2 gap-y-2 text-xs text-ink-600"><span>✓ নিরাপদ পেমেন্ট</span><span>✓ যাচাইকৃত বিক্রেতা</span><span>✓ এসক্রো সুরক্ষা</span><span>✓ দ্রুত ডিজিটাল ডেলিভারি</span></div></section>
     </div>
     <div className="hidden md:block">
+      <form onSubmit={submitSearch} className="relative mb-5 max-w-2xl"><Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand-600" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="লিস্টিং, সেলার খুঁজুন..." className="w-full border border-outline bg-surface py-3.5 pl-11 pr-4 text-sm text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" /></form>
       {banners.length > 0 && <div className="scrollbar-none -mx-5 mb-6 flex gap-3 overflow-x-auto px-5 pb-1">{banners.map((banner) => <Link key={banner.id} to={banner.target_category_id ? `/products?category=${banner.target_category_id}` : '/products'} className="h-36 w-64 shrink-0 overflow-hidden rounded-2xl bg-outline/30 sm:h-44 sm:w-96"><img src={banner.image_url} alt="" className="h-full w-full object-cover" /></Link>)}</div>}
       {checkInMessage && <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{checkInMessage}</p>}
       <section className="mb-5 grid gap-3 sm:grid-cols-3"><Link to="/wallet" className="border border-outline bg-surface p-4 transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">আমার ব্যালেন্স</span><WalletCards size={18} className="text-brand-500" /></div><p className="mt-2 tabular-amount text-xl font-bold text-ink-900">{user ? formatTaka(balance) : 'লগইন করুন'}</p><p className="mt-1 text-xs text-ink-400">ওয়ালেট ও অর্থ উত্তোলন দেখুন</p></Link><button type="button" onClick={() => void checkIn()} disabled={checkInLoading || checkedIn} aria-busy={checkInLoading} className="border border-outline bg-surface p-4 text-left transition hover:border-brand-500 disabled:cursor-wait disabled:opacity-70"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">দৈনিক চেক-ইন</span>{checkInLoading ? <Loader2 size={18} className="animate-spin text-brand-500" /> : <Coins size={18} className="text-brand-500" />}</div><p className="mt-2 text-lg font-bold text-ink-900">{checkInLoading ? 'চেক-ইন হচ্ছে...' : checkedIn ? `আজকের কয়েন পেয়েছেন · ${rewardCoins}` : '+১০ কয়েন নিন'}</p><p className="mt-1 flex items-center gap-1 text-xs text-ink-400">{checkedIn && <Check size={13} className="text-brand-500" />} মোট {rewardCoins} কয়েন · {checkinStreak} দিনের ধারাবাহিকতা</p></button><Link to="/products" className="border border-outline bg-surface p-4 transition hover:border-brand-500"><div className="flex items-center justify-between"><span className="text-sm text-ink-500">ডিজিটাল সুরক্ষা</span><ShieldCheck size={18} className="text-brand-500" /></div><p className="mt-2 text-lg font-bold text-ink-900">এসক্রো ও ডেলিভারি</p><p className="mt-1 text-xs text-ink-500">নিরাপদ ডিজিটাল পণ্য দেখুন →</p></Link></section>
