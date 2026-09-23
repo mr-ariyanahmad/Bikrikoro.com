@@ -5,24 +5,24 @@
   --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
-  /* BikriKoro marketplace system: calm teal surfaces with a warm deal accent. */
-  --color-brand-50: #E7F3F5;
-  --color-brand-100: #C8E5E9;
-  --color-brand-400: #1597A6;
-  --color-brand-500: #087F8C;
-  --color-brand-600: #066875;
-  --color-brand-700: #064F5A;
-  --color-accent-100: #FFF0E6;
-  --color-accent-500: #F0782C;
-  --color-accent-600: #D85F1A;
+  /* BikriKoro brand system: one logo-green family across customer and admin surfaces. */
+  --color-brand-50: #E8F6EF;
+  --color-brand-100: #C7E9D6;
+  --color-brand-400: #18A267;
+  --color-brand-500: #017C50;
+  --color-brand-600: #006843;
+  --color-brand-700: #005336;
+  --color-accent-100: #E8F6EF;
+  --color-accent-500: #017C50;
+  --color-accent-600: #006843;
 
-  --color-ink-900: #17211D;
-  --color-ink-600: #6B756F;
-  --color-ink-300: #A9B3AE;
+  --color-ink-900: #12372A;
+  --color-ink-600: #557267;
+  --color-ink-300: #9BB7AA;
 
   --color-surface: #FFFFFF;
-  --color-bg: #F6F8FC;
-  --color-outline: #E4E8F0;
+  --color-bg: #F5FBF7;
+  --color-outline: #D8EADF;
 
   --color-warning: #F5A524;
   --color-error: #E0433D;
@@ -79,19 +79,19 @@ body {
 }
 
 /* Non-semantic decorative accents use one brand family instead of rainbow utility colors. */
-.site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-emerald-"]) {
+.site-minimal :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-cyan-"], [class*="bg-blue-"], [class*="bg-indigo-"], [class*="bg-emerald-"], [class*="bg-orange-"]) {
   background-color: var(--color-brand-50) !important;
 }
-.site-minimal :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-emerald-"]) {
+.site-minimal :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-cyan-"], [class*="text-blue-"], [class*="text-indigo-"], [class*="text-emerald-"], [class*="text-orange-"]) {
   color: var(--color-brand-700) !important;
 }
-.site-minimal :where([class*="border-violet-"], [class*="border-purple-"], [class*="border-sky-"], [class*="border-emerald-"]) {
+.site-minimal :where([class*="border-violet-"], [class*="border-purple-"], [class*="border-sky-"], [class*="border-cyan-"], [class*="border-blue-"], [class*="border-indigo-"], [class*="border-emerald-"], [class*="border-orange-"]) {
   border-color: var(--color-brand-100) !important;
 }
 
-/* Admin non-semantic accents remain readable but retain a useful information-blue meaning. */
-.admin-theme :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-orange-"], [class*="bg-emerald-"]) { background-color: var(--color-brand-50) !important; }
-.admin-theme :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-orange-"], [class*="text-emerald-"]) { color: var(--color-brand-700) !important; }
+/* Admin non-semantic accents use the same logo-green family as the public site. */
+.admin-theme :where([class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-sky-"], [class*="bg-cyan-"], [class*="bg-blue-"], [class*="bg-indigo-"], [class*="bg-orange-"], [class*="bg-emerald-"]) { background-color: var(--color-brand-50) !important; }
+.admin-theme :where([class*="text-violet-"], [class*="text-purple-"], [class*="text-sky-"], [class*="text-cyan-"], [class*="text-blue-"], [class*="text-indigo-"], [class*="text-orange-"], [class*="text-emerald-"]) { color: var(--color-brand-700) !important; }
 
 /* Admin workspace theme: keep existing page markup consistent with BikriKoro brand tokens. */
 .admin-theme .bg-white,
@@ -137,14 +137,14 @@ body {
 
 .admin-theme .bg-blue-50,
 .admin-theme .bg-blue-100 {
-  background-color: #eff6ff !important;
+  background-color: var(--color-brand-50) !important;
 }
 
 .admin-theme .text-blue-900,
 .admin-theme .text-blue-800,
 .admin-theme .text-blue-700,
 .admin-theme .text-blue-600 {
-  color: #1d4ed8 !important;
+  color: var(--color-brand-700) !important;
 }
 
 .admin-theme .border-blue-100,
@@ -152,7 +152,7 @@ body {
 .admin-theme .border-blue-300,
 .admin-theme .border-blue-400,
 .admin-theme .border-blue-500 {
-  border-color: #bfdbfe !important;
+  border-color: var(--color-brand-100) !important;
 }
 
 /* Legacy customer-detail UID is retained only for protected actions, never visual presentation. */
@@ -162,11 +162,11 @@ body {
 
 .admin-theme .bg-blue-500,
 .admin-theme .bg-blue-600 {
-  background-color: #2563eb !important;
+  background-color: var(--color-brand-500) !important;
 }
 
 .admin-theme .bg-blue-700 {
-  background-color: #1d4ed8 !important;
+  background-color: var(--color-brand-600) !important;
 }
 
 
