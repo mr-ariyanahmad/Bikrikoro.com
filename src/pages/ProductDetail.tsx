@@ -352,10 +352,10 @@ export default function ProductDetail() {
         </script>
       </Helmet>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-8">
         <div>
           <div
-            className="relative aspect-square touch-pan-y overflow-hidden rounded-2xl bg-outline/30"
+            className="relative aspect-[4/3] touch-pan-y overflow-hidden rounded-3xl border border-outline bg-slate-50 shadow-sm sm:aspect-square lg:aspect-[1.05]"
             onTouchStart={(e) => {
               touchStartX.current = e.touches[0].clientX
             }}
@@ -386,12 +386,17 @@ export default function ProductDetail() {
               <img
                 src={product.images[activeImageIndex]}
                 alt={product.title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain p-2 sm:p-3"
                 draggable={false}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-ink-300">ছবি নেই</div>
             )}
+            <div className="absolute right-3 top-3 flex flex-col gap-2">
+              <button type="button" onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} aria-pressed={alertEnabled} title={alertEnabled ? 'দাম সতর্কতা বন্ধ করুন' : 'দাম কমলে জানান'} className={`grid h-10 w-10 place-items-center rounded-full border shadow-md backdrop-blur transition ${alertEnabled ? 'border-brand-300 bg-brand-500 text-white' : 'border-white/80 bg-white/90 text-amber-700 hover:bg-amber-50'}`}><Bell size={18} /></button>
+              <button type="button" onClick={handleShare} title="পণ্য শেয়ার করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-sky-700 shadow-md backdrop-blur transition hover:bg-sky-50"><Share2 size={18} /></button>
+              <button type="button" onClick={() => setShowReport(true)} title="পণ্য সম্পর্কে রিপোর্ট করুন" className="grid h-10 w-10 place-items-center rounded-full border border-white/80 bg-white/90 text-error shadow-md backdrop-blur transition hover:bg-red-50"><Flag size={18} /></button>
+            </div>
             {mediaCount > 1 && (
               <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
                 {Array.from({ length: mediaCount }, (_, i) => (
@@ -458,12 +463,7 @@ export default function ProductDetail() {
             <div className="p-4"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700"><ShieldCheck size={18} /></span><div><p className="text-sm font-semibold text-ink-900">{product.auto_delivery_enabled ? 'অটো ডেলিভারি সক্রিয়' : 'ম্যানুয়াল ডেলিভারি'}</p><p className="mt-1 text-xs leading-5 text-ink-600">{getProductDeliverySummary(product)}</p></div></div><div className="mt-3 flex flex-wrap gap-2 border-t border-outline pt-3"><ProductDeliveryTypeBadge product={product} /><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">{product.condition === 'NEW' ? 'নতুন' : 'ব্যবহৃত'}</span><span className="rounded-full bg-bg px-2.5 py-1 text-xs font-medium text-ink-600">পোস্ট করা হয়েছে {formatDate(product.created_at)}</span></div></div>
           </section>
 
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-outline bg-surface p-2 text-xs">
-            <button type="button" aria-pressed={alertEnabled} onClick={() => handleAlert(product.is_digital ? 'PRICE_DROP' : 'BACK_IN_STOCK')} className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 font-semibold transition ${alertEnabled ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}><Bell size={16} />{alertEnabled ? 'দাম সতর্কতা: চালু' : 'দাম কমলে জানাবেন'}</button>
-            <button type="button" onClick={handleShare} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-sky-200 bg-sky-50 px-2 font-semibold text-sky-700 transition hover:bg-sky-100"><Share2 size={16} />শেয়ার করুন</button>
-            <button type="button" onClick={() => setShowReport(true)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-error/25 bg-error/5 px-2 font-semibold text-error transition hover:bg-error/10"><Flag size={16} />অভিযোগ জানান</button>
-          </div>
-          {shareMessage && <p className="mt-2 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{shareMessage}</p>}
+          {shareMessage && <p className="mt-3 rounded-xl bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">{shareMessage}</p>}
 
           <h2 className="mt-5 text-sm font-semibold text-ink-900">বিবরণ</h2>
           <div className="mt-1.5">
