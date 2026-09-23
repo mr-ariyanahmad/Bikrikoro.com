@@ -10,6 +10,7 @@ const Login = lazy(() => import('@/pages/Login'))
 const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
 const SavedSearches = lazy(() => import('@/pages/SavedSearches'))
 const Home = lazy(() => import('@/pages/Home'))
+const MarketingLanding = lazy(() => import('@/pages/MarketingLanding'))
 const Products = lazy(() => import('@/pages/Products'))
 const SearchPage = lazy(() => import('@/pages/SearchPage'))
 const ProductDetail = lazy(() => import('@/pages/ProductDetail'))
@@ -78,7 +79,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/preview/startup-recovery" element={<StartupAnimationPreview />} />
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={window.location.pathname === '/app' || window.location.pathname.startsWith('/app/') ? <Home /> : <MarketingLanding />} />
       <Route path="/becom-seller" element={<Navigate to="/become-seller" replace />} />
       <Route path="/products" element={<Products />} />
       <Route path="/search" element={<SearchPage />} />
@@ -548,6 +549,8 @@ function AppRoutes() {
 
 function AppContent() {
   const location = useLocation()
+  const isMarketplaceApp = window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')
+  const isMarketingRoot = window.location.pathname === '/'
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/forgot-password'
   const isSharedPublicRoute = /^\/(?:products\/[^/]+|seller\/[^/]+|sellers\/[^/]+)$/.test(location.pathname)
 
@@ -555,16 +558,17 @@ function AppContent() {
     <>
       <Seo />
       <SiteMeta />
-      <ConfigurationNotice />
-      {isAuthRoute || isSharedPublicRoute ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}
+      {!isMarketplaceApp && <ConfigurationNotice />}
+      {isAuthRoute || isSharedPublicRoute || isMarketplaceApp || isMarketingRoot ? <AppRoutes /> : <FirstVisitSplash><AppRoutes /></FirstVisitSplash>}
     </>
   )
 }
 
 export default function App() {
+  const isMarketplaceApp = window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')
   return (
     <HelmetProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={isMarketplaceApp ? '/app' : undefined}>
         <AuthProvider>
           <AppContent />
         </AuthProvider>
