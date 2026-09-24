@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { useAuth } from '@/context/AuthContext'
+import { useIsSeller } from '@/hooks/useIsSeller'
 import { loadNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/marketplace'
 import { registerPushToken, type PushRegistrationResult } from '@/lib/pushNotifications'
 import { supabase } from '@/lib/supabase'
@@ -40,6 +41,7 @@ function notifyHeader(unreadCount: number) {
 
 export default function Notifications() {
   const { user } = useAuth()
+  const { isSeller } = useIsSeller()
   const [items, setItems] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +51,7 @@ export default function Notifications() {
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false)
   const notificationCacheKey = user ? userCacheKey(user.uid, 'notifications') : null
+  const filterSellerOnlyNoise = useCallback((data: NotificationItem[]) => isSeller ? data.filter((item) => !(item.type === 'ORDER' && (item.title === 'নতুন checkout শুরু হয়েছে' || item.title === 'অর্ডার বাতিল হয়েছে'))) : data, [isSeller])
 
   useEffect(() => {
     let active = true
@@ -85,7 +88,7 @@ export default function Notifications() {
   const load = useCallback(async () => {
     if (!user) return
     try {
-      const data = (await loadNotifications(user.uid)) as NotificationItem[]
+      const data = filterSellerOnlyNoise((await loadNotifications(user.uid)) as NotificationItem[])
       setItems(data)
       notifyHeader(data.filter((item) => !item.is_read).length)
       writeCachedValue(userCacheKey(user.uid, 'notifications'), data)
@@ -96,14 +99,15 @@ export default function Notifications() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [filterSellerOnlyNoise, user])
 
   useEffect(() => {
     if (!user) return
     const cached = notificationCacheKey ? readCachedValue<NotificationItem[]>(notificationCacheKey, NOTIFICATION_CACHE_MAX_AGE_MS) : null
     if (cached) {
-      setItems(cached.value)
-      notifyHeader(cached.value.filter((item) => !item.is_read).length)
+      const cachedItems = filterSellerOnlyNoise(cached.value)
+      setItems(cachedItems)
+      notifyHeader(cachedItems.filter((item) => !item.is_read).length)
       setLoading(false)
     } else {
       setLoading(true)
@@ -121,7 +125,7 @@ export default function Notifications() {
       document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
-  }, [load, notificationCacheKey, user])
+  }, [filterSellerOnlyNoise, load, notificationCacheKey, user])
 
   const enablePushNotifications = async () => {
     if (!user || pushState === 'loading') return
