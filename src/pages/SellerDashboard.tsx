@@ -108,11 +108,13 @@ export default function SellerDashboard() {
       if (profileRes.error) throw profileRes.error
       const orderPayload = await orderListRes.json().catch(() => ({})) as { error?: string; orders?: SellerOrder[] }
       if (!orderListRes.ok) throw new Error(orderPayload.error || 'সেলার অর্ডার লোড করা যায়নি।')
+      const sellerOrders = (orderPayload.orders ?? []).filter((order) => order.seller_id === uid && !['PENDING_PAYMENT', 'CANCELLED', 'REFUNDED'].includes(order.status))
+      const sellerNotifications = (notificationRes as SellerNotification[]).filter((notification) => !(notification.title === 'নতুন checkout শুরু হয়েছে' || notification.title === 'অর্ডার বাতিল হয়েছে')).slice(0, 5)
       setData({
         products: (productsPayload.products ?? []) as Product[],
-        orders: (orderPayload.orders ?? []).filter((order) => order.seller_id === uid),
+        orders: sellerOrders,
         profile: profileRes.data as Profile | null,
-        notifications: (notificationRes as SellerNotification[]).slice(0, 5),
+        notifications: sellerNotifications,
         unreadNotificationCount: unreadCountRes,
       })
     } catch (error) {
