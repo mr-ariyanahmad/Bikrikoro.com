@@ -54,7 +54,7 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
         return
       }
       const { data, error: loadError } = await adminRpc('admin_list_products', { p_admin_id: user.uid })
-      setProducts((data ?? []) as AdminProduct[])
+      setProducts(normalizeAdminProducts(data))
       if (loadError) setError(formatAdminRpcError(loadError, 'প্রোডাক্ট data', '014 admin workspace migration'))
     } else {
       setCategories([])
@@ -200,3 +200,26 @@ export default function AdminCatalogue({ mode = 'products' }: { mode?: Mode }) {
 
 function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) { return <label className="text-sm text-slate-600"><span className="mb-1 block font-medium text-slate-800">{label}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500" /></label> }
 function FactoryIcon() { return <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><Eye size={22} /></span> }
+
+function normalizeAdminProducts(rows: unknown): AdminProduct[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => {
+    const product = (row ?? {}) as Partial<AdminProduct>
+    return {
+      ...product,
+      id: String(product.id ?? ''),
+      title: String(product.title ?? ''),
+      description: String(product.description ?? ''),
+      price: Number(product.price ?? 0),
+      original_price: product.original_price == null ? null : Number(product.original_price),
+      images: Array.isArray(product.images) ? product.images.filter((image): image is string => typeof image === 'string') : [],
+      category_id: String(product.category_id ?? ''),
+      condition: product.condition === 'USED' ? 'USED' : 'NEW',
+      location: String(product.location ?? ''),
+      seller_id: String(product.seller_id ?? ''),
+      view_count: Number(product.view_count ?? 0),
+      is_digital: product.is_digital !== false,
+      is_escrow_protected: product.is_escrow_protected !== false,
+    } as AdminProduct
+  })
+}
