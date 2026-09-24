@@ -39,6 +39,7 @@ export default function AdminFinance() {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [selectedPayout, setSelectedPayout] = useState<Withdrawal | null>(null)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [transactionType, setTransactionType] = useState('ALL')
@@ -113,6 +114,8 @@ export default function AdminFinance() {
     }
   }
 
+  if (selectedPayout) return <AdminPayoutDetail row={selectedPayout} onBack={() => setSelectedPayout(null)} onReview={(status) => void review(selectedPayout, status)} processing={processingId === selectedPayout.id} />
+
   return (
     <AdminShell>
       <AdminPageHeader title="পেআউট ও উইথড্রয়াল" description="Seller wallet-এর payout request review ও process করুন।" actions={<><a href="#admin-payment-accounts" className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700">সেলার পেমেন্ট account</a><a href="#admin-payment-accounts" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">কাস্টমার refund account</a></>} />
@@ -129,7 +132,7 @@ export default function AdminFinance() {
               const terminal = row.status === 'REJECTED' || row.status === 'PAID'
               const overReserved = reserved > available
               return (
-                <div key={row.id} className="space-y-3 px-5 py-5">
+                  <div key={row.id} className="m-3 space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition hover:-translate-y-0.5 hover:border-brand-200 hover:bg-white hover:shadow-sm">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold text-slate-800">{formatTaka(row.amount)} · {row.method}</p>
@@ -141,7 +144,7 @@ export default function AdminFinance() {
                     <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${row.status === 'PAID' ? 'bg-brand-50 text-brand-700' : row.status === 'REJECTED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{labels[row.status] ?? row.status}</span>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <input value={note[row.id] ?? row.admin_note ?? ''} onChange={(e) => setNote({ ...note, [row.id]: e.target.value })} disabled={terminal} placeholder={terminal ? 'এই payout বন্ধ হয়ে গেছে' : 'Admin note (ঐচ্ছিক)'} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" />
+                    <button type="button" onClick={() => setSelectedPayout(row)} className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700">বিস্তারিত</button><input value={note[row.id] ?? row.admin_note ?? ''} onChange={(e) => setNote({ ...note, [row.id]: e.target.value })} disabled={terminal} placeholder={terminal ? 'এই payout বন্ধ হয়ে গেছে' : 'Admin note (ঐচ্ছিক)'} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400" />
                     {row.status === 'PENDING' && <>
                       <button type="button" onClick={() => void review(row, 'APPROVED')} disabled={processingId === row.id} className="rounded-xl border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-700 disabled:opacity-50">Approve</button>
                       <button type="button" onClick={() => void review(row, 'REJECTED')} disabled={processingId === row.id} className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Reject</button>
@@ -162,3 +165,9 @@ export default function AdminFinance() {
     </AdminShell>
   )
 }
+
+function AdminPayoutDetail({ row, onBack, onReview, processing }: { row: Withdrawal; onBack: () => void; onReview: (status: WithdrawalStatus) => void; processing: boolean }) {
+  const terminal = row.status === 'REJECTED' || row.status === 'PAID'
+  return <AdminShell><AdminPageHeader title="পেআউট বিস্তারিত" description={`${row.method} · ${formatDateTime(row.requested_at)}`} actions={<button type="button" onClick={onBack} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600">← payout তালিকায় ফিরুন</button>} /><div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]"><AdminTableCard><div className="space-y-5 p-5"><div><p className="text-xs text-slate-400">Payout amount</p><p className="mt-1 text-3xl font-extrabold text-brand-700">{formatTaka(row.amount)}</p></div><div className="grid gap-3 sm:grid-cols-2"><PayoutInfo label="Seller UID" value={row.user_id} /><PayoutInfo label="Payment method" value={row.method} /><PayoutInfo label="Account" value={row.account_details} /><PayoutInfo label="Requested" value={formatDateTime(row.requested_at)} /><PayoutInfo label="Available balance" value={formatTaka(row.available_balance)} /><PayoutInfo label="Reserved" value={formatTaka(row.reserved_amount)} /><PayoutInfo label="Spendable" value={formatTaka(row.spendable_balance)} /><PayoutInfo label="Status" value={labels[row.status] ?? row.status} /></div></div></AdminTableCard><AdminTableCard><div className="space-y-3 p-5"><h2 className="font-semibold text-slate-900">অ্যাকশন</h2>{terminal ? <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">এই payout-এর workflow সম্পন্ন হয়েছে।</p> : row.status === 'PENDING' ? <><button type="button" onClick={() => onReview('APPROVED')} disabled={processing} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-sm font-semibold text-white">Approve</button><button type="button" onClick={() => onReview('REJECTED')} disabled={processing} className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-700">Reject</button></> : <><button type="button" onClick={() => onReview('PAID')} disabled={processing} className="w-full rounded-xl bg-brand-500 px-3 py-2.5 text-sm font-semibold text-white">Mark paid</button><button type="button" onClick={() => onReview('REJECTED')} disabled={processing} className="w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-700">Reject before paid</button></>}</div></AdminTableCard></div></AdminShell>
+}
+function PayoutInfo({ label, value }: { label: string; value: string | number }) { return <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-xs text-slate-400">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-700">{value}</p></div> }

@@ -165,3 +165,7 @@ export function AdminStatCard({ label, value, helper, tone = 'green' }: { label:
 export function AdminTableCard({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
   return <div id={id} className={`scroll-mt-24 overflow-hidden rounded-2xl border border-outline bg-surface shadow-sm ${className}`}>{children}</div>
 }
+
+export function AdminActionCard({ children, className = '', onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+  return <div role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick() } }} className={`rounded-2xl border border-outline bg-surface p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md ${onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-200' : ''} ${className}`}>{children}</div>
+}
