@@ -523,6 +523,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/commission-settings"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <AdminSettings mode="commission" />
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/site-settings"
         element={
           <ProtectedRoute>

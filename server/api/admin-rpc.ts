@@ -35,6 +35,7 @@ const ALLOWED_ADMIN_RPCS = new Set([
   'admin_finalize_seller_verification',
   'admin_get_customer_overview',
   'admin_get_settings',
+  'admin_set_commission_rates',
   'admin_list_banners',
   'admin_list_categories',
   'admin_list_community_links',
