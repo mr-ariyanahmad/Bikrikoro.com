@@ -65,7 +65,7 @@
       "url": "https://www.bikrikoro.com",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://www.bikrikoro.com/products?query={search_term_string}",
+        "target": "https://www.bikrikoro.com/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
@@ -89,15 +89,22 @@
   </head>
   <body>
     <div id="root">
-      <div aria-label="BikriKoro লোড হচ্ছে" role="status" style="min-height:100vh;background:#f8fafc;color:#0f172a;font-family:system-ui,sans-serif">
-        <div style="height:4px;background:linear-gradient(90deg,#017c50,#e2136e,#2b9ed8)"></div>
-        <div style="max-width:72rem;margin:0 auto;padding:2rem 1rem">
-          <div style="height:3rem;width:11rem;border-radius:.75rem;background:#e2e8f0"></div>
-          <div style="margin-top:2rem;height:9rem;border-radius:1.5rem;background:#e2e8f0"></div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-top:1rem">
-            <div style="height:7rem;border-radius:1rem;background:#e2e8f0"></div><div style="height:7rem;border-radius:1rem;background:#e2e8f0"></div><div style="height:7rem;border-radius:1rem;background:#e2e8f0"></div>
-          </div>
-        </div>
+      <div lang="bn" style="min-height:100vh;background:#f7fbfa;color:#17211d;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+        <header style="border-bottom:1px solid #dce9e3;background:#fff;padding:1rem">
+          <nav aria-label="প্রধান নেভিগেশন" style="max-width:72rem;margin:0 auto;display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap">
+            <a href="/" style="font-weight:800;color:#17211d;text-decoration:none">BikriKoro.Com</a><a href="/products" style="color:#176b4d">পণ্য</a><a href="#categories" style="color:#176b4d">ক্যাটাগরি</a><a href="/become-seller" style="color:#176b4d">বিক্রি শুরু করুন</a><a href="/about" style="color:#176b4d">আমাদের সম্পর্কে</a><a href="/help" style="color:#176b4d">Support</a>
+          </nav>
+        </header>
+        <main style="max-width:72rem;margin:0 auto;padding:3rem 1rem">
+          <section aria-labelledby="homepage-title"><p style="color:#017c50;font-weight:800">বাংলাদেশের digital marketplace</p><h1 id="homepage-title" style="font-size:clamp(2rem,5vw,4rem);line-height:1.1;margin:.75rem 0">বাংলাদেশের ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস</h1><p style="max-width:42rem;line-height:1.8;color:#52615b">ডিজিটাল প্রোডাক্ট খুঁজুন, কিনুন এবং নিজের অনুমোদিত product সহজেই বিক্রি করুন—BikriKoro-এর সাথে।</p><p><a href="/products" style="display:inline-block;margin:.75rem .5rem .75rem 0;padding:.8rem 1.1rem;background:#017c50;color:white;border-radius:.7rem;text-decoration:none;font-weight:700">Explore Products</a><a href="/become-seller" style="display:inline-block;padding:.8rem 1.1rem;border:1px solid #a9d6c2;color:#176b4d;border-radius:.7rem;text-decoration:none;font-weight:700">Start Selling</a></p></section>
+          <section aria-labelledby="categories" style="margin-top:3rem"><h2 id="categories">Explore Categories</h2><p>আপনার প্রয়োজনীয় প্রোডাক্ট সহজেই খুঁজে নিন।</p><ul style="display:flex;flex-wrap:wrap;gap:.75rem;padding:0;list-style:none"><li><a href="/products">গেম ও গেমিং</a></li><li><a href="/products">সফটওয়্যার</a></li><li><a href="/products">সাবস্ক্রিপশন</a></li><li><a href="/products">কোর্স ও শিক্ষা</a></li><li><a href="/products">ডিজাইন ও টেমপ্লেট</a></li><li><a href="/products">ডিজিটাল সেবা</a></li></ul></section>
+          <section aria-labelledby="featured-products" style="margin-top:3rem"><h2 id="featured-products">Featured Products</h2><p>জনপ্রিয় ও নির্বাচিত প্রোডাক্টগুলো এক নজরে দেখুন।</p></section>
+          <section aria-labelledby="bikrify-trust" style="margin-top:3rem"><h2 id="bikrify-trust">Discover Trusted Sellers</h2><p>Seller সম্পর্কে গুরুত্বপূর্ণ তথ্য দেখে আরও আত্মবিশ্বাসের সাথে সিদ্ধান্ত নিন। Bikrify হলো approved seller verification-এর একটি compact trust signal।</p></section>
+          <section aria-labelledby="why-bikrikoro" style="margin-top:3rem"><h2 id="why-bikrikoro">Why BikriKoro?</h2><p>সহজে product খুঁজুন, seller trust signals দেখুন, listing তৈরি করুন, order visibility পান এবং Support Center ব্যবহার করুন।</p></section>
+          <section aria-labelledby="how-it-works" style="margin-top:3rem"><h2 id="how-it-works">How BikriKoro Works</h2><h3>Buy on BikriKoro</h3><p>Find → Order → Receive</p><h3>Sell on BikriKoro</h3><p>Create your shop → List your product → Manage orders</p></section>
+          <section aria-labelledby="faq" style="margin-top:3rem"><h2 id="faq">সাধারণ প্রশ্নের উত্তর</h2><details><summary>BikriKoro কী?</summary><p>BikriKoro একটি digital marketplace যেখানে users available digital products discover, buy এবং sell করতে পারে।</p></details><details><summary>কীভাবে product কিনব?</summary><p>Product search করুন, details দেখুন এবং existing checkout/order process ব্যবহার করে order করুন।</p></details><details><summary>কীভাবে seller হব?</summary><p>আপনার account থেকে seller/listing process শুরু করুন এবং প্রয়োজনীয় basic information দিয়ে product list করুন।</p></details><details><summary>সমস্যায় পড়লে কী করব?</summary><p>Support Center ব্যবহার করে সংশ্লিষ্ট support topic নির্বাচন করুন।</p></details></section>
+        </main>
+        <footer style="border-top:1px solid #dce9e3;background:#fff;padding:2rem 1rem"><nav aria-label="Footer navigation" style="max-width:72rem;margin:0 auto;display:flex;gap:1rem;flex-wrap:wrap"><a href="/products">Browse Products</a><a href="/become-seller">Start Selling</a><a href="/help">Help Center</a><a href="/faq">FAQ</a><a href="/about">About BikriKoro</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms &amp; Conditions</a><a href="/contact">Contact</a></nav><p style="max-width:72rem;margin:1rem auto 0;color:#64736c">© 2026 BikriKoro. All rights reserved.</p></footer>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
