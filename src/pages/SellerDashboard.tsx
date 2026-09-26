@@ -87,6 +87,8 @@ export default function SellerDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'offline'>('connecting')
+  const [lastLiveUpdate, setLastLiveUpdate] = useState<Date | null>(null)
 
   const loadDashboard = useCallback(async (background = false) => {
     if (!uid || !isSeller) return
@@ -135,12 +137,27 @@ export default function SellerDashboard() {
   }, [isSeller, sellerAccessLoading, uid, loadDashboard])
 
   useEffect(() => {
-    if (!uid || !isSeller) return
+    if (!uid || !isSeller) { setRealtimeStatus('offline'); return }
+    let refreshTimer: number | undefined
+    const scheduleRefresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        setLastLiveUpdate(new Date())
+        void loadDashboard(true)
+      }, 650)
+    }
+    setRealtimeStatus('connecting')
     const channel = supabase.channel(`seller-dashboard-${uid}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `seller_id=eq.${uid}` }, () => void loadDashboard(true))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, () => void loadDashboard(true))
-      .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `seller_id=eq.${uid}` }, scheduleRefresh)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, scheduleRefresh)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setRealtimeStatus('live')
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setRealtimeStatus('offline')
+      })
+    return () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      void supabase.removeChannel(channel)
+    }
   }, [isSeller, uid, loadDashboard])
 
   if (sellerAccessLoading) return <Layout wide><DashboardSkeleton /></Layout>
@@ -160,7 +177,7 @@ export default function SellerDashboard() {
         <main className="w-full min-w-0 max-w-full">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-outline pb-5">
             <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">বিক্রেতার কর্মক্ষেত্র</p><h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900">স্বাগতম, {displayShopName(profile?.shop_name, profile?.name, 'সেলার')}</h1><p className="mt-1 text-base text-ink-600">আপনার ডিজিটাল পণ্য, অর্ডার ও payment account এক জায়গা থেকে পরিচালনা করুন।</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void loadDashboard(true)} className="inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />রিফ্রেশ</button><Link to="/sell" className="inline-flex items-center gap-2 border border-brand-500 bg-brand-500 px-3 py-2.5 text-base font-semibold text-white transition hover:bg-brand-600"><Plus size={17} />নতুন ডিজিটাল পণ্য</Link></div>
+            <div className="flex flex-wrap items-center gap-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-bold ${realtimeStatus === 'live' ? 'bg-brand-50 text-brand-700' : realtimeStatus === 'connecting' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}`} title={lastLiveUpdate ? `শেষ live update: ${lastLiveUpdate.toLocaleTimeString('bn-BD')}` : undefined}><span className={`h-2 w-2 rounded-full ${realtimeStatus === 'live' ? 'bg-brand-500 animate-pulse' : realtimeStatus === 'connecting' ? 'bg-amber-500' : 'bg-slate-400'}`} />{realtimeStatus === 'live' ? 'Live' : realtimeStatus === 'connecting' ? 'সংযোগ হচ্ছে' : 'Offline'}</span><button type="button" onClick={() => void loadDashboard(true)} className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface px-3 py-2.5 text-sm font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />রিফ্রেশ</button><Link to="/sell" className="inline-flex items-center gap-2 rounded-xl border border-brand-500 bg-brand-500 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600"><Plus size={17} />নতুন পণ্য</Link></div>
           </div>
 
           {notice && <p className="mt-4 border border-brand-200 bg-brand-50 p-3 text-base text-brand-800">{notice}</p>}
