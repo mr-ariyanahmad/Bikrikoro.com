@@ -18,9 +18,9 @@ export function ImageUploader({
   const inputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {images.map((img, i) => (
-        <div key={i} className="relative h-24 w-24 overflow-hidden rounded-lg border border-outline">
+        <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl border border-outline bg-bg shadow-sm">
           <img src={img.url} alt="" className="h-full w-full object-cover" />
           {img.uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink-900/40">
@@ -30,7 +30,7 @@ export function ImageUploader({
           <button
             type="button"
             onClick={() => onRemove(i)}
-            className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-ink-900/70 text-xs text-white"
+            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink-900/75 text-xs text-white opacity-0 shadow-sm transition group-hover:opacity-100 focus:opacity-100"
             aria-label="মুছে ফেলুন"
           >
             ✕
@@ -42,10 +42,10 @@ export function ImageUploader({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex h-24 w-24 flex-col items-center justify-center rounded-lg border-2 border-dashed border-outline text-ink-300 hover:border-brand-500/40 hover:text-brand-500"
+          className="flex aspect-square flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 text-brand-600 transition hover:border-brand-500 hover:bg-brand-50"
         >
-          <span className="text-2xl leading-none">+</span>
-          <span className="mt-1 text-xs">ছবি যোগ করুন</span>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-2xl leading-none shadow-sm">+</span>
+          <span className="mt-2 text-xs font-semibold">ছবি যোগ করুন</span>
         </button>
       )}
 
