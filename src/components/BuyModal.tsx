@@ -39,7 +39,7 @@ export function BuyModal({ product, digitalSpecs, buyerId, onClose }: { product:
   }, [])
 
   const discountedPrice = coupon?.valid ? coupon.final_price : product.price
-  const escrowFee = customerCommissionRate === null ? 0 : customerCommissionRate <= 0 ? 0 : Math.max(discountedPrice * customerCommissionRate / 100, 10)
+  const escrowFee = customerCommissionRate === null ? 0 : customerCommissionRate <= 0 ? 0 : Math.max(discountedPrice * customerCommissionRate / 100, 2)
   const total = discountedPrice + escrowFee
 
   const handleApplyCoupon = async () => {
