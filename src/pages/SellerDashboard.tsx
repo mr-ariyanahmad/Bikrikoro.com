@@ -155,7 +155,7 @@ export default function SellerDashboard() {
   return (
     <Layout wide>
       <Helmet><title>সেলার ড্যাশবোর্ড | BikriKoro.Com</title></Helmet>
-      <div className="grid w-full min-w-0 max-w-full gap-5 overflow-x-hidden lg:grid-cols-[14rem_minmax(0,1fr)]">
+      <div className="grid w-full min-w-0 max-w-full gap-5 overflow-x-hidden lg:grid-cols-[12rem_minmax(0,1fr)]">
         <SellerSidebar unreadCount={data?.unreadNotificationCount ?? 0} />
         <main className="w-full min-w-0 max-w-full">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-outline pb-5">
@@ -172,34 +172,34 @@ export default function SellerDashboard() {
               <ProfileHero profile={profile} productCount={stats.activeProducts} />
               <SellerVerificationProgress profile={profile} />
 
-              <section className="mt-5 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard icon={ShoppingCart} label="আজকের বিক্রি" value={formatTaka(stats.todaySales)} tone="green" note="সম্পন্ন ডিজিটাল অর্ডার" />
+              <section className="mt-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+                <MetricCard icon={ShoppingCart} label="আজকের বিক্রি" value={formatTaka(stats.todaySales)} tone="green" note="সম্পন্ন অর্ডার" />
                 <MetricCard icon={BarChart3} label="এই মাসের বিক্রি" value={formatTaka(stats.monthSales)} tone="purple" note="চলতি মাস" />
                 <MetricCard icon={CreditCard} label="মোট বিক্রি" value={formatTaka(stats.totalSales)} tone="orange" note={`${stats.completedOrders}টি সম্পন্ন অর্ডার`} />
-                <MetricCard icon={WalletCards} label="পেমেন্ট অ্যাকাউন্ট" value="সেটআপ করুন" tone="blue" note="টাকা গ্রহণের destination" />
-                <MetricCard icon={Clock3} label="অপেক্ষমাণ অর্ডার" value={String(stats.pendingOrders)} tone="amber" note="পেমেন্ট বা ডেলিভারির কাজ বাকি" />
-                <MetricCard icon={CheckCircle2} label="সম্পন্ন অর্ডার" value={String(stats.completedOrders)} tone="green" note="সফল ডিজিটাল ডেলিভারি" />
-                <MetricCard icon={Package} label="মোট পণ্য" value={String(stats.activeProducts)} tone="purple" note={`${stats.pendingProducts}টি অনুমোদনের অপেক্ষায়`} />
-                <MetricCard icon={Eye} label="মোট দেখার সংখ্যা" value={String(stats.totalViews)} tone="blue" note={stats.totalViews > 0 ? `দেখা থেকে বিক্রয় ${stats.conversionRate.toFixed(2)}%` : 'তথ্য জমা হলে হার দেখা যাবে'} />
+              </section>
+              <section className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-5">
+                <MiniMetric label="অপেক্ষমাণ" value={String(stats.pendingOrders)} icon={Clock3} tone="amber" />
+                <MiniMetric label="সম্পন্ন" value={String(stats.completedOrders)} icon={CheckCircle2} tone="green" />
+                <MiniMetric label="সক্রিয় পণ্য" value={String(stats.activeProducts)} icon={Package} tone="purple" />
+                <MiniMetric label="মোট দেখা" value={String(stats.totalViews)} icon={Eye} tone="blue" />
+                <MiniMetric label="রূপান্তর" value={`${stats.conversionRate.toFixed(1)}%`} icon={TrendingUp} tone="green" />
               </section>
 
-              <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.75fr)]">
+              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.75fr)]">
                 <SalesOverview orders={data.orders} />
-                <PaymentAccountSummary />
+                <div className="grid gap-4"><PaymentAccountSummary /><PerformancePanel stats={stats} profile={profile} /></div>
               </section>
 
-              <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
                 <RecentOrders orders={data.orders} />
                 <NotificationPanel notifications={data.notifications} />
               </section>
 
-              <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
+              <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
                 <BestSellingProducts orders={data.orders} />
-                <PerformancePanel stats={stats} profile={profile} />
+                <QuickActions />
               </section>
-
-              <QuickActions />
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border border-dashed border-outline bg-bg p-4"><div><p className="font-semibold text-ink-900">রিপোর্ট দরকার?</p><p className="mt-1 text-sm text-ink-600">বর্তমান বিক্রয় তথ্যের প্রতিবেদন তৈরি করুন।</p></div><button type="button" onClick={() => { downloadCsv(stats); setNotice('বিক্রয় প্রতিবেদন ডাউনলোড হয়েছে।') }} className="inline-flex items-center gap-2 border border-outline bg-surface px-3 py-2.5 text-base font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><Download size={16} />রিপোর্ট ডাউনলোড</button></div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-outline bg-bg p-3"><div><p className="text-sm font-semibold text-ink-900">রিপোর্ট দরকার?</p><p className="mt-0.5 text-xs text-ink-600">বর্তমান বিক্রয় তথ্য ডাউনলোড করুন।</p></div><button type="button" onClick={() => { downloadCsv(stats); setNotice('বিক্রয় প্রতিবেদন ডাউনলোড হয়েছে।') }} className="inline-flex items-center gap-2 rounded-xl border border-outline bg-surface px-3 py-2 text-sm font-medium text-ink-700 transition hover:border-brand-500 hover:text-brand-700"><Download size={15} />রিপোর্ট</button></div>
             </>
           )}
         </main>
@@ -209,19 +209,25 @@ export default function SellerDashboard() {
 }
 
 function SellerSidebar({ unreadCount }: { unreadCount: number }) {
-  return <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden border border-outline bg-surface shadow-sm"><div className="border-b border-outline bg-brand-50 p-4"><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">BikriKoro</p><p className="mt-1 text-lg font-bold text-ink-900">বিক্রেতা কেন্দ্র</p></div><nav className="grid grid-cols-2 gap-1 p-2 sm:flex sm:overflow-x-auto lg:block">{sellerNav.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`relative flex min-w-0 items-center gap-2 px-3 py-2.5 text-sm font-semibold transition ${to === '/seller/dashboard' ? 'bg-brand-500 text-white' : 'text-ink-600 hover:bg-brand-50 hover:text-brand-700'}`}><Icon size={17} />{label}{to === '/notifications' && unreadCount > 0 && <span className="ml-auto min-w-5 bg-white px-1.5 py-0.5 text-center text-[11px] font-bold text-brand-700">{unreadCount}</span>}</Link>)}</nav><div className="border-t border-outline p-3"><Link to="/seller-education" className="flex items-start gap-2 bg-bg p-3 text-sm text-ink-600 transition hover:bg-brand-50"><HelpCircle size={16} className="mt-0.5 shrink-0 text-brand-600" /><span><strong className="block text-ink-900">বিক্রেতা শিক্ষা</strong>ডেলিভারি ও অর্ডারের ধাপ শিখুন</span></Link><Link to="/settings" className="mt-2 flex items-center gap-2 px-3 py-2 text-sm text-ink-500 hover:text-brand-700"><Settings size={15} />সেটিংস ও সহায়তা</Link></div></div></aside>
+  return <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-2xl border border-outline bg-surface shadow-sm"><div className="border-b border-outline bg-brand-50 p-3"><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">BikriKoro</p><p className="mt-1 text-base font-bold text-ink-900">বিক্রেতা কেন্দ্র</p></div><nav className="grid grid-cols-2 gap-1 p-2 sm:flex sm:overflow-x-auto lg:block">{sellerNav.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`relative flex min-w-0 items-center gap-2 px-3 py-2.5 text-sm font-semibold transition ${to === '/seller/dashboard' ? 'bg-brand-500 text-white' : 'text-ink-600 hover:bg-brand-50 hover:text-brand-700'}`}><Icon size={17} />{label}{to === '/notifications' && unreadCount > 0 && <span className="ml-auto min-w-5 bg-white px-1.5 py-0.5 text-center text-[11px] font-bold text-brand-700">{unreadCount}</span>}</Link>)}</nav><div className="border-t border-outline p-3"><Link to="/seller-education" className="flex items-start gap-2 bg-bg p-3 text-sm text-ink-600 transition hover:bg-brand-50"><HelpCircle size={16} className="mt-0.5 shrink-0 text-brand-600" /><span><strong className="block text-ink-900">বিক্রেতা শিক্ষা</strong>ডেলিভারি ও অর্ডারের ধাপ শিখুন</span></Link><Link to="/settings" className="mt-2 flex items-center gap-2 px-3 py-2 text-sm text-ink-500 hover:text-brand-700"><Settings size={15} />সেটিংস ও সহায়তা</Link></div></div></aside>
 }
 
 function ProfileHero({ profile, productCount }: { profile: Profile | null; productCount: number }) {
   const name = displayShopName(profile?.shop_name, profile?.name, 'সেলার')
   const userName = displayUserName(profile?.name)
   const description = displayShopDescription(profile?.shop_description)
-  return <section className="mt-5 border border-brand-100 bg-gradient-to-r from-brand-50 via-surface to-surface p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border border-brand-200 bg-brand-100 text-2xl font-bold text-brand-700">{profile?.photo_url ? <img src={profile.photo_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold text-ink-900">{name}</h2>{profile?.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><ShieldCheck size={13} />যাচাইকৃত</span>}</div><p className="mt-1 line-clamp-2 text-sm text-ink-600">{description || `ব্যবহারকারী: ${userName}`}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-500"><span>{profile?.review_count ? `★ ${profile.rating.toFixed(1)} · ${profile.review_count}টি রিভিউ` : 'এখনো কোনো রিভিউ নেই'}</span><span>{productCount}টি সক্রিয় পণ্য</span>{profile?.created_at && <span>{formatDate(profile.created_at)} থেকে</span>}</div></div><Link to="/account/edit" className="inline-flex items-center justify-center gap-2 border border-brand-500 px-3 py-2.5 text-base font-semibold text-brand-700 transition hover:bg-brand-50"><UserRound size={16} />প্রোফাইল এডিট</Link></div></section>
+  return <section className="mt-4 rounded-2xl border border-brand-100 bg-gradient-to-r from-brand-50 via-surface to-surface p-3.5 shadow-sm sm:p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border border-brand-200 bg-brand-100 text-xl font-bold text-brand-700">{profile?.photo_url ? <img src={profile.photo_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold text-ink-900">{name}</h2>{profile?.is_verified && <span className="inline-flex items-center gap-1 bg-brand-500 px-2 py-1 text-xs font-bold text-white"><ShieldCheck size={13} />যাচাইকৃত</span>}</div><p className="mt-1 line-clamp-2 text-sm text-ink-600">{description || `ব্যবহারকারী: ${userName}`}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-500"><span>{profile?.review_count ? `★ ${profile.rating.toFixed(1)} · ${profile.review_count}টি রিভিউ` : 'এখনো কোনো রিভিউ নেই'}</span><span>{productCount}টি সক্রিয় পণ্য</span>{profile?.created_at && <span>{formatDate(profile.created_at)} থেকে</span>}</div></div><Link to="/account/edit" className="inline-flex items-center justify-center gap-2 border border-brand-500 px-3 py-2.5 text-base font-semibold text-brand-700 transition hover:bg-brand-50"><UserRound size={16} />প্রোফাইল এডিট</Link></div></section>
 }
 
 function MetricCard({ icon: Icon, label, value, tone, note }: { icon: LucideIcon; label: string; value: string; tone: 'green' | 'purple' | 'orange' | 'blue' | 'amber'; note: string }) {
   const colors = { green: 'bg-brand-50 text-brand-700', purple: 'bg-violet-50 text-violet-700', orange: 'bg-orange-50 text-orange-700', blue: 'bg-sky-50 text-sky-700', amber: 'bg-amber-50 text-amber-700' }[tone]
-  return <article className="min-w-0 border border-outline bg-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"><div className="flex items-start justify-between gap-2"><p className="text-sm font-semibold text-ink-600">{label}</p><span className={`flex h-9 w-9 shrink-0 items-center justify-center ${colors}`}><Icon size={18} /></span></div><p className="tabular-amount mt-4 text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{value}</p><p className="mt-1 line-clamp-1 text-xs text-ink-400">{note}</p></article>
+  return <article className="min-w-0 rounded-2xl border border-outline bg-surface p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"><div className="flex items-start justify-between gap-2"><p className="text-sm font-semibold text-ink-600">{label}</p><span className={`flex h-9 w-9 shrink-0 items-center justify-center ${colors}`}><Icon size={18} /></span></div><p className="tabular-amount mt-3 text-lg font-bold tracking-tight text-ink-900 sm:text-2xl">{value}</p><p className="mt-1 line-clamp-1 text-xs text-ink-400">{note}</p></article>
+}
+
+
+function MiniMetric({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: string; tone: 'green' | 'purple' | 'blue' | 'amber' }) {
+  const colors = { green: 'bg-brand-50 text-brand-700', purple: 'bg-violet-50 text-violet-700', blue: 'bg-sky-50 text-sky-700', amber: 'bg-amber-50 text-amber-700' }[tone]
+  return <article className="flex min-w-0 items-center gap-2 rounded-xl border border-outline bg-surface px-2.5 py-2.5 shadow-sm"><span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${colors}`}><Icon size={14} /></span><span className="min-w-0"><span className="block truncate text-[10px] font-medium text-ink-500">{label}</span><span className="mt-0.5 block truncate text-sm font-bold text-ink-900">{value}</span></span></article>
 }
 
 function SalesOverview({ orders }: { orders: SellerOrder[] }) {
@@ -298,7 +304,7 @@ function getErrorMessage(error: unknown) { if (error instanceof Error && error.m
 function SellerVerificationProgress({ profile }: { profile: Profile | null }) {
   const level = profile?.seller_level === 'TRUSTED' ? 'Trusted Seller' : profile?.seller_level === 'VERIFIED' ? 'Verified Seller' : 'Basic Seller'
   const identityDone = profile?.seller_level === 'VERIFIED' || profile?.seller_level === 'TRUSTED'
-  return <section className="mt-4 rounded-2xl border border-brand-200 bg-brand-50/60 p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">Seller Status</p><h2 className="mt-1 text-xl font-bold text-ink-900">{level}</h2><p className="mt-1 text-sm text-ink-600">Basic Seller হিসেবেই আপনি selling চালিয়ে যেতে পারবেন।</p></div>{!identityDone && <Link to="/become-seller/verify?mode=DIGITAL" className="inline-flex items-center gap-1.5 rounded-xl border border-brand-500 bg-white px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50">Verified Seller upgrade <ArrowUpRight size={15} /></Link>}</div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4"><ProgressItem label="Basic Information" done={Boolean(profile?.seller_basic_completed_at)} /><ProgressItem label="Email Verified" done={Boolean(profile?.seller_email_verified_at)} /><ProgressItem label="Seller Information" done={Boolean(profile?.shop_name || profile?.shop_description)} /><ProgressItem label="Identity Verification" done={identityDone} /></div></section>
+  return <section className="mt-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">Seller Status</p><h2 className="mt-1 text-base font-bold text-ink-900">{level}</h2><p className="mt-1 text-sm text-ink-600">Basic Seller হিসেবেই আপনি selling চালিয়ে যেতে পারবেন।</p></div>{!identityDone && <Link to="/become-seller/verify?mode=DIGITAL" className="inline-flex items-center gap-1.5 rounded-xl border border-brand-500 bg-white px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50">Verified Seller upgrade <ArrowUpRight size={15} /></Link>}</div><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><ProgressItem label="Basic Information" done={Boolean(profile?.seller_basic_completed_at)} /><ProgressItem label="Email Verified" done={Boolean(profile?.seller_email_verified_at)} /><ProgressItem label="Seller Information" done={Boolean(profile?.shop_name || profile?.shop_description)} /><ProgressItem label="Identity Verification" done={identityDone} /></div></section>
 }
 
 function ProgressItem({ label, done }: { label: string; done: boolean }) { return <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-white/80 px-3 py-2.5 text-ink-700"><CheckCircle2 size={16} className={done ? 'text-brand-600' : 'text-ink-300'} />{label}<span className="ml-auto text-xs font-semibold text-ink-400">{done ? 'সম্পন্ন' : 'পরের ধাপ'}</span></div> }
