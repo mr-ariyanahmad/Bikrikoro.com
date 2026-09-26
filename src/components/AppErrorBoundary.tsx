@@ -15,6 +15,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('BikriKoro application error:', error, info)
     const message = String(error?.message ?? '')
+    try { window.sessionStorage.setItem('bikrikoro:last-runtime-error', JSON.stringify({ message, stack: error?.stack ?? '', componentStack: info?.componentStack ?? '', path: window.location.pathname })) } catch { /* diagnostics must never break recovery */ }
     const isStaleDeploymentModule = /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(message)
     const retryKey = `bikrikoro:startup-module-retry:${window.location.pathname}`
     if (isStaleDeploymentModule && typeof window !== 'undefined' && !window.sessionStorage.getItem(retryKey)) {
