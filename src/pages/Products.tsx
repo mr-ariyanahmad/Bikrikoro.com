@@ -33,6 +33,7 @@ export default function Products() {
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>(() => readCachedValue<Product[]>(productCacheKey, PRODUCT_CACHE_MAX_AGE_MS)?.value ?? [])
   const [shops, setShops] = useState<SearchShop[]>([])
+  const [sellersById, setSellersById] = useState<Record<string, { id: string; name: string; photo_url: string | null; shop_name: string | null; is_verified: boolean; rating: number; review_count: number }>>({})
   const [loading, setLoading] = useState(() => !readCachedValue<Product[]>(productCacheKey, PRODUCT_CACHE_MAX_AGE_MS))
   const [showFilters, setShowFilters] = useState(false)
   const [draftMinPrice, setDraftMinPrice] = useState('')
@@ -136,6 +137,17 @@ export default function Products() {
     return () => { cancelled = true }
   }, [categoryId, debouncedQuery, sort, condition, minPrice, maxPrice])
 
+  useEffect(() => {
+    const sellerIds = [...new Set(products.map((product) => product.seller_id).filter(Boolean))]
+    if (sellerIds.length === 0) { setSellersById({}); return }
+    let cancelled = false
+    supabase.from('profiles').select('id, name, photo_url, shop_name, is_verified, rating, review_count').in('id', sellerIds).then(({ data }) => {
+      if (cancelled) return
+      setSellersById(Object.fromEntries((data ?? []).map((seller) => [seller.id, { ...seller, name: seller.name ?? '' } as typeof sellersById[string]])))
+    })
+    return () => { cancelled = true }
+  }, [products])
+
   const activeFilterCount = useMemo(() => [condition !== 'all', Boolean(minPrice), Boolean(maxPrice)].filter(Boolean).length, [condition, minPrice, maxPrice])
 
   const updateParam = (key: string, value: string) => {
@@ -228,7 +240,7 @@ export default function Products() {
       {query.trim().length >= 2 && shops.length > 0 && <section aria-label="শপ ফলাফল" className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/55 p-3 sm:p-4"><div className="mb-2 flex items-center justify-between"><p className="text-sm font-extrabold text-brand-800">মিলে যাওয়া শপ</p><span className="text-xs font-semibold text-brand-700">{shops.length.toLocaleString('bn-BD')}টি</span></div><div className="grid gap-2 sm:grid-cols-2">{shops.map((shop) => <Link key={shop.id} to={shopUrl(shop.shop_username, shop.id)} className="flex items-center gap-3 rounded-xl border border-outline bg-surface p-3 transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-sm"><div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 font-bold text-brand-700">{shop.photo_url ? <img src={shop.photo_url} alt="" className="h-full w-full object-cover" /> : (shop.shop_name?.trim() || shop.name).charAt(0)}</div><div className="min-w-0 flex-1"><p className="truncate font-bold text-ink-900">{shop.shop_name?.trim() || shop.name}</p><p className="mt-0.5 flex items-center gap-1 text-sm text-ink-500">{shop.is_verified && <BadgeCheck size={14} className="text-brand-600" />}{shop.review_count > 0 ? `★ ${shop.rating.toFixed(1)} · ${shop.review_count} রিভিউ` : 'ডিজিটাল শপ'}</p></div><span className="text-sm font-bold text-brand-700">শপ দেখুন</span></Link>)}</div></section>}
 
       <div className={`mt-3 grid gap-3 sm:mt-4 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'}`}>
-        {loading ? Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} compact={viewMode === 'list'} />)}
+        {loading ? Array.from({ length: 12 }).map((_, index) => <div key={index} className="aspect-[3/4] animate-pulse rounded-2xl bg-outline/40" />) : products.map((product) => <ProductCard key={product.id} product={product} seller={sellersById[product.seller_id] ?? null} compact={viewMode === 'list'} />)}
       </div>
       {!loading && products.length === 0 && <p className="mt-10 text-center text-ink-700">এই ফিল্টারে কোনো ডিজিটাল পণ্য পাওয়া যায়নি।</p>}
     </Layout>
