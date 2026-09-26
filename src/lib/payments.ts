@@ -1,4 +1,14 @@
 import { auth } from '@/lib/firebase'
+import { supabase } from '@/lib/supabase'
+
+/** Reads the same customer fee rate used by the server-side checkout RPC. */
+export async function getCustomerCommissionRate(): Promise<number> {
+  const { data, error } = await supabase.rpc('get_public_customer_commission_rate')
+  if (error) throw error
+  const rate = Number(data)
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) throw new Error('Invalid customer commission rate')
+  return rate
+}
 
 /** Backed by create_order_pending_payment() (010_uddoktapay_payments.sql) — website-only order path. */
 export async function createPendingOrder(params: {
