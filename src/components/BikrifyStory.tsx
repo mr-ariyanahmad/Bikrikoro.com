@@ -9,20 +9,20 @@ export function BikrifyStory({ compact = false }: { compact?: boolean }) {
         <div className="pointer-events-none absolute -right-24 -top-32 -z-10 h-80 w-80 rounded-full bg-brand-500/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-36 left-[35%] -z-10 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
         <div className="mx-auto grid max-w-6xl items-center gap-9 lg:grid-cols-[1.05fr_.95fr]">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-300/30 bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-brand-100"><ShieldCheck size={14} /> Meet Bikrify</div>
-            <h2 className="mt-4 max-w-2xl text-3xl font-black leading-[1.12] tracking-tight sm:text-4xl">ভালো seller চেনার নতুন পরিচয়।</h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-white/70 sm:text-base">Bikrify হলো BikriKoro-এর authentication brand—NID বা business/company verification approve হলে approved seller-এর profile-এ এই trust signal দেখা যায়।</p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row"><Link to="/about" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-brand-400">Bikrify সম্পর্কে জানুন <ArrowRight size={16} /></Link><Link to="/blog/bikrify-verified-seller-system" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">Verified seller guide</Link></div>
-            <p className="mt-4 text-xs text-white/45">Badge একটি helpful signal—কেনার আগে product, review ও delivery information যাচাই করুন।</p>
+            <h2 className="mt-4 max-w-2xl break-words text-3xl font-black leading-[1.2] tracking-tight sm:text-4xl">ভালো seller চেনার নতুন পরিচয়।</h2>
+            <p className="mt-4 max-w-xl break-words text-sm leading-7 text-white/70 sm:text-base">Bikrify হলো BikriKoro-এর authentication brand—NID বা business/company verification approve হলে approved seller-এর profile-এ এই trust signal দেখা যায়।</p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Link to="/about" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-brand-400">Bikrify সম্পর্কে জানুন <ArrowRight size={16} /></Link><Link to="/blog/bikrify-verified-seller-system" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">Verified seller guide</Link></div>
+            <p className="mt-4 break-words text-xs leading-5 text-white/45">Badge একটি helpful signal—কেনার আগে product, review ও delivery information যাচাই করুন।</p>
           </div>
-          <div className="relative mx-auto w-full max-w-md lg:ml-auto">
+          <div className="relative mx-auto min-w-0 w-full max-w-md lg:ml-auto">
             <div className="absolute -inset-4 rounded-[2rem] border border-brand-300/10" />
             <div className="relative rounded-[1.75rem] border border-white/15 bg-white p-5 text-ink-900 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:p-6">
               <div className="flex items-center justify-between border-b border-outline pb-4"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-ink-400">Seller profile</p><p className="mt-1 text-lg font-black">Verified identity</p></div><span className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/20"><ShieldCheck size={24} /></span></div>
-              <div className="mt-5 flex items-center gap-3 rounded-2xl bg-brand-50 p-3"><span className="grid h-11 w-11 place-items-center rounded-full bg-brand-600 text-white"><BadgeCheck size={22} /></span><div className="min-w-0 flex-1"><p className="text-xs font-bold text-ink-500">Authentication status</p><div className="mt-1 flex items-center gap-2"><BikrifyBadge /><span className="text-[11px] font-bold text-brand-700">Approved seller</span></div></div></div>
+              <div className="mt-5 flex min-w-0 items-center gap-3 rounded-2xl bg-brand-50 p-3"><span className="grid h-11 w-11 place-items-center rounded-full bg-brand-600 text-white"><BadgeCheck size={22} /></span><div className="min-w-0 flex-1"><p className="text-xs font-bold text-ink-500">Authentication status</p><div className="mt-1 flex min-w-0 flex-wrap items-center gap-2"><BikrifyBadge /><span className="break-words text-[11px] font-bold text-brand-700">Approved seller</span></div></div></div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2"><MiniSignal icon={Check} title="Reviewed identity" /><MiniSignal icon={LockKeyhole} title="Private documents" /></div>
-              <div className="mt-4 flex items-center gap-2 border-t border-outline pt-4 text-xs text-ink-500"><Users size={15} className="text-brand-600" /> Buyer-এর জন্য পরিষ্কার trust signal</div>
+              <div className="mt-4 flex min-w-0 items-start gap-2 border-t border-outline pt-4 text-xs leading-5 text-ink-500"><Users size={15} className="mt-0.5 shrink-0 text-brand-600" /> <span className="break-words">Buyer-এর জন্য পরিষ্কার trust signal</span></div>
             </div>
           </div>
         </div>
