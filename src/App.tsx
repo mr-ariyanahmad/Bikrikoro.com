@@ -562,10 +562,15 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<RouteFallback />} />
       </Routes>
     </Suspense>
   )
+}
+
+function RouteFallback() {
+  const isMarketplaceApp = window.location.pathname === '/app' || window.location.pathname.startsWith('/app/')
+  return isMarketplaceApp ? <Navigate to="/" replace /> : <NotFound />
 }
 
 function AppContent() {
