@@ -22,10 +22,10 @@ export default function AboutUs() {
           </p>
         </section>
         <section>
-          <h2 className="font-semibold text-ink-900">যাচাইকৃত বিক্রেতা</h2>
+          <h2 className="font-semibold text-ink-900">Bikrify verified seller</h2>
           <p className="mt-1.5">
-            যেকোনো ব্যবহারকারী বিনামূল্যে পণ্য পোস্ট করতে পারেন। এছাড়াও ঐচ্ছিকভাবে NID বা ট্রেড লাইসেন্স দিয়ে যাচাইকৃত
-            বিক্রেতা হওয়া যায়, যা ক্রেতাদের বাড়তি আস্থা দেয়।
+            যেকোনো ব্যবহারকারী বিনামূল্যে পণ্য পোস্ট করতে পারেন। এছাড়াও ঐচ্ছিকভাবে NID বা ট্রেড লাইসেন্স দিয়ে Bikrify
+            verified seller হওয়া যায়, যা ক্রেতাদের বাড়তি আস্থা দেয়।
           </p>
         </section>
       </div>

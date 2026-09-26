@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, GitCompareArrows, Heart, MoreVertical, ShieldCheck, Star } from 'lucide-react'
+import { GitCompareArrows, Heart, MoreVertical, ShieldCheck, Star } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { isFavorited, addFavorite, removeFavorite } from '@/lib/favorites'
 import type { Product, Profile } from '@/types/product'
@@ -8,6 +8,7 @@ import { formatTaka } from '@/lib/format'
 import { isCompared, toggleCompared } from '@/lib/compare'
 import { BrandedDialog, DialogButton } from '@/components/BrandedDialog'
 import { isTestDemoProduct, trackCategoryInterest } from '@/lib/recommendationPreferences'
+import { BikrifyBadge } from '@/components/BikrifyBadge'
 
 type CardSeller = Pick<Profile, 'id' | 'name' | 'photo_url' | 'shop_name' | 'is_verified' | 'rating' | 'review_count'>
 
@@ -69,7 +70,7 @@ export function ProductCard({ product, compact = false, seller }: { product: Pro
       <div className={`min-w-0 flex-1 ${compact ? 'p-3' : 'px-1.5 pb-1.5 pt-2.5'}`}>
         <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="block"><p className="line-clamp-2 min-h-9 text-[13px] font-bold leading-4.5 text-ink-900">{product.title}</p></Link>
         <div className="mt-1 flex items-baseline gap-1.5"><Link to={`/products/${product.id}`} onClick={handleProductOpen} className="tabular-amount text-[1.05rem] font-extrabold text-accent-500">{formatTaka(product.price)}</Link>{product.original_price && product.original_price > product.price && <span className="tabular-amount text-[11px] text-ink-400 line-through">{formatTaka(product.original_price)}</span>}</div>
-        <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="mt-1.5 flex min-w-0 items-center gap-1.5 border-t border-outline pt-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[8px] font-bold text-brand-700">{seller?.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="min-w-0 truncate text-[11px] font-semibold text-brand-700">{sellerName}</span>{seller?.is_verified && <BadgeCheck size={13} className="shrink-0 text-brand-500" aria-label="যাচাইকৃত বিক্রেতা" />}<MoreVertical size={14} className="ml-auto shrink-0 text-ink-300" /></Link>
+        <Link to={`/products/${product.id}`} onClick={handleProductOpen} className="mt-1.5 flex min-w-0 items-center gap-1.5 border-t border-outline pt-1.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[8px] font-bold text-brand-700">{seller?.photo_url ? <img src={seller.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" /> : sellerName.charAt(0)}</span><span className="min-w-0 truncate text-[11px] font-semibold text-brand-700">{sellerName}</span>{seller?.is_verified && <BikrifyBadge compact />}<MoreVertical size={14} className="ml-auto shrink-0 text-ink-300" /></Link>
         <div className="mt-0.5 flex min-h-7 items-center justify-between gap-1 text-[10px] text-ink-500"><span className="flex min-w-0 items-center gap-1">{reviewCount > 0 ? <><span className="flex shrink-0 items-center gap-0.5 text-accent-500">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={10} className={index < Math.round(rating) ? 'fill-accent-500 text-accent-500' : 'text-accent-200'} />)}</span><span>({reviewCount})</span></> : <><span className="flex shrink-0 items-center gap-0.5 text-accent-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={10} />)}</span><span className="truncate">কোনো রিভিউ নেই</span></>}</span><span className="flex shrink-0 items-center gap-0.5">{user && <button type="button" onClick={handleToggleFavorite} disabled={toggling} aria-label={favorited ? 'পছন্দের তালিকা থেকে সরান' : 'পছন্দের তালিকায় যোগ করুন'} className="flex h-6 w-6 items-center justify-center rounded-full text-ink-300 hover:bg-accent-100 hover:text-error disabled:opacity-50"><Heart size={13} className={favorited ? 'fill-error text-error' : ''} /></button>}<button type="button" onClick={handleToggleCompare} aria-pressed={compared} aria-label={compared ? 'তুলনায় আছে' : 'তুলনায় যোগ করুন'} className={`flex h-6 w-6 items-center justify-center rounded-full text-ink-300 hover:bg-brand-50 hover:text-brand-700 ${compared ? 'bg-brand-50 text-brand-700' : ''}`}><GitCompareArrows size={13} /></button></span></div>
       </div>
     </article>

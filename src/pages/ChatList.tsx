@@ -9,6 +9,7 @@ import { formatDateTime } from '@/lib/format'
 import { displayShopName, displayUserName } from '@/lib/shopProfile'
 import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { ChatThread } from '@/types/chat'
+import { BikrifyBadge } from '@/components/BikrifyBadge'
 
 interface ThreadWithName extends ChatThread {
   otherName: string
@@ -119,7 +120,7 @@ export default function ChatList() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`flex min-w-0 items-center gap-1 truncate text-sm ${unread > 0 ? 'font-bold' : 'font-semibold'} text-ink-900`}>{thread.otherName}{thread.otherVerified && <BadgeCheck size={14} className="shrink-0 text-brand-600" />}</p>
+                    <p className={`flex min-w-0 items-center gap-1 truncate text-sm ${unread > 0 ? 'font-bold' : 'font-semibold'} text-ink-900`}>{thread.otherName}{thread.otherVerified && <BikrifyBadge compact />}</p>
                     <span className={`shrink-0 text-xs ${unread > 0 ? 'font-semibold text-brand-700' : 'text-ink-400'}`}>{formatDateTime(thread.last_message_at)}</span>
                   </div>
                   <p className="mt-0.5 truncate text-xs text-ink-600">{thread.last_message || (thread.isSellerConversation ? 'নতুন শপ কথোপকথন' : 'নতুন কথোপকথন')}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { ArrowLeft, BadgeCheck, Check, CheckCheck, Package, Send, Store } from 'lucide-react'
+import { ArrowLeft, Check, CheckCheck, Package, Send, Store } from 'lucide-react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { chatRequest } from '@/lib/chat'
@@ -11,6 +11,7 @@ import { formatDateTime } from '@/lib/format'
 import { displayShopName, displayUserName, shopUrl } from '@/lib/shopProfile'
 import { readCachedValue, userCacheKey, writeCachedValue } from '@/lib/clientCache'
 import type { ChatThread, ChatMessage } from '@/types/chat'
+import { BikrifyBadge } from '@/components/BikrifyBadge'
 
 type ProductContext = { id: string; title: string; images: string[] | null; price: number }
 type ParticipantProfile = { name: string | null; shop_name: string | null; shop_username: string | null; photo_url: string | null; is_verified: boolean }
@@ -201,6 +202,6 @@ export default function ChatThreadPage() {
   )
 
   function participantHeader() {
-    return <><div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">{otherProfile?.photo_url ? <img src={otherProfile.photo_url} alt="" className="h-full w-full object-cover" /> : (otherName.charAt(0) || '?')}</div><div className="min-w-0"><div className="flex items-center gap-1"><h1 className="truncate text-base font-bold text-ink-900">{otherName || 'চ্যাট'}</h1>{otherProfile?.is_verified && <BadgeCheck size={15} className="shrink-0 text-brand-600" />}</div><p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500"><Store size={12} />{sellerProfileUrl ? 'শপ দেখতে চাপুন' : 'নিরাপদ BikriKoro চ্যাট'}</p></div></>
+    return <><div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-bold text-brand-700">{otherProfile?.photo_url ? <img src={otherProfile.photo_url} alt="" className="h-full w-full object-cover" /> : (otherName.charAt(0) || '?')}</div><div className="min-w-0"><div className="flex items-center gap-1"><h1 className="truncate text-base font-bold text-ink-900">{otherName || 'চ্যাট'}</h1>{otherProfile?.is_verified && <BikrifyBadge compact />}</div><p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500"><Store size={12} />{sellerProfileUrl ? 'শপ দেখতে চাপুন' : 'নিরাপদ BikriKoro চ্যাট'}</p></div></>
   }
 }
